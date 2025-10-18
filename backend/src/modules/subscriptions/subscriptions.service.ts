@@ -6,6 +6,10 @@ export class SubscriptionsService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async getUserSubscription(userId: string) {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
     const [subscriptions] = await this.db.execute(
       `SELECT 
         s.id,

@@ -21,6 +21,10 @@ export class ShoppingService {
   }
 
   async getUserShoppingLists(userId: string) {
+    if (!userId) {
+      throw new NotFoundException('User ID is required');
+    }
+
     const [lists] = await this.db.execute(
       `SELECT 
         sl.id,

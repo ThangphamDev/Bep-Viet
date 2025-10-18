@@ -6,6 +6,10 @@ export class PantryService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async getUserPantry(userId: string) {
+    if (!userId) {
+      throw new NotFoundException('User ID is required');
+    }
+
     const [items] = await this.db.execute(
       `SELECT 
         pi.id,

@@ -7,6 +7,10 @@ export class UsersService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async getProfile(userId: string): Promise<UserProfileDto> {
+    if (!userId) {
+      throw new NotFoundException('User ID is required');
+    }
+
     const [users] = await this.db.execute(
       `SELECT id, email, name, role, region, subregion, created_at 
        FROM users WHERE id = ?`,

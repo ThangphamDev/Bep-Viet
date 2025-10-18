@@ -424,5 +424,5 @@ KẾT THÚC
 
 
 
-  TUnel ngrok : token "33V8b3nwqoYC6i2UrJJm03mByWG_7NgjF2PEQ1CA7k6hDEHTc"
-  gemini api key : AIzaSyDj2G5Q6fjur6YdLhqn-5VU4-odPb5zlhs
+  TUnel ngrok : token ""
+  gemini api key : 

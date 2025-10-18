@@ -240,6 +240,10 @@ export class MealPlansService {
   }
 
   async getUserMealPlans(userId: string) {
+    if (!userId) {
+      throw new NotFoundException('User ID is required');
+    }
+
     const [mealPlans] = await this.db.execute(
       `SELECT 
         mp.id,
