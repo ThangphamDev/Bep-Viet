@@ -52,15 +52,14 @@ export class RecipesService {
     }
 
     if (filters.search) {
-      query += ' AND (r.name_vi LIKE ? OR r.name_en LIKE ?)';
+      query += ' AND (LOWER(r.name_vi) LIKE LOWER(?) OR LOWER(r.name_en) LIKE LOWER(?))';
       params.push(`%${filters.search}%`, `%${filters.search}%`);
     }
 
     query += ' ORDER BY r.rating_avg DESC, r.created_at DESC';
 
     if (filters.limit) {
-      query += ' LIMIT ?';
-      params.push(filters.limit);
+      query += ` LIMIT ${parseInt(filters.limit.toString())}`;
     }
 
     const [recipes] = await this.db.execute(query, params);
