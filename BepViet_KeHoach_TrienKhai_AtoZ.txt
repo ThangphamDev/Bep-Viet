@@ -59,81 +59,82 @@ bep-viet/
   infra/   (docker, k8s manifests)
   .github/workflows/
 
-II. CẤU TRÚC DỰ ÁN – BACKEND (EXPRESS THUẦN)
-------------------------------------------------------------------------------------
+BACKEND (NestJS) – CẤU TRÚC THAM KHẢO
+------------------------------------------------------------------------------
 backend/
   src/
-    app.js                # khởi tạo express, middlewares, routes, swagger
-    server.js             # start server
+    app.module.ts
+    common/
+      guards/, interceptors/, pipes/, filters/
+      dto/, utils/, constants/
     config/
-      env.js              # load .env, validate
-      db.js               # mysql2 pool
-      logger.js           # winston
-    middlewares/
-      error.js            # error handler chuẩn hóa
-      auth.js             # verifyAccessToken, optionalAuth
-      rbac.js             # requireRole('admin')
-      rateLimit.js        # express-rate-limit
-    utils/
-      crypto.js           # hash/password
-      validate.js         # joi/zod schemas helpers
-      pagination.js
-    routes/
-      index.js            # gắn tất cả routers với /v1
-      auth.js
-      users.js
-      regions.js
-      seasons.js
-      ingredients.js
-      prices.js
-      recipes.js
-      suggestions.js
-      meal-plans.js
-      shopping.js
-      pantry.js
-      subscriptions.js
-      family.js
-      advisory.js
-      community.js
-      comments.js
-      ratings.js
-      moderation.js
-      analytics.js
-    services/             # nghiệp vụ thuần (không ORM nặng)
-      auth.service.js
-      users.service.js
-      ingredients.service.js
-      prices.service.js
-      recipes.service.js
-      suggestions.service.js
-      meal-plans.service.js
-      shopping.service.js
-      pantry.service.js
-      subscriptions.service.js
-      family.service.js
-      advisory.service.js
-      community.service.js
-      moderation.service.js
-      analytics.service.js
-    models/               # truy vấn SQL thuần (mysql2) theo module
-      users.model.js
-      ingredients.model.js
-      prices.model.js
-      recipes.model.js
-      ...
-    sql/
-      migrations/         # .sql thuần (up/down)
+      config.module.ts (env validation)
+    database/
+      prisma/ (nếu dùng Prisma) hoặc typeorm/
+      migrations/
       seeds/
-    docs/
-      openapi.yaml
-  test/
-    unit/
-    e2e/
+    modules/
+      auth/
+        auth.controller.ts
+        auth.service.ts
+        dto/ login.dto.ts, register.dto.ts, refresh.dto.ts
+      users/
+        users.controller.ts
+        users.service.ts
+        dto/ update-profile.dto.ts
+      regions/
+        regions.controller.ts
+        regions.service.ts
+      ingredients/
+        ingredients.controller.ts
+        ingredients.service.ts
+      prices/
+        prices.controller.ts
+        prices.service.ts
+      seasons/
+        seasons.controller.ts
+        seasons.service.ts
+      recipes/
+        recipes.controller.ts
+        recipes.service.ts
+        dto/ create-recipe.dto.ts, create-variant.dto.ts ...
+      suggestions/
+        suggestions.controller.ts
+        suggestions.service.ts (logic chấm điểm theo mùa + budget + region)
+      meal-plans/
+        meal-plans.controller.ts
+        meal-plans.service.ts
+      shopping/
+        shopping.controller.ts
+        shopping.service.ts
+      pantry/
+        pantry.controller.ts
+        pantry.service.ts
+      subscriptions/
+        subscriptions.controller.ts
+        subscriptions.service.ts
+      family/
+        family.controller.ts
+        family.service.ts
+      advisory/
+        advisory.controller.ts
+        advisory.service.ts
+      community/
+        community.controller.ts
+        community.service.ts
+      comments/
+      ratings/
+      moderation/
+      analytics/
+  test/ (e2e, unit)
+  openapi/ (swagger.json)
   package.json
+  tsconfig.json
   .env.example
-  Dockerfile
+  dockerfile
 
-.env ví dụ
+ENV & CHẠY BACKEND
+- .env (ví dụ)
   NODE_ENV=development
   PORT=8080
   DB_HOST=localhost
@@ -144,205 +145,109 @@ backend/
   JWT_SECRET=supersecret
   JWT_EXPIRES=3600
   REFRESH_SECRET=refreshsecret
+- Scripts:
+  npm run start:dev
+  npm run migration:run
+  npm run seed
+  npm run test
 
-Scripts (package.json)
-  "dev": "nodemon src/server.js",
-  "start": "node src/server.js",
-  "lint": "eslint .",
-  "test": "jest --runInBand",
-  "migrate:up": "node scripts/run-migrations.js up",
-  "migrate:down": "node scripts/run-migrations.js down",
-  "seed": "node scripts/run-seeds.js"
-
-
-IV. API CHUẨN (EXPRESS) – ENDPOINTS
-------------------------------------------------------------------------------------
+API DESIGN (OpenAPI tóm tắt)
+------------------------------------------------------------------------------
 Auth
-- POST /v1/auth/register
-- POST /v1/auth/login
-- POST /v1/auth/refresh
-- POST /v1/auth/logout
+- POST /auth/register {email, password, name, region, subregion}
+- POST /auth/login {email, password} -> {accessToken, refreshToken}
+- POST /auth/refresh {refreshToken}
+- POST /auth/logout
 
 Users
-- GET  /v1/users/me
-- PATCH /v1/users/me
-- GET  /v1/users/:id (admin)
+- GET  /users/me
+- PATCH /users/me {name, region, subregion, preferences[], favorite_cuisines[]}
+- GET  /users/:id (admin)
 
-Regions/Seasons
-- GET /v1/regions
-- GET /v1/regions/:id/subregions
-- GET /v1/seasons
+Regions & Seasonality
+- GET /regions (Bắc/Trung/Nam + subregions)
+- GET /seasons (Xuân/Hạ/Thu/Đông)
+- GET /ingredients/seasonality?ingredient_id=...
 
 Ingredients & Prices
-- GET /v1/ingredients?search=&category=
-- POST /v1/ingredients (admin)
-- PATCH /v1/ingredients/:id (admin)
-- DELETE /v1/ingredients/:id (admin)
-- GET /v1/ingredient-prices?ingredient_id=&region=&on=YYYY-MM-DD
-- POST /v1/ingredient-prices (admin)
-- PATCH /v1/ingredient-prices/:id (admin)
-- DELETE /v1/ingredient-prices/:id (admin)
+- GET /ingredients?search=...&category=...
+- POST/PUT/DELETE /ingredients (admin)
+- GET /ingredient-prices?ingredient_id=&region=&date=
+- POST/PUT/DELETE /ingredient-prices (admin)
 
 Recipes
-- GET /v1/recipes?region=&budget=&difficulty=&tag=
-- POST /v1/recipes (author/admin)
-- GET /v1/recipes/:id
-- PATCH /v1/recipes/:id
-- DELETE /v1/recipes/:id
-- GET /v1/recipes/:id/variants
-- POST /v1/recipes/:id/variants
-- GET /v1/recipes/:id/steps
-- POST /v1/recipes/:id/media
+- GET /recipes?region=&budget=&difficulty=&tag=
+- POST /recipes (admin/author)
+- GET /recipes/:id
+- PATCH /recipes/:id
+- DELETE /recipes/:id (admin)
+- GET /recipes/:id/variants
+- POST /recipes/:id/variants (admin/author)
+- GET /recipes/:id/steps /:ingredients
+- POST /recipes/:id/media (ảnh)
 
 Suggestions (core)
-- POST /v1/suggestions/search
-  Body: { region, season, servings, budget, spice_pref, pantry_ids[], exclude_allergens[], max_time }
-  Resp: [ { recipe_id, variant_region, total_cost, items:[{ingredient_id, qty, est_cost}], season_score, score, reason } ]
+- POST /suggestions/search
+  body: { region, season, servings, budget, spice_pref, pantry_ids[], exclude_allergens[], max_time }
+  resp: [{ recipe_id, variant_region, total_cost, items:[{ingredient_id, qty, est_cost}], season_score, reason }]
 
 Meal Plans
-- POST /v1/meal-plans/generate
-- GET  /v1/meal-plans/:id
-- PATCH/POST /v1/meal-plans/:id/add-recipe
-- DELETE     /v1/meal-plans/:id/remove-recipe
+- POST /meal-plans/generate
+  body: { week_start, region, budget_per_meal, servings, constraints:{no_repeat: true, nutrition_balance:true} }
+- GET /meal-plans/:id
+- PATCH /meal-plans/:id (điều chỉnh thủ công)
+- POST /meal-plans/:id/add-recipe {day, meal_type, recipe_id, variant_region}
+- DELETE /meal-plans/:id/remove-recipe {day, meal_type}
 
 Shopping Lists
-- POST /v1/shopping-lists/from-meal-plan
-- GET  /v1/shopping-lists/:id
-- PATCH /v1/shopping-lists/:id/check-item
-- GET  /v1/shopping-lists/:id/export?format=csv|pdf
+- POST /shopping-lists/from-meal-plan {meal_plan_id, include_pantry:true}
+- GET /shopping-lists/:id
+- PATCH /shopping-lists/:id/check-item {item_id, checked:true}
+- GET /shopping-lists/:id/export?format=pdf|csv
 
 Pantry
-- GET  /v1/pantry
-- POST /v1/pantry
-- PATCH /v1/pantry/:id
-- DELETE /v1/pantry/:id
-- POST /v1/pantry/consume
+- GET /pantry
+- POST /pantry {ingredient_id, quantity, unit, expire_date, location}
+- PATCH /pantry/:id
+- DELETE /pantry/:id
+- POST /pantry/consume {ingredient_id, quantity}
 
 Premium – Subscriptions & Family
-- GET  /v1/subscriptions/my
-- POST /v1/subscriptions/checkout (stub)
-- GET  /v1/family
-- POST /v1/family
-- POST /v1/family/members
-- PATCH /v1/family/members/:id
-- POST /v1/advisory/check
+- GET /subscriptions/my
+- POST /subscriptions/checkout (stub) -> {status:active}
+- GET /family
+- POST /family {name, note}
+- POST /family/members {name, age, allergies[], spice_level, diet_flags[]}
+- PATCH /family/members/:id
+- Advisories
+  - POST /advisory/check
+    body: { recipe_id, variant_region, family_member_ids[] }
+    resp: [{member_id, issues:[{type:ALLERGY|SPICE|SODIUM, level:WARN|BLOCK, message}]}]
 
 Community & Moderation
-- GET  /v1/community/recipes?region=&tag=&status=Approved
-- POST /v1/community/recipes
-- GET  /v1/community/recipes/:id
-- POST /v1/community/recipes/:id/comments
-- POST /v1/community/recipes/:id/ratings
-- POST /v1/community/recipes/:id/favorite
-- POST /v1/moderation/recipes/:id/approve|reject|feature
-- GET  /v1/analytics/recipes/top?range=7d
+- GET /community/recipes?region=&tag=&status=Approved
+- POST /community/recipes (user)
+- GET /community/recipes/:id
+- POST /community/recipes/:id/comments
+- POST /community/recipes/:id/ratings
+- POST /community/recipes/:id/favorite
+- Admin moderation
+  - POST /moderation/recipes/:id/approve|reject|feature
+- Analytics (admin)
+  - GET /analytics/recipes/top?range=7d
 
-V. LOGIC GỢI Ý (SERVICE PSEUDO)
-------------------------------------------------------------------------------------
-Input: region, season, servings, budget, pantry_ids[], exclude_allergens[], spice_pref, max_time
-for each recipe:
-  v = variant(region)
-  if v has allergens in exclude_allergens -> skip
-  time_penalty = (recipe.timeMin > max_time ? -20 : 0)
-  est = sum( price(region, ing) * qty(servings) ) - pantry_credit(ing in pantry)
-  season_score = avg( availability(ing, season) ) or default 60
-  region_bonus = (recipe.base_region == region ? +10 : 0)
-  budget_bonus = (est <= budget ? +15 : - (est - budget)/5000 )
-  spice_penalty = abs(recipe.spice_level - spice_pref) * -2
-  score = season_score + region_bonus + budget_bonus + spice_penalty + time_penalty
-sort desc score, return top N with breakdown items.
+Error model (chuẩn hoá)
+- { error: { code: "VALIDATION_ERROR", message: "...", details: [] } }
 
-VI. MẪU MÃ NGUỒN EXPRESS (TỐI GIẢN)
-------------------------------------------------------------------------------------
-/* src/app.js */
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const { errorHandler } = require('./middlewares/error');
-const routes = require('./routes');
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(morgan('dev'));
-app.use('/v1', routes);
-app.use(errorHandler);
-module.exports = app;
-
-/* src/server.js */
-const app = require('./app');
-const { PORT } = require('./config/env');
-app.listen(PORT, () => console.log(`API running on :${PORT}`));
-
-/* src/config/db.js */
-const mysql = require('mysql2/promise');
-const pool = mysql.createPool({ host: process.env.DB_HOST, user: process.env.DB_USER, password: process.env.DB_PASS, database: process.env.DB_NAME, waitForConnections: true, connectionLimit: 10 });
-module.exports = { pool };
-
-/* src/routes/index.js */
-const router = require('express').Router();
-router.use('/auth', require('./auth'));
-router.use('/users', require('./users'));
-router.use('/regions', require('./regions'));
-router.use('/seasons', require('./seasons'));
-router.use('/ingredients', require('./ingredients'));
-router.use('/ingredient-prices', require('./prices'));
-router.use('/recipes', require('./recipes'));
-router.use('/suggestions', require('./suggestions'));
-router.use('/meal-plans', require('./meal-plans'));
-router.use('/shopping-lists', require('./shopping'));
-router.use('/pantry', require('./pantry'));
-router.use('/subscriptions', require('./subscriptions'));
-router.use('/family', require('./family'));
-router.use('/advisory', require('./advisory'));
-router.use('/community', require('./community'));
-router.use('/moderation', require('./moderation'));
-router.use('/analytics', require('./analytics'));
-module.exports = router;
-
-/* src/routes/auth.js */
-const router = require('express').Router();
-const Auth = require('../services/auth.service');
-router.post('/register', Auth.register);
-router.post('/login', Auth.login);
-router.post('/refresh', Auth.refresh);
-router.post('/logout', Auth.logout);
-module.exports = router;
-
-/* src/services/suggestions.service.js (ý chính) */
-// req.body: { region, season, servings, budget, pantry_ids, exclude_allergens, spice_pref=1..5, max_time }
-const { getRecipesWithVariant, estimateCost, seasonalScore } = require('../models/recipes.model');
-exports.search = async (req, res, next) => {
-  try {
-    const { region, season, servings=2, budget=50000, pantry_ids=[], exclude_allergens=[], spice_pref=2, max_time=45 } = req.body || {};
-    const recipes = await getRecipesWithVariant(region);
-    const out = [];
-    for (const r of recipes) {
-      if (r.allergens?.some(a => exclude_allergens.includes(a))) continue;
-      const timePenalty = r.time_min > max_time ? -20 : 0;
-      const { total, items } = await estimateCost(r.variant_id, servings, region, pantry_ids);
-      const sScore = await seasonalScore(r.variant_id, season);
-      const regionBonus = r.base_region === region ? 10 : 0;
-      const budgetBonus = total <= budget ? 15 : -Math.max(0, (total - budget))/5000;
-      const spicePenalty = Math.abs((r.spice_level||0) - spice_pref) * -2;
-      const score = sScore + regionBonus + budgetBonus + spicePenalty + timePenalty;
-      out.push({ recipe_id: r.id, variant_region: region, total_cost: total, items, season_score: sScore, score, reason: "region/season/budget" });
-    }
-    out.sort((a,b)=> b.score - a.score);
-    res.json(out.slice(0, 10));
-  } catch (e) { next(e); }
-};
-
-/* src/routes/suggestions.js */
-const router = require('express').Router();
-const Svc = require('../services/suggestions.service');
-router.post('/search', Svc.search);
-module.exports = router;
-
-/* src/middlewares/error.js */
-exports.errorHandler = (err, req, res, next) => {
-  const status = err.status || 500;
-  res.status(status).json({ error: { code: err.code || 'INTERNAL', message: err.message || 'Internal error', details: err.details || [] } });
-};
+LOGIC GỢI Ý (Pseudo)
+- Input: region, season, servings, budget, pantry, spice_pref, max_time
+- For each recipe -> chọn variant theo region -> ước tính cost theo ingredient_prices(region)
+- season_score = avg(availability% của nguyên liệu theo season)
+- base_score = season_score + (base_region==region ? +10 : 0)
+- budget_bonus = (total_cost <= budget ? +15 : - (total_cost - budget)/5000 )
+- pantry_bonus = -cost của nguyên liệu đã có sẵn (nếu trừ tồn)
+- time_penalty = (timeMin > max_time ? -20 : 0)
+- sort desc by final_score
 
 MOBILE (Flutter) – CẤU TRÚC DỰ ÁN
 ------------------------------------------------------------------------------
@@ -515,6 +420,7 @@ KẾT THÚC
   1) OpenAPI.yaml v1 (chi tiết schema)
   2) Bộ Postman collection
   3) Skeleton code NestJS modules + Flutter routes
+
 
 
 

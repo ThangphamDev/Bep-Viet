@@ -1,67 +1,98 @@
 version: '3.8'
 
 services:
+  # MySQL Database
   mysql:
     image: mysql:8.0
-    container_name: bepviet_mysql
+    container_name: bepviet-mysql
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: bepviet
-      MYSQL_USER: bepviet
-      MYSQL_PASSWORD: bepviet123
+      MYSQL_ROOT_PASSWORD: ${DB_PASS:-secret}
+      MYSQL_DATABASE: ${DB_NAME:-bepviet}
+      MYSQL_USER: ${DB_USER:-bepviet}
+      MYSQL_PASSWORD: ${DB_PASS:-secret}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./bepviet_full_schema.sql:/docker-entrypoint-initdb.d/init.sql
-    command: --default-authentication-plugin=mysql_native_password
+      - ./backend/src/database/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - bepviet-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
-  adminer:
-    image: adminer:latest
-    container_name: bepviet_adminer
-    ports:
-      - "8081:8080"
-    depends_on:
-      - mysql
-
+  # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: bepviet_backend
-    ports:
-      - "8080:8080"
+    container_name: bepviet-backend
+    restart: unless-stopped
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: 8080
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: bepviet
-      DB_PASS: bepviet123
-      DB_NAME: bepviet
-      JWT_SECRET: supersecretkey123456789012345678901234567890
-      JWT_EXPIRES: 3600
-      REFRESH_SECRET: refreshsecretkey123456789012345678901234567890
-      REFRESH_EXPIRES: 604800
+      DB_USER: ${DB_USER:-bepviet}
+      DB_PASS: ${DB_PASS:-secret}
+      DB_NAME: ${DB_NAME:-bepviet}
+      JWT_SECRET: ${JWT_SECRET:-supersecretkey123456789012345678901234567890}
+      JWT_EXPIRES: ${JWT_EXPIRES:-3600}
+      REFRESH_SECRET: ${REFRESH_SECRET:-refreshsecretkey123456789012345678901234567890}
+      REFRESH_EXPIRES: ${REFRESH_EXPIRES:-604800}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - bepviet-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Adminer (Database Management)
+  adminer:
+    image: adminer:latest
+    container_name: bepviet-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
     depends_on:
       - mysql
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    command: npm run dev
+    networks:
+      - bepviet-network
 
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: bepviet_ngrok
-    environment:
-      NGROK_AUTHTOKEN: "34EeI1bvlne62Ni1ElFtXQ9rx93_4gCgGDYfp7r5gQwtkA16U"
-    command: 
-      - "tunnel"
-      - "http://backend:8080"
-    depends_on:
-      - backend
+  # Redis (for caching and sessions)
+  redis:
+    image: redis:7-alpine
+    container_name: bepviet-redis
+    restart: unless-stopped
     ports:
-      - "4040:4040"
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - bepviet-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  bepviet-network:
+    driver: bridge
