@@ -1,0 +1,522 @@
+
+BẾP VIỆT – KẾ HOẠCH TRIỂN KHAI TỪ A→Z (BACKEND NODE.JS + FLUTTER DART)
+==============================================================================
+MỤC TIÊU
+- Ứng dụng giải quyết “Hôm nay ăn gì?” với gợi ý theo vùng miền, mùa vụ, ngân sách.
+- Lập kế hoạch tuần, tạo danh sách đi chợ, quản lý “Tủ lạnh của tôi”.
+- Cộng đồng công thức, gói Premium với hồ sơ gia đình và cảnh báo dinh dưỡng.
+- Backend Node.js (khuyến nghị NestJS + TypeScript). Mobile FE Flutter (Dart). DB MySQL.
+
+LỘ TRÌNH & TASKS (ROADMAP)
+------------------------------------------------------------------------------
+PHASE 0 – Khởi tạo & CI/CD (1 tuần)
+- [DevOps] Quy ước repo, branch, commit (Conventional Commits), code style (ESLint, Prettier).
+- [Infra] Docker Compose: mysql, adminer, api, flutter web (dev).
+- [CI] GitHub Actions: Lint + Test + Migrate DB + Build Docker.
+- [Security] .env mẫu & vault, git-secrets, renovate/bot.
+Deliverables: /docker, /infra, pipeline CI; README khởi tạo dự án.
+
+PHASE 1 – Nền tảng dữ liệu & Auth (2 tuần)
+- [DB] Áp dụng schema MySQL đã cung cấp (22+ bảng core + mở rộng).
+- [Auth] Đăng ký/Đăng nhập (email + password), JWT, refresh token, RBAC (user, admin).
+- [User Profile] Thêm region/subregion, khẩu vị, hạn chế dinh dưỡng.
+Deliverables: Migrations, Seed cơ bản; /auth, /users module; Postman collection.
+
+PHASE 2 – Công thức & Gợi ý theo vùng/mùa/ngân sách (3 tuần)
+- [Recipes] CRUD recipes, variants theo Bắc/Trung/Nam; bước nấu, ảnh.
+- [Seasonality] Seasons + ingredient_seasonality; ưu tiên gợi ý theo mùa.
+- [Budget] ingredient_prices theo vùng; ước tính chi phí món và bữa.
+- [Suggest API] Gợi ý theo (region, season, servings, budget).
+Deliverables: /recipes, /variants, /ingredients, /prices, /suggestions.
+
+PHASE 3 – Kế hoạch tuần + Danh sách đi chợ + Tủ lạnh (3 tuần)
+- [Planner] Tạo meal_plan (7 ngày), tránh lặp, cân bằng chi phí.
+- [Shopping] Tổng hợp nguyên liệu từ kế hoạch → shopping_list + group theo quầy.
+- [Pantry] Quản lý tồn kho, cảnh báo HSD, trừ tồn khi nấu.
+Deliverables: /meal-plans, /shopping-lists, /pantry.
+
+PHASE 4 – Premium (Family Profile) & Cảnh báo (2 tuần)
+- [Premium] Subscriptions, family_profiles/members, allergies, hạn chế.
+- [Advisory] Cảnh báo cay/dị ứng/huyết áp/tiểu đường theo hồ sơ.
+Deliverables: /subscriptions, /family, /advisory endpoints.
+
+PHASE 5 – Cộng đồng & Moderation (2 tuần)
+- [Community] Đăng công thức, bình luận, đánh giá, like/favorite.
+- [Admin] Duyệt, gắn Featured, phân tích cơ bản.
+Deliverables: /community, /comments, /ratings, /moderation, /analytics.
+
+PHASE 6 – Polish & Growth (liên tục)
+- i18n, Performance, Offline, Push Notification, A/B test, Deep links.
+- Tích hợp siêu thị (giá theo chợ/siêu thị, giao hàng), Video hướng dẫn.
+
+REPO & CẤU TRÚC DỰ ÁN
+------------------------------------------------------------------------------
+Monorepo (khuyến nghị):
+bep-viet/
+  backend/ (NestJS + TypeScript)
+  mobile/  (Flutter + Dart)
+  docs/    (OpenAPI, ADRs, diagrams)
+  infra/   (docker, k8s manifests)
+  .github/workflows/
+
+II. CẤU TRÚC DỰ ÁN – BACKEND (EXPRESS THUẦN)
+------------------------------------------------------------------------------------
+backend/
+  src/
+    app.js                # khởi tạo express, middlewares, routes, swagger
+    server.js             # start server
+    config/
+      env.js              # load .env, validate
+      db.js               # mysql2 pool
+      logger.js           # winston
+    middlewares/
+      error.js            # error handler chuẩn hóa
+      auth.js             # verifyAccessToken, optionalAuth
+      rbac.js             # requireRole('admin')
+      rateLimit.js        # express-rate-limit
+    utils/
+      crypto.js           # hash/password
+      validate.js         # joi/zod schemas helpers
+      pagination.js
+    routes/
+      index.js            # gắn tất cả routers với /v1
+      auth.js
+      users.js
+      regions.js
+      seasons.js
+      ingredients.js
+      prices.js
+      recipes.js
+      suggestions.js
+      meal-plans.js
+      shopping.js
+      pantry.js
+      subscriptions.js
+      family.js
+      advisory.js
+      community.js
+      comments.js
+      ratings.js
+      moderation.js
+      analytics.js
+    services/             # nghiệp vụ thuần (không ORM nặng)
+      auth.service.js
+      users.service.js
+      ingredients.service.js
+      prices.service.js
+      recipes.service.js
+      suggestions.service.js
+      meal-plans.service.js
+      shopping.service.js
+      pantry.service.js
+      subscriptions.service.js
+      family.service.js
+      advisory.service.js
+      community.service.js
+      moderation.service.js
+      analytics.service.js
+    models/               # truy vấn SQL thuần (mysql2) theo module
+      users.model.js
+      ingredients.model.js
+      prices.model.js
+      recipes.model.js
+      ...
+    sql/
+      migrations/         # .sql thuần (up/down)
+      seeds/
+    docs/
+      openapi.yaml
+  test/
+    unit/
+    e2e/
+  package.json
+  .env.example
+  Dockerfile
+
+.env ví dụ
+  NODE_ENV=development
+  PORT=8080
+  DB_HOST=localhost
+  DB_PORT=3306
+  DB_USER=root
+  DB_PASS=secret
+  DB_NAME=bepviet
+  JWT_SECRET=supersecret
+  JWT_EXPIRES=3600
+  REFRESH_SECRET=refreshsecret
+
+Scripts (package.json)
+  "dev": "nodemon src/server.js",
+  "start": "node src/server.js",
+  "lint": "eslint .",
+  "test": "jest --runInBand",
+  "migrate:up": "node scripts/run-migrations.js up",
+  "migrate:down": "node scripts/run-migrations.js down",
+  "seed": "node scripts/run-seeds.js"
+
+
+IV. API CHUẨN (EXPRESS) – ENDPOINTS
+------------------------------------------------------------------------------------
+Auth
+- POST /v1/auth/register
+- POST /v1/auth/login
+- POST /v1/auth/refresh
+- POST /v1/auth/logout
+
+Users
+- GET  /v1/users/me
+- PATCH /v1/users/me
+- GET  /v1/users/:id (admin)
+
+Regions/Seasons
+- GET /v1/regions
+- GET /v1/regions/:id/subregions
+- GET /v1/seasons
+
+Ingredients & Prices
+- GET /v1/ingredients?search=&category=
+- POST /v1/ingredients (admin)
+- PATCH /v1/ingredients/:id (admin)
+- DELETE /v1/ingredients/:id (admin)
+- GET /v1/ingredient-prices?ingredient_id=&region=&on=YYYY-MM-DD
+- POST /v1/ingredient-prices (admin)
+- PATCH /v1/ingredient-prices/:id (admin)
+- DELETE /v1/ingredient-prices/:id (admin)
+
+Recipes
+- GET /v1/recipes?region=&budget=&difficulty=&tag=
+- POST /v1/recipes (author/admin)
+- GET /v1/recipes/:id
+- PATCH /v1/recipes/:id
+- DELETE /v1/recipes/:id
+- GET /v1/recipes/:id/variants
+- POST /v1/recipes/:id/variants
+- GET /v1/recipes/:id/steps
+- POST /v1/recipes/:id/media
+
+Suggestions (core)
+- POST /v1/suggestions/search
+  Body: { region, season, servings, budget, spice_pref, pantry_ids[], exclude_allergens[], max_time }
+  Resp: [ { recipe_id, variant_region, total_cost, items:[{ingredient_id, qty, est_cost}], season_score, score, reason } ]
+
+Meal Plans
+- POST /v1/meal-plans/generate
+- GET  /v1/meal-plans/:id
+- PATCH/POST /v1/meal-plans/:id/add-recipe
+- DELETE     /v1/meal-plans/:id/remove-recipe
+
+Shopping Lists
+- POST /v1/shopping-lists/from-meal-plan
+- GET  /v1/shopping-lists/:id
+- PATCH /v1/shopping-lists/:id/check-item
+- GET  /v1/shopping-lists/:id/export?format=csv|pdf
+
+Pantry
+- GET  /v1/pantry
+- POST /v1/pantry
+- PATCH /v1/pantry/:id
+- DELETE /v1/pantry/:id
+- POST /v1/pantry/consume
+
+Premium – Subscriptions & Family
+- GET  /v1/subscriptions/my
+- POST /v1/subscriptions/checkout (stub)
+- GET  /v1/family
+- POST /v1/family
+- POST /v1/family/members
+- PATCH /v1/family/members/:id
+- POST /v1/advisory/check
+
+Community & Moderation
+- GET  /v1/community/recipes?region=&tag=&status=Approved
+- POST /v1/community/recipes
+- GET  /v1/community/recipes/:id
+- POST /v1/community/recipes/:id/comments
+- POST /v1/community/recipes/:id/ratings
+- POST /v1/community/recipes/:id/favorite
+- POST /v1/moderation/recipes/:id/approve|reject|feature
+- GET  /v1/analytics/recipes/top?range=7d
+
+V. LOGIC GỢI Ý (SERVICE PSEUDO)
+------------------------------------------------------------------------------------
+Input: region, season, servings, budget, pantry_ids[], exclude_allergens[], spice_pref, max_time
+for each recipe:
+  v = variant(region)
+  if v has allergens in exclude_allergens -> skip
+  time_penalty = (recipe.timeMin > max_time ? -20 : 0)
+  est = sum( price(region, ing) * qty(servings) ) - pantry_credit(ing in pantry)
+  season_score = avg( availability(ing, season) ) or default 60
+  region_bonus = (recipe.base_region == region ? +10 : 0)
+  budget_bonus = (est <= budget ? +15 : - (est - budget)/5000 )
+  spice_penalty = abs(recipe.spice_level - spice_pref) * -2
+  score = season_score + region_bonus + budget_bonus + spice_penalty + time_penalty
+sort desc score, return top N with breakdown items.
+
+VI. MẪU MÃ NGUỒN EXPRESS (TỐI GIẢN)
+------------------------------------------------------------------------------------
+/* src/app.js */
+const express = require('express');
+const cors = require('cors');
+const morgan = require('morgan');
+const { errorHandler } = require('./middlewares/error');
+const routes = require('./routes');
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(morgan('dev'));
+app.use('/v1', routes);
+app.use(errorHandler);
+module.exports = app;
+
+/* src/server.js */
+const app = require('./app');
+const { PORT } = require('./config/env');
+app.listen(PORT, () => console.log(`API running on :${PORT}`));
+
+/* src/config/db.js */
+const mysql = require('mysql2/promise');
+const pool = mysql.createPool({ host: process.env.DB_HOST, user: process.env.DB_USER, password: process.env.DB_PASS, database: process.env.DB_NAME, waitForConnections: true, connectionLimit: 10 });
+module.exports = { pool };
+
+/* src/routes/index.js */
+const router = require('express').Router();
+router.use('/auth', require('./auth'));
+router.use('/users', require('./users'));
+router.use('/regions', require('./regions'));
+router.use('/seasons', require('./seasons'));
+router.use('/ingredients', require('./ingredients'));
+router.use('/ingredient-prices', require('./prices'));
+router.use('/recipes', require('./recipes'));
+router.use('/suggestions', require('./suggestions'));
+router.use('/meal-plans', require('./meal-plans'));
+router.use('/shopping-lists', require('./shopping'));
+router.use('/pantry', require('./pantry'));
+router.use('/subscriptions', require('./subscriptions'));
+router.use('/family', require('./family'));
+router.use('/advisory', require('./advisory'));
+router.use('/community', require('./community'));
+router.use('/moderation', require('./moderation'));
+router.use('/analytics', require('./analytics'));
+module.exports = router;
+
+/* src/routes/auth.js */
+const router = require('express').Router();
+const Auth = require('../services/auth.service');
+router.post('/register', Auth.register);
+router.post('/login', Auth.login);
+router.post('/refresh', Auth.refresh);
+router.post('/logout', Auth.logout);
+module.exports = router;
+
+/* src/services/suggestions.service.js (ý chính) */
+// req.body: { region, season, servings, budget, pantry_ids, exclude_allergens, spice_pref=1..5, max_time }
+const { getRecipesWithVariant, estimateCost, seasonalScore } = require('../models/recipes.model');
+exports.search = async (req, res, next) => {
+  try {
+    const { region, season, servings=2, budget=50000, pantry_ids=[], exclude_allergens=[], spice_pref=2, max_time=45 } = req.body || {};
+    const recipes = await getRecipesWithVariant(region);
+    const out = [];
+    for (const r of recipes) {
+      if (r.allergens?.some(a => exclude_allergens.includes(a))) continue;
+      const timePenalty = r.time_min > max_time ? -20 : 0;
+      const { total, items } = await estimateCost(r.variant_id, servings, region, pantry_ids);
+      const sScore = await seasonalScore(r.variant_id, season);
+      const regionBonus = r.base_region === region ? 10 : 0;
+      const budgetBonus = total <= budget ? 15 : -Math.max(0, (total - budget))/5000;
+      const spicePenalty = Math.abs((r.spice_level||0) - spice_pref) * -2;
+      const score = sScore + regionBonus + budgetBonus + spicePenalty + timePenalty;
+      out.push({ recipe_id: r.id, variant_region: region, total_cost: total, items, season_score: sScore, score, reason: "region/season/budget" });
+    }
+    out.sort((a,b)=> b.score - a.score);
+    res.json(out.slice(0, 10));
+  } catch (e) { next(e); }
+};
+
+/* src/routes/suggestions.js */
+const router = require('express').Router();
+const Svc = require('../services/suggestions.service');
+router.post('/search', Svc.search);
+module.exports = router;
+
+/* src/middlewares/error.js */
+exports.errorHandler = (err, req, res, next) => {
+  const status = err.status || 500;
+  res.status(status).json({ error: { code: err.code || 'INTERNAL', message: err.message || 'Internal error', details: err.details || [] } });
+};
+
+MOBILE (Flutter) – CẤU TRÚC DỰ ÁN
+------------------------------------------------------------------------------
+mobile/
+  lib/
+    app.dart
+    main.dart
+    core/
+      config/app_config.dart
+      constants/
+      network/api_client.dart
+      error/failure.dart
+      utils/
+      theme/
+    data/
+      models/ (dart data classes)
+      repositories/
+      sources/
+        remote/ (api services)
+        local/  (prefs, sqlite nếu cần cache)
+    domain/
+      entities/
+      usecases/
+    presentation/
+      routes/app_router.dart
+      widgets/
+      features/
+        home/
+          pages/home_page.dart
+        suggest/
+          pages/suggest_page.dart
+          widgets/suggest_filters.dart
+          cubit/suggest_cubit.dart
+        recipes/
+          pages/recipes_page.dart
+          pages/recipe_detail_page.dart
+          widgets/variant_toggle.dart
+        planner/
+          pages/planner_page.dart
+          widgets/day_cell.dart
+          cubit/planner_cubit.dart
+          pages/shopping_embedded_sheet.dart  // Nút mở DS mua sắm ngay trong Planner
+        pantry/
+          pages/pantry_page.dart
+          widgets/pantry_item_card.dart
+        shopping/
+          pages/shopping_page.dart
+          widgets/shopping_group_card.dart
+        community/
+          pages/community_page.dart
+          pages/community_detail_page.dart
+        premium/
+          pages/family_page.dart
+          pages/advisory_check_page.dart
+        auth/
+          pages/login_page.dart
+          pages/register_page.dart
+    l10n/
+  pubspec.yaml
+
+NAVIGATION (5 TAB CHÍNH + LỒNG NHAU)
+- BottomNav (5 tab):
+  1) Gợi ý (Suggest)
+  2) Thực đơn (Recipes)
+  3) Kế hoạch (Planner)  ← trong trang có nút mở “Danh sách mua sắm” (sheet/route con)
+  4) Tủ lạnh (Pantry)
+  5) Cộng đồng (Community)
+- Premium & Hồ sơ gia đình: vào từ avatar/profile menu hoặc từ banner trong Suggest/Planner.
+- Shopping list có thể truy cập:
+   a) từ Planner (button trong card ngày → mở ShoppingEmbeddedSheet)
+   b) từ AppBar hành trang (shortcut)
+- Deep-links: app://recipe/{id}, app://plan/{week}
+
+DART: KHUNG FILE (ví dụ ngắn)
+------------------------------------------------------------------------------
+// lib/presentation/routes/app_router.dart
+class AppRoutes {
+  static const suggest = '/suggest';
+  static const recipes = '/recipes';
+  static const planner = '/planner';
+  static const pantry  = '/pantry';
+  static const community = '/community';
+  static const shopping = '/shopping'; // route con mở từ planner
+}
+
+// lib/presentation/features/suggest/pages/suggest_page.dart
+// - Gồm filter: region, season, servings, budget
+// - Gọi POST /suggestions/search và render list card (tên món, score, est cost, button “Thêm vào hôm nay”).
+
+// lib/presentation/features/recipes/pages/recipes_page.dart
+// - List + search + toggle biến thể vùng cho từng món.
+// - Tap → recipe_detail_page: show steps, ingredients, tab “Biến thể”.
+
+// lib/presentation/features/planner/pages/planner_page.dart
+// - Bảng 7 ngày (Sáng/Trưa/Tối).
+// - FAB “Tạo kế hoạch tự động” gọi POST /meal-plans/generate.
+// - Trong mỗi ngày có nút “Mua sắm” → mở shopping_embedded_sheet.dart (load /shopping-lists/from-meal-plan).
+
+// lib/presentation/features/shopping/pages/shopping_page.dart
+// - Group theo quầy (store_sections), checkbox, tổng tiền, export CSV/PDF.
+
+// lib/presentation/features/pantry/pages/pantry_page.dart
+// - CRUD pantry items, cảnh báo HSD (màu cam/đỏ).
+// - Button “Gợi ý nấu ngay” gọi /suggestions/search với pantry ưu tiên.
+
+STATE MANAGEMENT
+- Có thể dùng Bloc/Cubit hoặc Riverpod. Gợi ý: Cubit cho từng feature (suggest_cubit, planner_cubit).
+
+API CLIENT (Dart)
+- api_client.dart: Dio/Http với baseURL, interceptors (JWT), retry, error mapping.
+- Model codegen: json_serializable.
+
+TESTING
+- Backend: Jest unit + e2e (Supertest). Test scoring suggestions (đầu vào cố định, kiểm tra top-1).
+- Mobile: Widget tests cho mỗi page; golden tests cho card.
+- Postman/Bruno collection: auth, recipes, suggestions, planner, shopping, pantry, community, premium.
+
+VERSIONING & MIGRATIONS
+- DB migration (Prisma/TypeORM). Tách seed (regions, seasons, units, store_sections).
+- OpenAPI version: /v1, chuẩn hoá error model.
+
+SECURITY & PERFORMANCE
+- Rate limiting, helmet, CORS, input validation (class-validator).
+- Caching: ingredient_prices theo region, suggestions cache theo (region, season, budget bucket).
+- Pagination & projections cho lists, N+1 tránh bằng JOIN/select.
+
+OBSERVABILITY
+- Logger (pino/winston), request-id, audit trail (moderation, admin).
+- Metrics: Prometheus endpoint, tracing (OpenTelemetry).
+
+CHECKLIST RELEASE MVP
+- ✅ Auth + Profile + Region
+- ✅ Recipes + Variants + Prices + Seasonality
+- ✅ Suggestions API (region/season/budget/servings)
+- ✅ Planner + Shopping + Pantry
+- ✅ Community (list + create) cơ bản
+- ✅ Premium: Family (create) + Advisory check (stub)
+- ✅ Flutter: 5 tabs + nested shopping in Planner
+- ✅ CI/CD + Docker + Docs (OpenAPI)
+
+PHỤ LỤC – MẪU REQUEST/RESPONSE
+------------------------------------------------------------------------------
+POST /suggestions/search
+Req:
+{
+  "region":"NAM", "season":"HA", "servings":2, "budget":50000,
+  "pantry_ids":["egg","rice"], "exclude_allergens":["hai_san"],
+  "max_time":30
+}
+Res (rút gọn):
+[{
+  "recipe_id":"r1",
+  "variant_region":"NAM",
+  "total_cost": 48000,
+  "season_score": 92,
+  "items":[{"ingredient_id":"fish","est_cost": 30000}, {"ingredient_id":"tomato","est_cost": 8000}],
+  "reason":"Đúng vùng, đúng mùa, trong ngân sách"
+}]
+
+POST /meal-plans/generate
+Req: {"week_start":"2025-10-20","region":"BAC","servings":2,"budget_per_meal":50000}
+Res: {"id":"mp_123","days":[{"date":"2025-10-20","LUNCH":{"recipe_id":"...","variant_region":"BAC"}}]}
+
+POST /shopping-lists/from-meal-plan
+Req: {"meal_plan_id":"mp_123","include_pantry":true}
+Res: {"id":"sl_456","groups":[{"section":"PRODUCE","items":[{"name":"Cà chua","qty":2,"est_cost":12000}]}],"total": 82000}
+
+KẾT THÚC
+- File này là blueprint thực thi end-to-end. Khi bạn xác nhận, mình sẽ xuất thêm:
+  1) OpenAPI.yaml v1 (chi tiết schema)
+  2) Bộ Postman collection
+  3) Skeleton code NestJS modules + Flutter routes
+
+
+
+  TUnel ngrok : token "33V8b3nwqoYC6i2UrJJm03mByWG_7NgjF2PEQ1CA7k6hDEHTc"
+  gemini api key : AIzaSyDj2G5Q6fjur6YdLhqn-5VU4-odPb5zlhs
