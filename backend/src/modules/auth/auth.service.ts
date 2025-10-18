@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Inject } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { RegisterDto, LoginDto, RefreshDto } from './dto/auth.dto';
 
 @Injectable()
@@ -15,53 +15,63 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, name, region, subregion } = registerDto;
+    try {
+      const { email, password, name, region, subregion } = registerDto;
 
-    // Check if user already exists
-    const [existingUsers] = await this.db.execute(
-      'SELECT id FROM users WHERE email = ?',
-      [email]
-    );
+      // Check if user already exists
+      const [existingUsers] = await this.db.execute(
+        'SELECT id FROM users WHERE email = ?',
+        [email]
+      );
 
-    if ((existingUsers as any[]).length > 0) {
-      throw new ConflictException('User already exists');
-    }
+      if ((existingUsers as any[]).length > 0) {
+        throw new ConflictException('User already exists');
+      }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 12);
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 12);
 
-    // Create user
-    const userId = uuidv4();
-    await this.db.execute(
-      `INSERT INTO users (id, email, password_hash, name, region, subregion, role, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, 'USER', 1)`,
-      [userId, email, passwordHash, name, region, subregion]
-    );
+      // Create user
+      const userId = randomUUID();
+      const userRegion = region || 'BAC';
+      const userSubregion = subregion || null;
+      
+      console.log('Register params:', { userId, email, name, userRegion, userSubregion });
+      
+      await this.db.execute(
+        `INSERT INTO users (id, email, password_hash, name, region, subregion, role, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, 'USER', 1)`,
+        [userId, email, passwordHash, name, userRegion, userSubregion]
+      );
 
-    // Create user preferences
-    await this.db.execute(
-      `INSERT INTO user_preferences (user_id, household_size, spicy_level, taste_spicy, taste_salty, taste_sweet, taste_light)
-       VALUES (?, 2, 2, 2, 2, 2, 2)`,
-      [userId]
-    );
+      // Create user preferences
+      await this.db.execute(
+        `INSERT INTO user_preferences (user_id, household_size, spicy_level, taste_spicy, taste_salty, taste_sweet, taste_light)
+         VALUES (?, 2, 2, 2, 2, 2, 2)`,
+        [userId]
+      );
 
-    // Generate tokens
-    const accessToken = this.generateAccessToken(userId, email, 'USER');
-    const refreshToken = this.generateRefreshToken(userId, email, 'USER');
+      // Generate tokens
+      const accessToken = this.generateAccessToken(userId, email, 'USER');
+      const refreshToken = this.generateRefreshToken(userId, email, 'USER');
 
-    return {
-      success: true,
-      data: {
-        user: {
-          id: userId,
-          email,
-          name,
-          role: 'USER',
+      return {
+        success: true,
+        data: {
+          user: {
+            id: userId,
+            email,
+            name,
+            role: 'USER',
+          },
+          accessToken,
+          refreshToken,
         },
-        accessToken,
-        refreshToken,
-      },
-    };
+      };
+    } catch (error) {
+      console.error('Register error:', error);
+      throw new BadRequestException('Registration failed: ' + error.message);
+    }
   }
 
   async login(loginDto: LoginDto) {

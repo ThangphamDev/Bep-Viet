@@ -11,12 +11,17 @@ async function bootstrap() {
     
     // Enable CORS
     app.enableCors({
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      origin: [
+        process.env.CORS_ORIGIN || 'http://localhost:3000',
+        'https://gullably-nonpsychological-leisha.ngrok-free.dev',
+        /\.ngrok-free\.dev$/,
+        /\.ngrok\.io$/
+      ],
       credentials: true,
     });
 
     // Global prefix
-    app.setGlobalPrefix('api/v1');
+    app.setGlobalPrefix('api');
 
     // Swagger Documentation
     const config = new DocumentBuilder()
@@ -56,7 +61,7 @@ async function bootstrap() {
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/v1/docs', app, document, {
+    SwaggerModule.setup('api/docs', app, document, {
       swaggerOptions: {
         persistAuthorization: true,
       },
@@ -66,8 +71,8 @@ async function bootstrap() {
     await app.listen(port);
     
     logger.log(`🚀 Backend server is running on http://localhost:${port}`);
-    logger.log(`📚 API Documentation available at http://localhost:${port}/api/v1/docs`);
-    logger.log(`🔗 API Base URL: http://localhost:${port}/api/v1`);
+    logger.log(`📚 API Documentation available at http://localhost:${port}/api/docs`);
+    logger.log(`🔗 API Base URL: http://localhost:${port}/api`);
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);
