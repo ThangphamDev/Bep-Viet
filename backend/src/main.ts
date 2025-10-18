@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -17,11 +18,56 @@ async function bootstrap() {
     // Global prefix
     app.setGlobalPrefix('api/v1');
 
+    // Swagger Documentation
+    const config = new DocumentBuilder()
+      .setTitle('Bếp Việt API')
+      .setDescription('API documentation for Bếp Việt - Vietnamese cooking app')
+      .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'JWT',
+          description: 'Enter JWT token',
+          in: 'header',
+        },
+        'JWT-auth',
+      )
+      .addTag('Authentication', 'User authentication and authorization')
+      .addTag('Users', 'User profile management')
+      .addTag('Regions', 'Geographic regions and subregions')
+      .addTag('Seasons', 'Seasonal data and calculations')
+      .addTag('Ingredients', 'Ingredients and categories')
+      .addTag('Prices', 'Ingredient pricing by region')
+      .addTag('Recipes', 'Recipe management and variants')
+      .addTag('Suggestions', 'Smart recipe suggestions')
+      .addTag('Meal Plans', 'Meal planning and scheduling')
+      .addTag('Pantry', 'Pantry management and tracking')
+      .addTag('Shopping', 'Shopping lists and management')
+      .addTag('Community', 'Community recipes and sharing')
+      .addTag('Comments', 'Recipe comments and interactions')
+      .addTag('Ratings', 'Recipe ratings and reviews')
+      .addTag('Family', 'Family profiles and management')
+      .addTag('Advisory', 'Nutritional advisory services')
+      .addTag('Analytics', 'User and system analytics')
+      .addTag('Moderation', 'Content moderation tools')
+      .addTag('Subscriptions', 'Premium subscription management')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/v1/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+    });
+
     const port = process.env.PORT || 8080;
     await app.listen(port);
     
     logger.log(`🚀 Backend server is running on http://localhost:${port}`);
-    logger.log(`📚 API Documentation available at http://localhost:${port}/api/v1`);
+    logger.log(`📚 API Documentation available at http://localhost:${port}/api/v1/docs`);
+    logger.log(`🔗 API Base URL: http://localhost:${port}/api/v1`);
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);
