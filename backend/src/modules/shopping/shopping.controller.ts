@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ShoppingService } from './shopping.service';
@@ -15,8 +15,8 @@ export class ShoppingController {
   @ApiOperation({ summary: 'Get user shopping lists' })
   @ApiResponse({ status: 200, description: 'List of shopping lists' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getUserShoppingLists(@Query('userId') userId: string) {
-    return this.shoppingService.getUserShoppingLists(userId);
+  async getUserShoppingLists(@Request() req) {
+    return this.shoppingService.getUserShoppingLists(req.user.id);
   }
 
   @Get('sections')

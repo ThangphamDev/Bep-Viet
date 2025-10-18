@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { MealPlansService } from './meal-plans.service';
@@ -15,8 +15,8 @@ export class MealPlansController {
   @ApiOperation({ summary: 'Get user meal plans' })
   @ApiResponse({ status: 200, description: 'List of meal plans' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getUserMealPlans(@Query('userId') userId: string) {
-    return this.mealPlansService.getUserMealPlans(userId);
+  async getUserMealPlans(@Request() req) {
+    return this.mealPlansService.getUserMealPlans(req.user.id);
   }
 
   @Get(':userId/:weekStartDate')

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PantryService } from './pantry.service';
@@ -15,8 +15,8 @@ export class PantryController {
   @ApiOperation({ summary: 'Get user pantry items' })
   @ApiResponse({ status: 200, description: 'List of pantry items' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getUserPantry(@Query('userId') userId: string) {
-    return this.pantryService.getUserPantry(userId);
+  async getUserPantry(@Request() req) {
+    return this.pantryService.getUserPantry(req.user.id);
   }
 
   @Get('stats')
