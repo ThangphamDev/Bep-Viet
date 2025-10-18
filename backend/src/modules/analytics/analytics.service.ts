@@ -6,6 +6,10 @@ export class AnalyticsService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async getUserAnalytics(userId: string) {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
     const [stats] = await this.db.execute(
       `SELECT 
         COUNT(DISTINCT mp.id) as meal_plans_count,

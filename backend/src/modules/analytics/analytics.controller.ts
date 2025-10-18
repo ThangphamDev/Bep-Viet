@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -15,8 +15,8 @@ export class AnalyticsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user analytics' })
   @ApiResponse({ status: 200, description: 'User analytics' })
-  async getUserAnalytics(@Query('userId') userId: string) {
-    return this.analyticsService.getUserAnalytics(userId);
+  async getUserAnalytics(@Request() req) {
+    return this.analyticsService.getUserAnalytics(req.user.id);
   }
 
   @Get('system')

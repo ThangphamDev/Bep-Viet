@@ -19,7 +19,6 @@ import { CommunityModule } from './modules/community/community.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { RatingsModule } from './modules/ratings/ratings.module';
 import { FamilyModule } from './modules/family/family.module';
-import { AdvisoryModule } from './modules/advisory/advisory.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
@@ -43,7 +42,6 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     CommentsModule,
     RatingsModule,
     FamilyModule,
-    AdvisoryModule,
     AnalyticsModule,
     ModerationModule,
     SubscriptionsModule,

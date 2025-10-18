@@ -13,15 +13,13 @@ export class SubscriptionsService {
     const [subscriptions] = await this.db.execute(
       `SELECT 
         s.id,
-        s.plan_name,
+        s.plan,
         s.status,
-        s.start_date,
-        s.end_date,
-        s.auto_renew,
-        s.created_at
+        s.started_at,
+        s.ended_at
       FROM subscriptions s
       WHERE s.user_id = ? AND s.status = 'ACTIVE'
-      ORDER BY s.created_at DESC
+      ORDER BY s.started_at DESC
       LIMIT 1`,
       [userId]
     );
@@ -33,16 +31,16 @@ export class SubscriptionsService {
   }
 
   async createSubscription(userId: string, subscriptionData: any) {
-    const { plan_name, duration_months, auto_renew } = subscriptionData;
+    const { plan, duration_months } = subscriptionData;
 
     const startDate = new Date();
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + duration_months);
 
     const [result] = await this.db.execute(
-      `INSERT INTO subscriptions (user_id, plan_name, status, start_date, end_date, auto_renew)
-       VALUES (?, ?, 'ACTIVE', ?, ?, ?)`,
-      [userId, plan_name, startDate, endDate, auto_renew]
+      `INSERT INTO subscriptions (user_id, plan, status, started_at, ended_at)
+       VALUES (?, ?, 'ACTIVE', ?, ?)`,
+      [userId, plan, startDate, endDate]
     );
 
     return {
@@ -53,7 +51,7 @@ export class SubscriptionsService {
 
   async cancelSubscription(subscriptionId: string, userId: string) {
     await this.db.execute(
-      'UPDATE subscriptions SET status = "CANCELLED" WHERE id = ? AND user_id = ?',
+      'UPDATE subscriptions SET status = "CANCELLED", ended_at = NOW() WHERE id = ? AND user_id = ?',
       [subscriptionId, userId]
     );
 
