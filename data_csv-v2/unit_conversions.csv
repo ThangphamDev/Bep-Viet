@@ -1,0 +1,4 @@
+from_code,to_code,factor,offset
+kg,g,1000,0
+l,ml,1000,0
+tbsp,tsp,3,0

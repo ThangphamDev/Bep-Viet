@@ -12,7 +12,7 @@ export class SuggestionsService {
         season,
         servings = 2,
         budget,
-        spice_pref,
+        spice_preference,
         pantry_ids = [],
         exclude_allergens = [],
         max_time,
@@ -62,9 +62,9 @@ export class SuggestionsService {
       params.push(max_time);
     }
 
-    if (spice_pref !== undefined) {
+    if (spice_preference !== undefined) {
       query += ' AND r.spice_level <= ?';
-      params.push(spice_pref);
+      params.push(spice_preference);
     }
 
     query += ' ORDER BY r.rating_avg DESC, r.created_at DESC LIMIT 50';
@@ -154,7 +154,7 @@ export class SuggestionsService {
       }
 
       // Pantry bonus
-      if (pantry_ids.includes(ingredient.ingredient_id)) {
+      if (pantry_ids && pantry_ids.includes(ingredient.ingredient_id)) {
         pantryBonus += cost; // Reduce cost if already in pantry
       }
 

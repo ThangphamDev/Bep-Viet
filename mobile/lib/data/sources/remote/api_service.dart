@@ -19,7 +19,7 @@ class ApiService {
 
   // Recipes
   Future<List<RecipeModel>> getRecipes({
-    String? mealType,
+    String? region,
     int? maxTime,
     String? search,
     int? limit,
@@ -28,7 +28,7 @@ class ApiService {
       final response = await _dio.get(
         '/api/recipes',
         queryParameters: {
-          if (mealType != null) 'meal_type': mealType,
+          if (region != null) 'region': region,
           if (maxTime != null) 'max_time': maxTime,
           if (search != null) 'search': search,
           'limit': limit ?? 50, // Default limit to 50 recipes
@@ -69,7 +69,7 @@ class ApiService {
         }
       }
 
-      return RecipeModel.fromJson(response.data as Map<String, dynamic>);
+      throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to fetch recipe: $e');
     }
@@ -78,6 +78,19 @@ class ApiService {
   Future<List<RecipeIngredientModel>> getRecipeIngredients(String id) async {
     try {
       final response = await _dio.get('/api/recipes/$id/ingredients');
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is List) {
+          return (responseData['data'] as List)
+              .map(
+                (e) =>
+                    RecipeIngredientModel.fromJson(e as Map<String, dynamic>),
+              )
+              .toList();
+        }
+      }
+
       if (response.data is List) {
         return (response.data as List)
             .map(
@@ -94,6 +107,18 @@ class ApiService {
   Future<List<RecipeVariantModel>> getRecipeVariants(String id) async {
     try {
       final response = await _dio.get('/api/recipes/$id/variants');
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is List) {
+          return (responseData['data'] as List)
+              .map(
+                (e) => RecipeVariantModel.fromJson(e as Map<String, dynamic>),
+              )
+              .toList();
+        }
+      }
+
       if (response.data is List) {
         return (response.data as List)
             .map((e) => RecipeVariantModel.fromJson(e as Map<String, dynamic>))

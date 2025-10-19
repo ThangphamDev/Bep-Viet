@@ -21,12 +21,12 @@ class SuggestState {
     this.isLoading = false,
     this.isSearching = false,
     this.error,
-    this.selectedRegion = 'NAM',
-    this.selectedSeason = 'HA',
-    this.servings = 2,
-    this.budget = 50000,
+    this.selectedRegion = 'BAC',
+    this.selectedSeason = 'XUAN',
+    this.servings = 4,
+    this.budget = 100000,
     this.spicePreference = 2,
-    this.maxTime = 45,
+    this.maxTime = 60,
     this.pantryIds = const [],
     this.excludeAllergens = const [],
   });
@@ -81,10 +81,8 @@ class SuggestCubit extends Cubit<SuggestState> {
         servings: state.servings,
         budget: state.budget,
         spicePreference: state.spicePreference,
-        pantryIds: state.pantryIds.isNotEmpty ? state.pantryIds : null,
-        excludeAllergens: state.excludeAllergens.isNotEmpty
-            ? state.excludeAllergens
-            : null,
+        pantryIds: state.pantryIds,
+        excludeAllergens: state.excludeAllergens,
         maxTime: state.maxTime,
         limit: 50, // Limit to 50 suggestions
       );
@@ -229,10 +227,8 @@ class SuggestCubit extends Cubit<SuggestState> {
         servings: state.servings,
         budget: state.budget,
         spicePreference: state.spicePreference,
-        pantryIds: state.pantryIds.isNotEmpty ? state.pantryIds : null,
-        excludeAllergens: state.excludeAllergens.isNotEmpty
-            ? state.excludeAllergens
-            : null,
+        pantryIds: state.pantryIds,
+        excludeAllergens: state.excludeAllergens,
         maxTime: state.maxTime,
         limit: 50, // Limit to 50 suggestions
       );

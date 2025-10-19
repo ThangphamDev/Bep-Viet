@@ -29,12 +29,18 @@ class SuggestionModel {
 
   factory SuggestionModel.fromJson(Map<String, dynamic> json) {
     return SuggestionModel(
-      recipeId: json['recipe_id'] as String? ?? json['recipeId'] as String,
-      recipeName: json['name_vi'] as String? ?? json['recipeName'] as String,
+      recipeId:
+          json['recipe_id'] as String? ?? json['recipeId'] as String? ?? '',
+      recipeName:
+          json['name_vi'] as String? ??
+          json['recipeName'] as String? ??
+          'Unknown Recipe',
       recipeImageUrl:
           json['image_url'] as String? ?? json['recipeImageUrl'] as String?,
       variantRegion:
-          json['variant_region'] as String? ?? json['variantRegion'] as String,
+          json['variant_region'] as String? ??
+          json['variantRegion'] as String? ??
+          'BAC',
       totalCost: _parseDouble(json['total_cost'] ?? json['totalCost']),
       seasonScore: _parseDouble(json['season_score'] ?? json['seasonScore']),
       reason: json['reason'] as String? ?? 'Món ăn ngon',
@@ -102,12 +108,15 @@ class SuggestionItemModel {
   factory SuggestionItemModel.fromJson(Map<String, dynamic> json) {
     return SuggestionItemModel(
       ingredientId:
-          json['ingredient_id'] as String? ?? json['ingredientId'] as String,
+          json['ingredient_id'] as String? ??
+          json['ingredientId'] as String? ??
+          '',
       ingredientName:
           json['ingredient_name'] as String? ??
-          json['ingredientName'] as String,
+          json['ingredientName'] as String? ??
+          'Unknown Ingredient',
       quantity: _parseDouble(json['quantity']),
-      unit: json['unit'] as String,
+      unit: json['unit'] as String? ?? '',
       estCost: _parseDouble(json['est_cost'] ?? json['estCost']),
     );
   }
@@ -186,7 +195,7 @@ class SearchSuggestionsRequest {
       'season': season,
       'servings': servings,
       'budget': budget,
-      'spice_pref': spicePreference,
+      'spice_preference': spicePreference,
       'pantry_ids': pantryIds,
       'exclude_allergens': excludeAllergens,
       'max_time': maxTime,

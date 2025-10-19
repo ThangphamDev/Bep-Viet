@@ -39,25 +39,37 @@ class RecipeModel {
 
   factory RecipeModel.fromJson(Map<String, dynamic> json) {
     return RecipeModel(
-      id: json['id'] as String,
+      id: json['id']?.toString() ?? '',
       name:
-          json['name_vi'] as String? ??
-          json['name'] as String? ??
+          json['name_vi']?.toString() ??
+          json['name']?.toString() ??
           'Unknown Recipe',
-      description: json['description'] as String?,
-      imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String?,
+      description: json['description']?.toString(),
+      imageUrl: json['image_url']?.toString() ?? json['imageUrl']?.toString(),
       prepTimeMinutes:
-          json['prep_time_min'] as int? ?? json['prepTimeMinutes'] as int?,
+          _parseInt(json['prep_time_min']) ??
+          _parseInt(json['prepTimeMinutes']),
       cookTimeMinutes:
-          json['cook_time_min'] as int? ?? json['cookTimeMinutes'] as int?,
+          _parseInt(json['cook_time_min']) ??
+          _parseInt(json['cookTimeMinutes']),
       totalTimeMinutes:
-          json['total_time_min'] as int? ?? json['totalTimeMinutes'] as int?,
-      servings: json['servings'] as int?,
-      difficulty: json['difficulty'] as int?,
-      mealType: json['meal_type'] as String? ?? json['mealType'] as String?,
+          _parseInt(json['total_time_min']) ??
+          _parseInt(json['totalTimeMinutes']),
+      servings: _parseInt(json['servings']),
+      difficulty: _parseInt(json['difficulty']),
+      mealType: json['meal_type']?.toString() ?? json['mealType']?.toString(),
       baseRegion:
-          json['base_region'] as String? ?? json['baseRegion'] as String?,
-      tags: json['tags'] != null ? List<String>.from(json['tags']) : null,
+          json['base_region']?.toString() ?? json['baseRegion']?.toString(),
+      tags: json['tags'] != null
+          ? (json['tags'] as List)
+                .map(
+                  (e) => e is Map<String, dynamic>
+                      ? e['name']?.toString() ?? ''
+                      : e.toString(),
+                )
+                .where((name) => name.isNotEmpty)
+                .toList()
+          : null,
       ingredients: json['ingredients'] != null
           ? (json['ingredients'] as List)
                 .map(
@@ -85,6 +97,14 @@ class RecipeModel {
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
     );
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -127,12 +147,26 @@ class RecipeIngredientModel {
 
   factory RecipeIngredientModel.fromJson(Map<String, dynamic> json) {
     return RecipeIngredientModel(
-      ingredientId: json['ingredientId'] as String,
-      ingredientName: json['ingredientName'] as String,
-      quantity: (json['quantity'] as num).toDouble(),
-      unit: json['unit'] as String,
-      notes: json['notes'] as String?,
+      ingredientId:
+          json['ingredient_id']?.toString() ??
+          json['ingredientId']?.toString() ??
+          '',
+      ingredientName:
+          json['ingredient_name']?.toString() ??
+          json['ingredientName']?.toString() ??
+          '',
+      quantity: _parseDouble(json['quantity']) ?? 0.0,
+      unit: json['unit']?.toString() ?? '',
+      notes: json['note']?.toString() ?? json['notes']?.toString(),
     );
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -161,11 +195,22 @@ class RecipeStepModel {
 
   factory RecipeStepModel.fromJson(Map<String, dynamic> json) {
     return RecipeStepModel(
-      stepNumber: json['stepNumber'] as int,
-      instruction: json['instruction'] as String,
-      imageUrl: json['imageUrl'] as String?,
-      durationMinutes: json['durationMinutes'] as int?,
+      stepNumber:
+          _parseInt(json['stepNumber']) ?? _parseInt(json['step_number']) ?? 0,
+      instruction: json['instruction']?.toString() ?? '',
+      imageUrl: json['imageUrl']?.toString() ?? json['image_url']?.toString(),
+      durationMinutes:
+          _parseInt(json['durationMinutes']) ??
+          _parseInt(json['duration_minutes']),
     );
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -197,9 +242,12 @@ class RecipeVariantModel {
 
   factory RecipeVariantModel.fromJson(Map<String, dynamic> json) {
     return RecipeVariantModel(
-      region: json['region'] as String,
-      name: json['name'] as String?,
-      description: json['description'] as String?,
+      region:
+          json['region']?.toString() ??
+          json['variant_region']?.toString() ??
+          '',
+      name: json['name']?.toString(),
+      description: json['description']?.toString(),
       ingredients: json['ingredients'] != null
           ? (json['ingredients'] as List)
                 .map(
@@ -213,10 +261,18 @@ class RecipeVariantModel {
                 .map((e) => RecipeStepModel.fromJson(e as Map<String, dynamic>))
                 .toList()
           : null,
-      estimatedCost: json['estimatedCost'] != null
-          ? (json['estimatedCost'] as num).toDouble()
-          : null,
+      estimatedCost:
+          _parseDouble(json['estimatedCost']) ??
+          _parseDouble(json['total_cost']),
     );
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() {

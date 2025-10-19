@@ -6,68 +6,81 @@ export class RecipesService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async getAllRecipes(filters: any = {}) {
-    let query = `
-      SELECT 
-        r.id,
-        r.name_vi,
-        r.name_en,
-        r.meal_type,
-        r.difficulty,
-        r.cook_time_min,
-        r.region,
-        r.base_region,
-        r.authenticity,
-        r.spice_level,
-        r.saltiness,
-        r.hardness,
-        r.image_url,
-        r.rating_avg,
-        r.rating_count,
-        r.created_at,
-        r.updated_at
-      FROM recipes r
-      WHERE r.is_public = 1
-    `;
-    
-    let params: any[] = [];
+    try {
+      // Simple query to get recipes with ingredients
+      let query = `
+        SELECT DISTINCT
+          r.id,
+          r.name_vi,
+          r.name_en,
+          r.meal_type,
+          r.difficulty,
+          r.cook_time_min,
+          r.region,
+          r.base_region,
+          r.authenticity,
+          r.spice_level,
+          r.saltiness,
+          r.hardness,
+          r.image_url,
+          r.rating_avg,
+          r.rating_count,
+          r.created_at,
+          r.updated_at
+        FROM recipes r
+        INNER JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+        WHERE r.is_public = 1
+      `;
+      
+      let params: any[] = [];
 
-    if (filters.meal_type) {
-      query += ' AND r.meal_type = ?';
-      params.push(filters.meal_type);
+      if (filters.meal_type) {
+        query += ' AND r.meal_type = ?';
+        params.push(filters.meal_type);
+      }
+
+      if (filters.difficulty) {
+        query += ' AND r.difficulty = ?';
+        params.push(filters.difficulty);
+      }
+
+      if (filters.region) {
+        query += ' AND r.base_region = ?';
+        params.push(filters.region);
+      }
+
+      if (filters.max_time) {
+        query += ' AND r.cook_time_min <= ?';
+        params.push(filters.max_time);
+      }
+
+      if (filters.search) {
+        query += ' AND (LOWER(r.name_vi) LIKE LOWER(?) OR LOWER(r.name_en) LIKE LOWER(?))';
+        params.push(`%${filters.search}%`, `%${filters.search}%`);
+      }
+
+      query += ' ORDER BY r.rating_avg DESC, r.created_at DESC';
+
+      if (filters.limit) {
+        query += ` LIMIT ${parseInt(filters.limit.toString())}`;
+      } else {
+        query += ' LIMIT 50'; // Default limit
+      }
+
+      const [recipes] = await this.db.execute(query, params);
+
+      return {
+        success: true,
+        data: recipes,
+      };
+    } catch (error) {
+      console.error('Error in getAllRecipes:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: [],
+      };
     }
-
-    if (filters.difficulty) {
-      query += ' AND r.difficulty = ?';
-      params.push(filters.difficulty);
-    }
-
-    if (filters.base_region) {
-      query += ' AND r.base_region = ?';
-      params.push(filters.base_region);
-    }
-
-    if (filters.max_time) {
-      query += ' AND r.cook_time_min <= ?';
-      params.push(filters.max_time);
-    }
-
-    if (filters.search) {
-      query += ' AND (LOWER(r.name_vi) LIKE LOWER(?) OR LOWER(r.name_en) LIKE LOWER(?))';
-      params.push(`%${filters.search}%`, `%${filters.search}%`);
-    }
-
-    query += ' ORDER BY r.rating_avg DESC, r.created_at DESC';
-
-    if (filters.limit) {
-      query += ` LIMIT ${parseInt(filters.limit.toString())}`;
-    }
-
-    const [recipes] = await this.db.execute(query, params);
-
-    return {
-      success: true,
-      data: recipes,
-    };
   }
 
   async getRecipeById(id: string) {
@@ -162,7 +175,7 @@ export class RecipesService {
         i.default_unit,
         ri.quantity,
         ri.unit,
-        ri.note
+        ri.note as notes
       FROM recipe_ingredients ri
       JOIN ingredients i ON ri.ingredient_id = i.id
       WHERE ri.recipe_id = ?
