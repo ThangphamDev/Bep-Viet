@@ -68,44 +68,108 @@ class _RecipesPageViewState extends State<RecipesPageView> {
       body: BlocBuilder<RecipesCubit, RecipesState>(
         builder: (context, state) {
           return CustomScrollView(
+            physics: const BouncingScrollPhysics(), // ✅ Scroll mượt mà hơn
+            cacheExtent: 1000, // ✅ Cache để scroll mượt
             slivers: [
               // Custom App Bar
               SliverAppBar(
-                expandedHeight: 120,
+                expandedHeight: 140,
                 floating: false,
                 pinned: true,
-                backgroundColor: AppTheme.surfaceColor,
+                backgroundColor:
+                    AppTheme.primaryGreen, // ✅ Giữ màu xanh khi collapse
                 elevation: 0,
+                forceElevated: false, // ✅ Tắt elevation để giảm jank
+                stretch: false, // ✅ Tắt stretch để giảm jank
                 flexibleSpace: FlexibleSpaceBar(
                   title: const Text(
                     'Công thức',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
+                      color: Colors.white,
+                      fontSize: 20,
                     ),
                   ),
+                  titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
                   background: Container(
                     decoration: const BoxDecoration(
                       gradient: AppTheme.primaryGradient,
                     ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.menu_book,
-                        size: 40,
-                        color: Colors.white,
-                      ),
+                    child: Stack(
+                      children: [
+                        // Background Icon
+                        const Positioned(
+                          left: 20,
+                          top: 30, // ✅ Giảm từ 20 xuống 30
+                          child: Icon(
+                            Icons.menu_book,
+                            size: 28, // ✅ Giảm từ 32 xuống 28
+                            color: Colors.white70,
+                          ),
+                        ),
+                        // Action Buttons
+                        Positioned(
+                          right: 16,
+                          top: 20, // ✅ Giảm từ 16 xuống 20
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Suggestions Button
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => context.go('/suggest'),
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, // ✅ Giảm từ 12 xuống 10
+                                        vertical: 6, // ✅ Giảm từ 8 xuống 6
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.lightbulb,
+                                            size: 14, // ✅ Giảm từ 16 xuống 14
+                                            color: AppTheme.primaryGreen,
+                                          ),
+                                          const SizedBox(
+                                            width: 3,
+                                          ), // ✅ Giảm từ 4 xuống 3
+                                          Text(
+                                            'Gợi ý',
+                                            style: TextStyle(
+                                              color: AppTheme.primaryGreen,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize:
+                                                  11, // ✅ Giảm từ 12 xuống 11
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                actions: [
-                  IconButton(
-                    onPressed: () => context.go('/suggest'),
-                    icon: const Icon(
-                      Icons.lightbulb,
-                      color: AppTheme.primaryGreen,
-                    ),
-                  ),
-                ],
               ),
 
               // Search and Filters

@@ -56,65 +56,145 @@ class _SuggestPageViewState extends State<SuggestPageView> {
       backgroundColor: AppTheme.backgroundColor,
       body: CustomScrollView(
         controller: _scrollController,
+        physics: const BouncingScrollPhysics(), // ✅ Scroll mượt mà hơn
+        cacheExtent: 1000, // ✅ Cache để scroll mượt
         slivers: [
           // Custom App Bar
           SliverAppBar(
-            expandedHeight: 120,
+            expandedHeight: 140,
             floating: false,
             pinned: true,
-            backgroundColor: AppTheme.surfaceColor,
+            backgroundColor:
+                AppTheme.primaryGreen, // ✅ Giữ màu xanh khi collapse
             elevation: 0,
+            forceElevated: false, // ✅ Tắt elevation để giảm jank
+            stretch: false, // ✅ Tắt stretch để giảm jank
             flexibleSpace: FlexibleSpaceBar(
               title: const Text(
                 'Gợi ý món ăn',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                  color: Colors.white,
+                  fontSize: 20,
                 ),
               ),
+              titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
               background: Container(
                 decoration: const BoxDecoration(
                   gradient: AppTheme.primaryGradient,
                 ),
-                child: const Center(
-                  child: Icon(Icons.lightbulb, size: 40, color: Colors.white),
+                child: Stack(
+                  children: [
+                    // Background Icon
+                    const Positioned(
+                      left: 20,
+                      top: 30, // ✅ Giảm từ 20 xuống 30
+                      child: Icon(
+                        Icons.lightbulb,
+                        size: 28, // ✅ Giảm từ 32 xuống 28
+                        color: Colors.white70,
+                      ),
+                    ),
+                    // Action Buttons
+                    Positioned(
+                      right: 16,
+                      top: 20, // ✅ Giảm từ 16 xuống 20
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Recipes Button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => context.go('/recipes'),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, // ✅ Giảm từ 12 xuống 10
+                                    vertical: 6, // ✅ Giảm từ 8 xuống 6
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.menu_book,
+                                        size: 14, // ✅ Giảm từ 16 xuống 14
+                                        color: AppTheme.primaryGreen,
+                                      ),
+                                      const SizedBox(
+                                        width: 3,
+                                      ), // ✅ Giảm từ 4 xuống 3
+                                      Text(
+                                        'Công thức',
+                                        style: TextStyle(
+                                          color: AppTheme.primaryGreen,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 11, // ✅ Giảm từ 12 xuống 11
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6), // ✅ Giảm từ 8 xuống 6
+                          // Filter Button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _showFilters = !_showFilters;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(20),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(
+                                    6,
+                                  ), // ✅ Giảm từ 8 xuống 6
+                                  child: Icon(
+                                    _showFilters
+                                        ? Icons.filter_list_off
+                                        : Icons.filter_list,
+                                    size: 14, // ✅ Giảm từ 16 xuống 14
+                                    color: AppTheme.primaryGreen,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            actions: [
-              // Recipes Button
-              Container(
-                margin: const EdgeInsets.only(right: 8),
-                child: ElevatedButton.icon(
-                  onPressed: () => context.go('/recipes'),
-                  icon: const Icon(Icons.menu_book, size: 18),
-                  label: const Text('Công thức'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
-              ),
-              // Filter Toggle Button
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _showFilters = !_showFilters;
-                  });
-                },
-                icon: Icon(
-                  _showFilters ? Icons.filter_list_off : Icons.filter_list,
-                  color: AppTheme.primaryGreen,
-                ),
-              ),
-            ],
           ),
 
           // Content
@@ -154,7 +234,12 @@ class _SuggestPageViewState extends State<SuggestPageView> {
 
                     // Search Button
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.fromLTRB(
+                        16,
+                        24,
+                        16,
+                        16,
+                      ), // ✅ Thêm padding top
                       child: SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
