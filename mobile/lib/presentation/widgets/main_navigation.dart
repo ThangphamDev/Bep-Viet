@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
-import 'package:bepviet_mobile/core/constants/app_constants.dart';
 
 class MainNavigation extends StatefulWidget {
   final Widget child;
@@ -27,12 +26,6 @@ class _MainNavigationState extends State<MainNavigation> {
       activeIcon: Icons.lightbulb,
       label: 'Gợi ý',
       route: '/suggest',
-    ),
-    NavigationItem(
-      icon: Icons.menu_book_outlined,
-      activeIcon: Icons.menu_book,
-      label: 'Công thức',
-      route: '/recipes',
     ),
     NavigationItem(
       icon: Icons.calendar_today_outlined,

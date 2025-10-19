@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/presentation/features/home/pages/home_page.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/pages/suggest_page.dart';
 import 'package:bepviet_mobile/presentation/features/recipes/pages/recipes_page.dart';
+import 'package:bepviet_mobile/presentation/features/recipes/pages/recipe_detail_page.dart';
 import 'package:bepviet_mobile/presentation/features/planner/pages/planner_page.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/pages/pantry_page.dart';
 import 'package:bepviet_mobile/presentation/features/community/pages/community_page.dart';
@@ -48,6 +48,7 @@ class AppRouter {
             name: 'suggest',
             builder: (context, state) => const SuggestPage(),
           ),
+          // Recipes route (accessible via button from suggest page)
           GoRoute(
             path: AppRoutes.recipes,
             name: 'recipes',
