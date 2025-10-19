@@ -6,17 +6,18 @@ export class SuggestionsService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async searchSuggestions(searchParams: any) {
-    const {
-      region,
-      season,
-      servings = 2,
-      budget,
-      spice_pref,
-      pantry_ids = [],
-      exclude_allergens = [],
-      max_time,
-      meal_type
-    } = searchParams;
+    try {
+      const {
+        region,
+        season,
+        servings = 2,
+        budget,
+        spice_pref,
+        pantry_ids = [],
+        exclude_allergens = [],
+        max_time,
+        meal_type
+      } = searchParams;
 
     // Get current season if not provided
     let currentSeason = season;
@@ -95,6 +96,14 @@ export class SuggestionsService {
       success: true,
       data: suggestions.slice(0, 20), // Return top 20
     };
+    } catch (error) {
+      console.error('SuggestionsService error:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: []
+      };
+    }
   }
 
   private async calculateRecipeScore(recipe: any, params: any) {

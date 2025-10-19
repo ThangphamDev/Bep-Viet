@@ -29,13 +29,15 @@ class SuggestionModel {
 
   factory SuggestionModel.fromJson(Map<String, dynamic> json) {
     return SuggestionModel(
-      recipeId: json['recipeId'] as String,
-      recipeName: json['recipeName'] as String,
-      recipeImageUrl: json['recipeImageUrl'] as String?,
-      variantRegion: json['variantRegion'] as String,
-      totalCost: (json['totalCost'] as num).toDouble(),
-      seasonScore: (json['seasonScore'] as num).toDouble(),
-      reason: json['reason'] as String,
+      recipeId: json['recipe_id'] as String? ?? json['recipeId'] as String,
+      recipeName: json['name_vi'] as String? ?? json['recipeName'] as String,
+      recipeImageUrl:
+          json['image_url'] as String? ?? json['recipeImageUrl'] as String?,
+      variantRegion:
+          json['variant_region'] as String? ?? json['variantRegion'] as String,
+      totalCost: _parseDouble(json['total_cost'] ?? json['totalCost']),
+      seasonScore: _parseDouble(json['season_score'] ?? json['seasonScore']),
+      reason: json['reason'] as String? ?? 'Món ăn ngon',
       items: json['items'] != null
           ? (json['items'] as List)
                 .map(
@@ -44,11 +46,24 @@ class SuggestionModel {
                 )
                 .toList()
           : null,
-      prepTimeMinutes: json['prepTimeMinutes'] as int?,
-      cookTimeMinutes: json['cookTimeMinutes'] as int?,
+      prepTimeMinutes:
+          json['prep_time_min'] as int? ?? json['prepTimeMinutes'] as int?,
+      cookTimeMinutes:
+          json['cook_time_min'] as int? ?? json['cookTimeMinutes'] as int?,
       servings: json['servings'] as int?,
       difficulty: json['difficulty'] as int?,
     );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value.isNaN ? 0.0 : value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      final parsed = double.tryParse(value);
+      return parsed?.isNaN == true ? 0.0 : (parsed ?? 0.0);
+    }
+    return 0.0;
   }
 
   Map<String, dynamic> toJson() {
@@ -86,12 +101,26 @@ class SuggestionItemModel {
 
   factory SuggestionItemModel.fromJson(Map<String, dynamic> json) {
     return SuggestionItemModel(
-      ingredientId: json['ingredientId'] as String,
-      ingredientName: json['ingredientName'] as String,
-      quantity: (json['quantity'] as num).toDouble(),
+      ingredientId:
+          json['ingredient_id'] as String? ?? json['ingredientId'] as String,
+      ingredientName:
+          json['ingredient_name'] as String? ??
+          json['ingredientName'] as String,
+      quantity: _parseDouble(json['quantity']),
       unit: json['unit'] as String,
-      estCost: (json['estCost'] as num).toDouble(),
+      estCost: _parseDouble(json['est_cost'] ?? json['estCost']),
     );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value.isNaN ? 0.0 : value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      final parsed = double.tryParse(value);
+      return parsed?.isNaN == true ? 0.0 : (parsed ?? 0.0);
+    }
+    return 0.0;
   }
 
   Map<String, dynamic> toJson() {
@@ -134,14 +163,19 @@ class SearchSuggestionsRequest {
       season: json['season'] as String,
       servings: json['servings'] as int,
       budget: json['budget'] as int,
-      spicePreference: json['spicePreference'] as int?,
-      pantryIds: json['pantryIds'] != null
+      spicePreference:
+          json['spice_pref'] as int? ?? json['spicePreference'] as int?,
+      pantryIds: json['pantry_ids'] != null
+          ? List<String>.from(json['pantry_ids'])
+          : json['pantryIds'] != null
           ? List<String>.from(json['pantryIds'])
           : null,
-      excludeAllergens: json['excludeAllergens'] != null
+      excludeAllergens: json['exclude_allergens'] != null
+          ? List<String>.from(json['exclude_allergens'])
+          : json['excludeAllergens'] != null
           ? List<String>.from(json['excludeAllergens'])
           : null,
-      maxTime: json['maxTime'] as int?,
+      maxTime: json['max_time'] as int? ?? json['maxTime'] as int?,
       limit: json['limit'] as int?,
     );
   }
@@ -152,10 +186,10 @@ class SearchSuggestionsRequest {
       'season': season,
       'servings': servings,
       'budget': budget,
-      'spicePreference': spicePreference,
-      'pantryIds': pantryIds,
-      'excludeAllergens': excludeAllergens,
-      'maxTime': maxTime,
+      'spice_pref': spicePreference,
+      'pantry_ids': pantryIds,
+      'exclude_allergens': excludeAllergens,
+      'max_time': maxTime,
       'limit': limit,
     };
   }

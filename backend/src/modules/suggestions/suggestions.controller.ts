@@ -13,7 +13,17 @@ export class SuggestionsController {
   @ApiOperation({ summary: 'Search recipe suggestions' })
   @ApiResponse({ status: 200, description: 'Recipe suggestions' })
   async searchSuggestions(@Body() searchParams: SearchSuggestionsDto) {
-    return this.suggestionsService.searchSuggestions(searchParams);
+    try {
+      const result = await this.suggestionsService.searchSuggestions(searchParams);
+      return result;
+    } catch (error) {
+      console.error('Suggestions API error:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: []
+      };
+    }
   }
 
   @Get('pantry')
