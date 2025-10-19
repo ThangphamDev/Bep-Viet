@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/presentation/features/home/pages/home_page.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/pages/suggest_page.dart';
@@ -8,6 +7,12 @@ import 'package:bepviet_mobile/presentation/features/pantry/pages/pantry_page.da
 import 'package:bepviet_mobile/presentation/features/community/pages/community_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/pages/login_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/pages/register_page.dart';
+import 'package:bepviet_mobile/presentation/features/premium/pages/premium_dashboard_page.dart';
+import 'package:bepviet_mobile/presentation/features/premium/pages/family_profile_page.dart';
+import 'package:bepviet_mobile/presentation/features/premium/pages/advisory_page.dart';
+import 'package:bepviet_mobile/presentation/features/premium/pages/subscription_page.dart';
+import 'package:bepviet_mobile/presentation/features/premium/pages/weekly_report_page.dart';
+import 'package:bepviet_mobile/presentation/features/premium/pages/ai_advisor_page.dart';
 import 'package:bepviet_mobile/presentation/widgets/main_navigation.dart';
 
 class AppRoutes {
@@ -22,6 +27,14 @@ class AppRoutes {
   // Auth routes
   static const String login = '/login';
   static const String register = '/register';
+
+  // Premium routes
+  static const String premium = '/premium';
+  static const String premiumFamily = '/premium/family';
+  static const String premiumAdvisory = '/premium/advisory';
+  static const String premiumSubscription = '/premium/subscription';
+  static const String premiumReport = '/premium/report';
+  static const String premiumAIAdvisor = '/premium/ai-advisor';
 
   // Detail routes
   static const String recipeDetail = '/recipes/:id';
@@ -77,6 +90,36 @@ class AppRouter {
             path: AppRoutes.community,
             name: 'community',
             builder: (context, state) => const CommunityPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.premium,
+            name: 'premium',
+            builder: (context, state) => const PremiumDashboardPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.premiumFamily,
+            name: 'premium-family',
+            builder: (context, state) => const FamilyProfilePage(),
+          ),
+          GoRoute(
+            path: AppRoutes.premiumAdvisory,
+            name: 'premium-advisory',
+            builder: (context, state) => const AdvisoryPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.premiumSubscription,
+            name: 'premium-subscription',
+            builder: (context, state) => const SubscriptionPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.premiumReport,
+            name: 'premium-report',
+            builder: (context, state) => const WeeklyReportPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.premiumAIAdvisor,
+            name: 'premium-ai-advisor',
+            builder: (context, state) => const AIAdvisorPage(),
           ),
         ],
       ),

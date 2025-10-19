@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
-import 'package:bepviet_mobile/core/constants/app_constants.dart';
 
 class MainNavigation extends StatefulWidget {
   final Widget child;
@@ -51,6 +50,12 @@ class _MainNavigationState extends State<MainNavigation> {
       activeIcon: Icons.people,
       label: 'Cộng đồng',
       route: '/community',
+    ),
+    NavigationItem(
+      icon: Icons.star_outline,
+      activeIcon: Icons.star,
+      label: 'Premium',
+      route: '/premium',
     ),
   ];
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
-import 'package:bepviet_mobile/core/constants/app_constants.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});

@@ -59,12 +59,10 @@ class AppTheme {
         secondary: secondaryGray,
         secondaryContainer: secondaryGrayLight,
         surface: surfaceColor,
-        background: backgroundColor,
         error: errorColor,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurface: textPrimary,
-        onBackground: textPrimary,
         onError: Colors.white,
       ),
 
