@@ -40,16 +40,23 @@ class RecipeModel {
   factory RecipeModel.fromJson(Map<String, dynamic> json) {
     return RecipeModel(
       id: json['id'] as String,
-      name: json['name'] as String,
+      name:
+          json['name_vi'] as String? ??
+          json['name'] as String? ??
+          'Unknown Recipe',
       description: json['description'] as String?,
-      imageUrl: json['imageUrl'] as String?,
-      prepTimeMinutes: json['prepTimeMinutes'] as int?,
-      cookTimeMinutes: json['cookTimeMinutes'] as int?,
-      totalTimeMinutes: json['totalTimeMinutes'] as int?,
+      imageUrl: json['image_url'] as String? ?? json['imageUrl'] as String?,
+      prepTimeMinutes:
+          json['prep_time_min'] as int? ?? json['prepTimeMinutes'] as int?,
+      cookTimeMinutes:
+          json['cook_time_min'] as int? ?? json['cookTimeMinutes'] as int?,
+      totalTimeMinutes:
+          json['total_time_min'] as int? ?? json['totalTimeMinutes'] as int?,
       servings: json['servings'] as int?,
       difficulty: json['difficulty'] as int?,
-      mealType: json['mealType'] as String?,
-      baseRegion: json['baseRegion'] as String?,
+      mealType: json['meal_type'] as String? ?? json['mealType'] as String?,
+      baseRegion:
+          json['base_region'] as String? ?? json['baseRegion'] as String?,
       tags: json['tags'] != null ? List<String>.from(json['tags']) : null,
       ingredients: json['ingredients'] != null
           ? (json['ingredients'] as List)

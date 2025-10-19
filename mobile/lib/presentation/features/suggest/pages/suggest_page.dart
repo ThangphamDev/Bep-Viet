@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
+import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
+import 'package:dio/dio.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/cubit/suggest_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/widgets/suggest_filters.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/widgets/suggestion_card.dart';
@@ -12,7 +15,19 @@ class SuggestPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => SuggestCubit(),
+      create: (context) {
+        final dio = Dio();
+        // Configure Dio for ngrok tunnel
+        dio.options.baseUrl = AppConfig.ngrokBaseUrl;
+        dio.options.connectTimeout = const Duration(seconds: 30);
+        dio.options.receiveTimeout = const Duration(seconds: 30);
+
+        // Add ngrok-skip-browser-warning header
+        dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+
+        final apiService = ApiService(dio);
+        return SuggestCubit(apiService);
+      },
       child: const SuggestPageView(),
     );
   }

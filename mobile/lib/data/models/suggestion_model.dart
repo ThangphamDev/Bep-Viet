@@ -114,6 +114,7 @@ class SearchSuggestionsRequest {
   final List<String>? pantryIds;
   final List<String>? excludeAllergens;
   final int? maxTime;
+  final int? limit;
 
   SearchSuggestionsRequest({
     required this.region,
@@ -124,6 +125,7 @@ class SearchSuggestionsRequest {
     this.pantryIds,
     this.excludeAllergens,
     this.maxTime,
+    this.limit,
   });
 
   factory SearchSuggestionsRequest.fromJson(Map<String, dynamic> json) {
@@ -140,6 +142,7 @@ class SearchSuggestionsRequest {
           ? List<String>.from(json['excludeAllergens'])
           : null,
       maxTime: json['maxTime'] as int?,
+      limit: json['limit'] as int?,
     );
   }
 
@@ -153,6 +156,7 @@ class SearchSuggestionsRequest {
       'pantryIds': pantryIds,
       'excludeAllergens': excludeAllergens,
       'maxTime': maxTime,
+      'limit': limit,
     };
   }
 }

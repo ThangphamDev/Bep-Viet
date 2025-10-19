@@ -13,7 +13,23 @@ class RecipesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => RecipesCubit(ApiService(Dio())),
+      create: (context) {
+        final dio = Dio();
+        // Configure Dio for ngrok tunnel
+        dio.options.baseUrl =
+            'https://gullably-nonpsychological-leisha.ngrok-free.dev';
+        dio.options.connectTimeout = const Duration(seconds: 30);
+        dio.options.receiveTimeout = const Duration(seconds: 30);
+
+        // Add ngrok-skip-browser-warning header
+        dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+
+        final apiService = ApiService(dio);
+        final cubit = RecipesCubit(apiService);
+        // Load initial recipes
+        cubit.loadRecipes();
+        return cubit;
+      },
       child: const RecipesPageView(),
     );
   }
@@ -30,15 +46,6 @@ class _RecipesPageViewState extends State<RecipesPageView> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedMealType = '';
   int? _maxTime;
-  bool _isLoading = false;
-  List<RecipeModel> _recipes = [];
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRecipes();
-  }
 
   @override
   void dispose() {
@@ -46,275 +53,268 @@ class _RecipesPageViewState extends State<RecipesPageView> {
     super.dispose();
   }
 
-  Future<void> _loadRecipes() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final cubit = context.read<RecipesCubit>();
-      await cubit.loadRecipes(
-        mealType: _selectedMealType.isEmpty ? null : _selectedMealType,
-        maxTime: _maxTime,
-        search: _searchController.text.isEmpty ? null : _searchController.text,
-      );
-
-      setState(() {
-        _recipes = cubit.state.recipes;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
+  void _loadRecipes() {
+    context.read<RecipesCubit>().loadRecipes(
+      mealType: _selectedMealType.isEmpty ? null : _selectedMealType,
+      maxTime: _maxTime,
+      search: _searchController.text.isEmpty ? null : _searchController.text,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          // Custom App Bar
-          SliverAppBar(
-            expandedHeight: 120,
-            floating: false,
-            pinned: true,
-            backgroundColor: AppTheme.surfaceColor,
-            elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text(
-                'Công thức',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                ),
-                child: const Center(
-                  child: Icon(Icons.menu_book, size: 40, color: Colors.white),
-                ),
-              ),
-            ),
-            actions: [
-              IconButton(
-                onPressed: () => context.go('/suggest'),
-                icon: const Icon(Icons.lightbulb, color: AppTheme.primaryGreen),
-              ),
-            ],
-          ),
-
-          // Search and Filters
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Search Bar
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Tìm kiếm công thức...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              onPressed: () {
-                                _searchController.clear();
-                                _loadRecipes();
-                              },
-                              icon: const Icon(Icons.clear),
-                            )
-                          : null,
-                    ),
-                    onSubmitted: (_) => _loadRecipes(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Filters Row
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        // Meal Type Filter
-                        _buildFilterChip(
-                          'Tất cả',
-                          _selectedMealType.isEmpty,
-                          () {
-                            setState(() {
-                              _selectedMealType = '';
-                            });
-                            _loadRecipes();
-                          },
-                        ),
-                        ...AppConstants.mealTypeNames.entries.map((entry) {
-                          return _buildFilterChip(
-                            entry.value,
-                            _selectedMealType == entry.key,
-                            () {
-                              setState(() {
-                                _selectedMealType = entry.key;
-                              });
-                              _loadRecipes();
-                            },
-                          );
-                        }),
-                      ],
+      body: BlocBuilder<RecipesCubit, RecipesState>(
+        builder: (context, state) {
+          return CustomScrollView(
+            slivers: [
+              // Custom App Bar
+              SliverAppBar(
+                expandedHeight: 120,
+                floating: false,
+                pinned: true,
+                backgroundColor: AppTheme.surfaceColor,
+                elevation: 0,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: const Text(
+                    'Công thức',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Time Filter
-                  Row(
-                    children: [
-                      const Text('Thời gian tối đa: '),
-                      Expanded(
-                        child: Slider(
-                          value: (_maxTime ?? 60).toDouble(),
-                          min: 15,
-                          max: 120,
-                          divisions: 7,
-                          activeColor: AppTheme.primaryGreen,
-                          onChanged: (value) {
-                            setState(() {
-                              _maxTime = value.round();
-                            });
-                            _loadRecipes();
-                          },
-                        ),
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: AppTheme.primaryGradient,
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.menu_book,
+                        size: 40,
+                        color: Colors.white,
                       ),
-                      Text('${_maxTime ?? 60} phút'),
-                    ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  IconButton(
+                    onPressed: () => context.go('/suggest'),
+                    icon: const Icon(
+                      Icons.lightbulb,
+                      color: AppTheme.primaryGreen,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
 
-          // Error Message
-          if (_error != null)
-            SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.errorColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.errorColor.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, color: AppTheme.errorColor),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: AppTheme.errorColor),
+              // Search and Filters
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // Search Bar
+                      TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Tìm kiếm công thức...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _loadRecipes();
+                                  },
+                                  icon: const Icon(Icons.clear),
+                                )
+                              : null,
+                        ),
+                        onSubmitted: (_) => _loadRecipes(),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _error = null;
-                        });
-                        _loadRecipes();
-                      },
-                      icon: const Icon(
-                        Icons.refresh,
-                        color: AppTheme.errorColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+                      const SizedBox(height: 16),
 
-          // Loading Indicator
-          if (_isLoading)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppTheme.primaryGreen,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // Recipes List
-          if (!_isLoading && _recipes.isNotEmpty)
-            SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final recipe = _recipes[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: RecipeCard(
-                    recipe: recipe,
-                    onTap: () => context.go('/recipes/${recipe.id}'),
-                  ),
-                );
-              }, childCount: _recipes.length),
-            ),
-
-          // Empty State
-          if (!_isLoading && _recipes.isEmpty)
-            SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(60),
+                      // Meal Type Filters
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildFilterChip(
+                              'Tất cả',
+                              _selectedMealType.isEmpty,
+                              () {
+                                setState(() {
+                                  _selectedMealType = '';
+                                });
+                                _loadRecipes();
+                              },
+                            ),
+                            ...AppConstants.mealTypeNames.entries.map((entry) {
+                              return _buildFilterChip(
+                                entry.value,
+                                _selectedMealType == entry.key,
+                                () {
+                                  setState(() {
+                                    _selectedMealType = entry.key;
+                                  });
+                                  _loadRecipes();
+                                },
+                              );
+                            }),
+                          ],
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.menu_book_outlined,
-                        size: 60,
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Không tìm thấy công thức',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
+                      const SizedBox(height: 16),
+
+                      // Time Filter
+                      Row(
+                        children: [
+                          const Text('Thời gian tối đa: '),
+                          Expanded(
+                            child: Slider(
+                              value: (_maxTime ?? 60).toDouble(),
+                              min: 15,
+                              max: 120,
+                              divisions: 7,
+                              activeColor: AppTheme.primaryGreen,
+                              onChanged: (value) {
+                                setState(() {
+                                  _maxTime = value.round();
+                                });
+                                _loadRecipes();
+                              },
+                            ),
                           ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.textSecondary,
+                          Text('${_maxTime ?? 60} phút'),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-          // Bottom padding
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
+              // Error Message
+              if (state.error != null)
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.errorColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.errorColor.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: AppTheme.errorColor,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            state.error!,
+                            style: const TextStyle(color: AppTheme.errorColor),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            context.read<RecipesCubit>().clearError();
+                            _loadRecipes();
+                          },
+                          icon: const Icon(
+                            Icons.refresh,
+                            color: AppTheme.errorColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Loading Indicator
+              if (state.isLoading)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.primaryGreen,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Recipes List
+              if (!state.isLoading && state.recipes.isNotEmpty)
+                SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final recipe = state.recipes[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: RecipeCard(
+                        recipe: recipe,
+                        onTap: () => context.go('/recipes/${recipe.id}'),
+                      ),
+                    );
+                  }, childCount: state.recipes.length),
+                ),
+
+              // Empty State
+              if (!state.isLoading && state.recipes.isEmpty)
+                SliverToBoxAdapter(
+                  child: Container(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryGreen.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(60),
+                          ),
+                          child: const Icon(
+                            Icons.menu_book_outlined,
+                            size: 60,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Không tìm thấy công thức',
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Bottom padding
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          );
+        },
       ),
     );
   }
@@ -330,13 +330,14 @@ class _RecipesPageViewState extends State<RecipesPageView> {
         checkmarkColor: Colors.white,
         labelStyle: TextStyle(
           color: isSelected ? Colors.white : AppTheme.textPrimary,
-          fontWeight: FontWeight.w500,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
     );
   }
 }
 
+// Simple Recipe Card Widget
 class RecipeCard extends StatelessWidget {
   final RecipeModel recipe;
   final VoidCallback? onTap;
@@ -355,7 +356,6 @@ class RecipeCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Recipe Image
                 Container(
@@ -393,48 +393,10 @@ class RecipeCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (recipe.description != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          recipe.description!,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textSecondary,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
 
-                      // Stats Row
-                      Row(
-                        children: [
-                          if (recipe.totalTimeMinutes != null)
-                            _buildStatChip(
-                              Icons.access_time,
-                              '${recipe.totalTimeMinutes} phút',
-                            ),
-                          if (recipe.servings != null) ...[
-                            const SizedBox(width: 8),
-                            _buildStatChip(
-                              Icons.people,
-                              '${recipe.servings} người',
-                            ),
-                          ],
-                          if (recipe.difficulty != null) ...[
-                            const SizedBox(width: 8),
-                            _buildStatChip(
-                              Icons.star,
-                              '${recipe.difficulty}/5',
-                            ),
-                          ],
-                        ],
-                      ),
-
-                      // Region Badge
-                      if (recipe.baseRegion != null) ...[
-                        const SizedBox(height: 8),
+                      // Meal type badge
+                      if (recipe.mealType != null)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -445,8 +407,8 @@ class RecipeCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            AppConstants.regionNames[recipe.baseRegion!] ??
-                                recipe.baseRegion!,
+                            AppConstants.mealTypeNames[recipe.mealType!] ??
+                                recipe.mealType!,
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -454,7 +416,34 @@ class RecipeCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                      ],
+                      const SizedBox(height: 8),
+
+                      // Stats row
+                      Row(
+                        children: [
+                          if (recipe.cookTimeMinutes != null)
+                            _buildStatChip(
+                              Icons.access_time,
+                              '${recipe.cookTimeMinutes} phút',
+                            ),
+                          if (recipe.cookTimeMinutes != null &&
+                              recipe.servings != null)
+                            const SizedBox(width: 8),
+                          if (recipe.servings != null)
+                            _buildStatChip(
+                              Icons.people,
+                              '${recipe.servings} người',
+                            ),
+                          if (recipe.servings != null &&
+                              recipe.difficulty != null)
+                            const SizedBox(width: 8),
+                          if (recipe.difficulty != null)
+                            _buildStatChip(
+                              Icons.star,
+                              '${recipe.difficulty}/5',
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -520,12 +509,17 @@ class RecipesCubit extends Cubit<RecipesState> {
         mealType: mealType,
         maxTime: maxTime,
         search: search,
+        limit: 50, // Limit to 50 recipes
       );
 
       emit(state.copyWith(recipes: recipes, isLoading: false));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
     }
+  }
+
+  void clearError() {
+    emit(state.copyWith(error: null));
   }
 }
 

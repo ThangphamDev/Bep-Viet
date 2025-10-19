@@ -8,10 +8,13 @@ class ApiService {
   final String baseUrl;
 
   ApiService(this._dio, {String? baseUrl})
-    : baseUrl = baseUrl ?? AppConfig.baseUrl {
+    : baseUrl = baseUrl ?? AppConfig.ngrokBaseUrl {
     _dio.options.baseUrl = this.baseUrl;
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
+
+    // Add ngrok-skip-browser-warning header
+    _dio.options.headers['ngrok-skip-browser-warning'] = 'true';
   }
 
   // Recipes
@@ -28,9 +31,18 @@ class ApiService {
           if (mealType != null) 'meal_type': mealType,
           if (maxTime != null) 'max_time': maxTime,
           if (search != null) 'search': search,
-          if (limit != null) 'limit': limit,
+          'limit': limit ?? 50, // Default limit to 50 recipes
         },
       );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is List) {
+          return (responseData['data'] as List)
+              .map((e) => RecipeModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
 
       if (response.data is List) {
         return (response.data as List)
@@ -46,6 +58,17 @@ class ApiService {
   Future<RecipeModel> getRecipeById(String id) async {
     try {
       final response = await _dio.get('/api/recipes/$id');
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
+          return RecipeModel.fromJson(
+            responseData['data'] as Map<String, dynamic>,
+          );
+        }
+      }
+
       return RecipeModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to fetch recipe: $e');
@@ -91,6 +114,16 @@ class ApiService {
         '/api/suggestions/search',
         data: request.toJson(),
       );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is List) {
+          return (responseData['data'] as List)
+              .map((e) => SuggestionModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+
       if (response.data is List) {
         return (response.data as List)
             .map((e) => SuggestionModel.fromJson(e as Map<String, dynamic>))
@@ -109,7 +142,10 @@ class ApiService {
     try {
       final response = await _dio.get(
         '/api/suggestions/pantry',
-        queryParameters: {'userId': userId, if (limit != null) 'limit': limit},
+        queryParameters: {
+          'userId': userId,
+          'limit': limit ?? 50, // Default limit to 50 suggestions
+        },
       );
       if (response.data is List) {
         return (response.data as List)
@@ -173,6 +209,7 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getIngredients({
     String? search,
     String? category,
+    int? limit,
   }) async {
     try {
       final response = await _dio.get(
@@ -180,6 +217,7 @@ class ApiService {
         queryParameters: {
           if (search != null) 'search': search,
           if (category != null) 'category': category,
+          'limit': limit ?? 50, // Default limit to 50 ingredients
         },
       );
       if (response.data is List) {
