@@ -61,7 +61,7 @@ class _SuggestPageViewState extends State<SuggestPageView> {
         slivers: [
           // Custom App Bar
           SliverAppBar(
-            expandedHeight: 140,
+            expandedHeight: 120, // ✅ Giảm từ 140 xuống 120
             floating: false,
             pinned: true,
             backgroundColor:
@@ -88,7 +88,7 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                     // Background Icon
                     const Positioned(
                       left: 20,
-                      top: 30, // ✅ Giảm từ 20 xuống 30
+                      top: 35, // ✅ Tăng từ 25 lên 35 để xuống thấp hơn
                       child: Icon(
                         Icons.lightbulb,
                         size: 28, // ✅ Giảm từ 32 xuống 28
@@ -98,7 +98,7 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                     // Action Buttons
                     Positioned(
                       right: 16,
-                      top: 20, // ✅ Giảm từ 16 xuống 20
+                      top: 30, // ✅ Tăng từ 20 lên 30 để xuống thấp hơn
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
