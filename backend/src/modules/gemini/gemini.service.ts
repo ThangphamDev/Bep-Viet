@@ -497,10 +497,11 @@ CHỈ trả về JSON, không giải thích thêm.`;
 
 📋 DANH SÁCH CÔNG THỨC CÓ SẴN TRONG HỆ THỐNG:
 ${(recipes as any[]).map((r, i) => 
-  `${i + 1}. ${r.name_vi}
-   - Tags: ${r.tag_names || 'N/A'}
-   - Nguyên liệu: ${r.ingredient_names || 'N/A'}
-   - Độ cay: ${r.spice_level}/5, Độ khó: ${r.difficulty}/5, Thời gian: ${r.cook_time_min} phút`
+  `${i + 1}. ID: ${r.id}
+   Tên: ${r.name_vi}
+   Tags: ${r.tag_names || 'N/A'}
+   Nguyên liệu: ${r.ingredient_names || 'N/A'}
+   Độ cay: ${r.spice_level}/5, Độ khó: ${r.difficulty}/5, Thời gian: ${r.cook_time_min} phút`
 ).join('\n')}
 
 🎯 YÊU CẦU PHÂN TÍCH:
@@ -519,7 +520,7 @@ ${(recipes as any[]).map((r, i) =>
    c. Phù hợp với khu vực địa lý
 
 3. **VỚI MỖI MÓN, TÍNH**:
-   - recipeId: ID từ danh sách trên
+   - recipeId: ⚠️ BẮT BUỘC PHẢI LẤY ID CHÍNH XÁC từ danh sách (format: uuid dài, VD: "0000819b-35ce-4259-b837-b89fbdb346db")
    - recipeName: Tên món
    - matchReason: TẠI SAO món này phù hợp với yêu cầu "${prompt}" (1 câu ngắn gọn)
    - advisory: Gợi ý điều chỉnh CỤ THỂ dựa vào yêu cầu (thìa/phút/gram)
@@ -535,7 +536,7 @@ ${(recipes as any[]).map((r, i) =>
   "chatResponse": "Chào bạn! [Phân tích yêu cầu và giới thiệu gợi ý]",
   "suggestions": [
     {
-      "recipeId": "id-from-list",
+      "recipeId": "0000819b-35ce-4259-b837-b89fbdb346db",  ← ⚠️ PHẢI COPY CHÍNH XÁC UUID TỪ DANH SÁCH!
       "recipeName": "...",
       "matchReason": "...",
       "advisory": "...",
@@ -548,6 +549,8 @@ ${(recipes as any[]).map((r, i) =>
 }
 
 💡 CỰC KỲ QUAN TRỌNG:
+- ⚠️⚠️⚠️ recipeId PHẢI COPY CHÍNH XÁC UUID từ cột "ID:" trong danh sách (VD: "0000819b-35ce-4259-b837-b89fbdb346db")
+- KHÔNG ĐƯỢC dùng số thứ tự (1, 2, 3...) làm recipeId
 - Nếu yêu cầu "cho bé ăn", món đầu tiên PHẢI là cháo/súp/hấp, KHÔNG ĐƯỢC là chiên/kho/cay
 - Nếu yêu cầu "đậm vị", món đầu tiên PHẢI là kho/rim/món đậm đà
 - chatResponse phải tự nhiên như đang tư vấn trực tiếp
@@ -589,6 +592,43 @@ ${(recipes as any[]).map((r, i) =>
 
       const result = JSON.parse(jsonMatch[0]);
       this.logger.log(`Gemini chatbot response: ${result.suggestions?.length || 0} suggestions`);
+      
+      // Enrich suggestions with full recipe data from DB
+      if (result.suggestions && result.suggestions.length > 0) {
+        const recipeIds = result.suggestions
+          .map(s => s.recipeId)
+          .filter(id => id);
+        
+        if (recipeIds.length > 0) {
+          const placeholders = recipeIds.map(() => '?').join(',');
+          const [fullRecipes] = await this.db.execute(
+            `SELECT 
+              r.id, r.name_vi, r.image_url, r.base_region,
+              r.difficulty, r.cook_time_min,
+              r.spice_level, r.rating_avg
+            FROM recipes r
+            WHERE r.id IN (${placeholders})`,
+            recipeIds
+          );
+          
+          // Merge Gemini data with DB data
+          result.suggestions = result.suggestions.map(geminiSugg => {
+            const dbRecipe = (fullRecipes as any[]).find(r => r.id === geminiSugg.recipeId);
+            if (dbRecipe) {
+              return {
+                ...geminiSugg,
+                image_url: dbRecipe.image_url,
+                difficulty: dbRecipe.difficulty,
+                cook_time_min: dbRecipe.cook_time_min,
+                spice_level: dbRecipe.spice_level,
+                rating_avg: dbRecipe.rating_avg,
+                base_region: dbRecipe.base_region,
+              };
+            }
+            return geminiSugg;
+          });
+        }
+      }
       
       return result;
     } catch (error) {

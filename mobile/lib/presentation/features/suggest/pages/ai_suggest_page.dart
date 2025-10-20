@@ -162,25 +162,23 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
         final generalAdvice = chatbotData['generalAdvice'] as String?;
         final suggestions = chatbotData['suggestions'] as List?;
 
-        print('🤖 Chatbot Response: $chatResponse');
-        print('💡 General Advice: $generalAdvice');
-        print('📋 Suggestions: ${suggestions?.length ?? 0}');
-
         if (suggestions != null && suggestions.isNotEmpty) {
           // Parse suggestions from chatbot response
           final parsedSuggestions = suggestions.map((s) {
             final map = s as Map<String, dynamic>;
-            // Convert chatbot format to SuggestionModel
+            // Convert chatbot format to SuggestionModel (with full recipe data from backend)
             return SuggestionModel(
               recipeId: map['recipeId'] ?? '',
               recipeName: map['recipeName'] ?? 'Unknown',
-              recipeImageUrl: null,
-              variantRegion: 'BAC',
+              recipeImageUrl: map['image_url'] as String?, // ← Lấy từ backend
+              variantRegion: map['base_region'] as String? ?? 'BAC',
               totalCost: 0,
               seasonScore: 0,
               reason: map['matchReason'] ?? map['reason'] ?? 'Món ngon',
               tagNames: (map['tags'] as List?)?.join(', '),
               ingredientMatchScore: (map['ingredientMatch'] ?? 0) / 100.0,
+              cookTimeMinutes: map['cook_time_min'] as int?,
+              difficulty: map['difficulty'] as int?,
             );
           }).toList();
 
