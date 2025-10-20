@@ -35,7 +35,7 @@ class AiSuggestPage extends StatefulWidget {
 class _AiSuggestPageState extends State<AiSuggestPage> {
   late final ApiService _apiService;
   List<Map<String, dynamic>> _detectedIngredients = [];
-  String _selectedRegion = 'BAC';
+  String? _selectedRegion; // null = Tất cả
   int _spicePreference = 2; // 0-4
   final TextEditingController _promptController = TextEditingController();
   bool _isLoading = false;
@@ -139,9 +139,14 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
       _generalAdvice = null;
     });
     // Build ingredient ids once for both primary & fallback calls
+    // Use matched_id (from DB) instead of name for accurate matching
     final ingredientIds = _detectedIngredients
-        .map((e) => (e['id'] ?? e['ingredient_id'] ?? e['name']).toString())
+        .where(
+          (e) => e['matched_id'] != null,
+        ) // Only use ingredients that matched with DB
+        .map((e) => e['matched_id'].toString())
         .toList();
+
     try {
       // Call CHATBOT endpoint instead of old ai-suggest
       final resp = await _apiService.getAiSuggestionsChatbot(
@@ -182,14 +187,17 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
             );
           }).toList();
 
-          // Build meta for UI display
+          // Build meta for UI display với thông tin chính xác từ backend
           final metaList = parsedSuggestions.asMap().entries.map((entry) {
             final s = entry.value;
             final rawData = suggestions[entry.key] as Map<String, dynamic>;
 
+            // Lấy % khớp CHÍNH XÁC từ backend (đã tính từ DB)
+            final accurateMatch = (rawData['ingredientMatch'] ?? 0) / 100.0;
+
             return _AiMeta(
               suggestion: s,
-              matchScore: s.ingredientMatchScore ?? 0.5,
+              matchScore: accurateMatch,
               missingIngredients:
                   (rawData['missingIngredients'] as List?)
                       ?.map((e) => e.toString())
@@ -219,7 +227,7 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
       } else {
         // Fallback to backend suggestions search when AI not available
         final fallbackRequest = SearchSuggestionsRequest(
-          region: _selectedRegion,
+          region: _selectedRegion ?? 'BAC',
           season: 'XUAN',
           servings: 2,
           budget: 200000,
@@ -245,7 +253,7 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
     } catch (e) {
       // Network/404 → fallback
       final fallbackRequest = SearchSuggestionsRequest(
-        region: _selectedRegion,
+        region: _selectedRegion ?? 'BAC',
         season: 'XUAN',
         servings: 2,
         budget: 200000,
@@ -334,6 +342,7 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
+                        _regionChip('Tất cả', null),
                         _regionChip('Miền Bắc', 'BAC'),
                         _regionChip('Miền Trung', 'TRUNG'),
                         _regionChip('Miền Nam', 'NAM'),
@@ -639,14 +648,18 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
                                                         AppTheme.primaryGreen,
                                                   ),
                                                   const SizedBox(width: 4),
-                                                  Text(
-                                                    name,
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                      color:
-                                                          AppTheme.textPrimary,
-                                                      fontWeight:
-                                                          FontWeight.w500,
+                                                  Flexible(
+                                                    child: Text(
+                                                      name,
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        color: AppTheme
+                                                            .textPrimary,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ],
@@ -785,7 +798,7 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
     );
   }
 
-  Widget _regionChip(String label, String code) {
+  Widget _regionChip(String label, String? code) {
     final isSelected = _selectedRegion == code;
     return GestureDetector(
       onTap: () => setState(() => _selectedRegion = code),

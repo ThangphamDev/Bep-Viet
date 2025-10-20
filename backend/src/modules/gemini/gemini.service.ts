@@ -611,10 +611,55 @@ ${(recipes as any[]).map((r, i) =>
             recipeIds
           );
           
-          // Merge Gemini data with DB data
+          // Lấy ingredients cho từng recipe để tính chính xác % khớp
+          const [recipeIngredients] = await this.db.execute(
+            `SELECT 
+              ri.recipe_id,
+              ri.ingredient_id,
+              i.name as ingredient_name,
+              ri.quantity,
+              ri.unit
+            FROM recipe_ingredients ri
+            JOIN ingredients i ON ri.ingredient_id = i.id
+            WHERE ri.recipe_id IN (${placeholders})`,
+            recipeIds
+          );
+          
+          // Group ingredients by recipe
+          const ingredientsByRecipe = (recipeIngredients as any[]).reduce((acc, ri) => {
+            if (!acc[ri.recipe_id]) {
+              acc[ri.recipe_id] = [];
+            }
+            acc[ri.recipe_id].push({
+              id: ri.ingredient_id,
+              name: ri.ingredient_name,
+              quantity: ri.quantity,
+              unit: ri.unit,
+            });
+            return acc;
+          }, {} as Record<string, any[]>);
+          
+          // Merge Gemini data with DB data + Calculate accurate ingredient match
           result.suggestions = result.suggestions.map(geminiSugg => {
             const dbRecipe = (fullRecipes as any[]).find(r => r.id === geminiSugg.recipeId);
             if (dbRecipe) {
+              const recipeIngredientsList = ingredientsByRecipe[geminiSugg.recipeId] || [];
+              
+              // Tính % khớp nguyên liệu CHÍNH XÁC
+              const matchedCount = recipeIngredientsList.filter(ri => 
+                ingredient_ids.includes(ri.id)
+              ).length;
+              const totalRequired = recipeIngredientsList.length;
+              const accurateMatch = totalRequired > 0 
+                ? Math.round((matchedCount / totalRequired) * 100) 
+                : 0;
+              
+              // Liệt kê nguyên liệu THIẾU
+              const missingIngredients = recipeIngredientsList
+                .filter(ri => !ingredient_ids.includes(ri.id))
+                .map(ri => `${ri.name} (${ri.quantity} ${ri.unit})`)
+                .slice(0, 5);
+              
               return {
                 ...geminiSugg,
                 image_url: dbRecipe.image_url,
@@ -623,6 +668,12 @@ ${(recipes as any[]).map((r, i) =>
                 spice_level: dbRecipe.spice_level,
                 rating_avg: dbRecipe.rating_avg,
                 base_region: dbRecipe.base_region,
+                // Override với giá trị CHÍNH XÁC từ DB
+                ingredientMatch: accurateMatch,
+                missingIngredients: missingIngredients,
+                // Thêm thông tin bổ sung
+                totalIngredients: totalRequired,
+                matchedIngredients: matchedCount,
               };
             }
             return geminiSugg;
