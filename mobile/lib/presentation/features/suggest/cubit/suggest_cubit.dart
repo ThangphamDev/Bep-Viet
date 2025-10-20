@@ -65,6 +65,9 @@ class SuggestState {
 class SuggestCubit extends Cubit<SuggestState> {
   final ApiService _apiService;
 
+  // Expose apiService for ImageAnalysisWidget
+  ApiService get apiService => _apiService;
+
   SuggestCubit(this._apiService) : super(SuggestState()) {
     // Load initial suggestions
     _loadInitialSuggestions();

@@ -18,15 +18,36 @@ class SuggestionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: AppTheme.cardDecoration,
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, AppTheme.primaryGreen.withOpacity(0.03)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryGreen.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -34,25 +55,34 @@ class SuggestionCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Recipe Image
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: Colors.grey.shade200,
+                    // Recipe Image with Hero Animation
+                    Hero(
+                      tag: 'recipe-${suggestion.recipeId}',
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryGreen.withOpacity(0.2),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: suggestion.recipeImageUrl != null
+                              ? Image.network(
+                                  suggestion.recipeImageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      _buildPlaceholderImage(),
+                                )
+                              : _buildPlaceholderImage(),
+                        ),
                       ),
-                      child: suggestion.recipeImageUrl != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                suggestion.recipeImageUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    _buildPlaceholderImage(),
-                              ),
-                            )
-                          : _buildPlaceholderImage(),
                     ),
                     const SizedBox(width: 16),
 
@@ -73,15 +103,27 @@ class SuggestionCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
 
-                          // Region badge
+                          // Region badge with gradient
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                              horizontal: 10,
+                              vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryGreen.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppTheme.primaryGreen,
+                                  AppTheme.primaryGreen.withOpacity(0.7),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryGreen.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Text(
                               AppConstants.regionNames[suggestion
@@ -89,26 +131,26 @@ class SuggestionCard extends StatelessWidget {
                                   suggestion.variantRegion,
                               style: const TextStyle(
                                 fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: AppTheme.primaryGreen,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
                           ),
                           const SizedBox(height: 8),
 
-                          // Stats row
-                          Row(
+                          // Stats row (wrap to avoid horizontal overflow)
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
                             children: [
                               _buildStatChip(
                                 Icons.access_time,
                                 '${(suggestion.prepTimeMinutes ?? 0) + (suggestion.cookTimeMinutes ?? 0)} phút',
                               ),
-                              const SizedBox(width: 8),
                               _buildStatChip(
                                 Icons.people,
                                 '${suggestion.servings} người',
                               ),
-                              const SizedBox(width: 8),
                               _buildStatChip(
                                 Icons.star,
                                 '${suggestion.difficulty ?? 1}/5',
@@ -166,43 +208,51 @@ class SuggestionCard extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // Cost and Action Button
+                // Cost and Action Button (avoid overflow by constraining button)
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Chi phí ước tính',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Chi phí ước tính',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '${(suggestion.totalCost / 1000).round()}k VNĐ',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryGreen,
-                              ),
-                        ),
-                      ],
+                          Text(
+                            '${(suggestion.totalCost / 1000).round()}k VNĐ',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryGreen,
+                                ),
+                          ),
+                        ],
+                      ),
                     ),
-                    ElevatedButton.icon(
-                      onPressed: onAddToMealPlan,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Thêm vào hôm nay'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryGreen,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton.icon(
+                          onPressed: onAddToMealPlan,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Thêm vào hôm nay'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryGreen,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
                         ),
                       ),
                     ),

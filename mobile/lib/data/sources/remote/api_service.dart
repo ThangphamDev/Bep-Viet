@@ -280,6 +280,47 @@ class ApiService {
     }
   }
 
+  // Gemini AI - Image Recognition
+  Future<Map<String, dynamic>> analyzeImageBase64(String imageBase64) async {
+    try {
+      final response = await _dio.post(
+        '/api/gemini/analyze-image-base64',
+        data: {'imageBase64': imageBase64},
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false, 'message': 'Invalid response format'};
+    } catch (e) {
+      throw Exception('Failed to analyze image: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getSuggestionsFromIngredients({
+    required List<String> ingredientIds,
+    String? region,
+    int? limit,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/gemini/suggest-from-ingredients',
+        queryParameters: {
+          if (region != null) 'region': region,
+          if (limit != null) 'limit': limit,
+        },
+        data: {'ingredient_ids': ingredientIds},
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false, 'data': []};
+    } catch (e) {
+      throw Exception('Failed to get suggestions from ingredients: $e');
+    }
+  }
+
   // Ingredients
   Future<List<Map<String, dynamic>>> getIngredients({
     String? search,

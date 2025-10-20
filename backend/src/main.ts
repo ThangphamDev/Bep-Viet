@@ -9,6 +9,10 @@ async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
     
+    // Increase JSON payload size limit for base64 images (20MB)
+    app.use(require('express').json({ limit: '20mb' }));
+    app.use(require('express').urlencoded({ limit: '20mb', extended: true }));
+    
     // Enable CORS
     app.enableCors({
       origin: [

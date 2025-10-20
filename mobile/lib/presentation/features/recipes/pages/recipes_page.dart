@@ -56,10 +56,10 @@ class _RecipesPageViewState extends State<RecipesPageView> {
 
   void _loadRecipes() {
     context.read<RecipesCubit>().loadRecipes(
-      region: _selectedRegion.isEmpty ? null : _selectedRegion,
-      maxTime: _maxTime,
+          region: _selectedRegion.isEmpty ? null : _selectedRegion,
+          maxTime: _maxTime,
       search: _searchController.text.isEmpty ? null : _searchController.text,
-    );
+        );
   }
 
   @override
@@ -71,15 +71,15 @@ class _RecipesPageViewState extends State<RecipesPageView> {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(), // ✅ Scroll mượt mà hơn
             cacheExtent: 1000, // ✅ Cache để scroll mượt
-            slivers: [
+              slivers: [
               // Custom App Bar
-              SliverAppBar(
+                SliverAppBar(
                 expandedHeight: 120, // ✅ Giảm từ 140 xuống 120
                 floating: false,
-                pinned: true,
+                  pinned: true,
                 backgroundColor:
                     AppTheme.primaryGreen, // ✅ Giữ màu xanh khi collapse
-                elevation: 0,
+                  elevation: 0,
                 forceElevated: false, // ✅ Tắt elevation để giảm jank
                 stretch: false, // ✅ Tắt stretch để giảm jank
                 flexibleSpace: FlexibleSpaceBar(
@@ -133,7 +133,7 @@ class _RecipesPageViewState extends State<RecipesPageView> {
                                   child: InkWell(
                                     onTap: () => context.go('/suggest'),
                                     borderRadius: BorderRadius.circular(20),
-                                    child: Padding(
+                    child: Padding(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 10, // ✅ Giảm từ 12 xuống 10
                                         vertical: 6, // ✅ Giảm từ 8 xuống 6
@@ -168,13 +168,13 @@ class _RecipesPageViewState extends State<RecipesPageView> {
                           ),
                         ),
                       ],
+                      ),
                     ),
                   ),
                 ),
-              ),
 
               // Search and Filters
-              SliverToBoxAdapter(
+                SliverToBoxAdapter(
                 child: Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(16),
@@ -277,8 +277,8 @@ class _RecipesPageViewState extends State<RecipesPageView> {
                                 setState(() {
                                   _selectedRegion = 'NAM';
                                 });
-                                _loadRecipes();
-                              },
+                        _loadRecipes();
+                      },
                             ),
                           ],
                         ),
@@ -347,8 +347,8 @@ class _RecipesPageViewState extends State<RecipesPageView> {
                                   setState(() {
                                     _maxTime = value.round();
                                   });
-                                  _loadRecipes();
-                                },
+                        _loadRecipes();
+                      },
                               ),
                             ),
                           ],
@@ -402,17 +402,17 @@ class _RecipesPageViewState extends State<RecipesPageView> {
 
               // Loading Shimmer
               if (state.isLoading)
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverGrid(
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverGrid(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
+                        crossAxisCount: 2,
                           childAspectRatio: 0.75,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                    delegate: SliverChildBuilderDelegate(
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
                       (context, index) => const RecipeCardShimmer(),
                       childCount: 6, // Show 6 shimmer cards
                     ),
@@ -421,18 +421,18 @@ class _RecipesPageViewState extends State<RecipesPageView> {
 
               // Recipes Grid
               if (!state.isLoading && state.recipes.isNotEmpty)
-                SliverPadding(
+                  SliverPadding(
                   padding: const EdgeInsets.all(16),
                   sliver: SliverGrid(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           childAspectRatio: 0.75,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
                     delegate: SliverChildBuilderDelegate((context, index) {
-                      final recipe = state.recipes[index];
+                              final recipe = state.recipes[index];
                       return ModernRecipeCard(
                         recipe: recipe,
                         onTap: () => context.go('/recipes/${recipe.id}'),
@@ -477,10 +477,10 @@ class _RecipesPageViewState extends State<RecipesPageView> {
                           style: TextStyle(
                             fontSize: 16,
                             color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
                     ),
+                  ),
+              ],
+            ),
                   ),
                 ),
 
@@ -551,15 +551,15 @@ class ModernRecipeCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
             decoration: BoxDecoration(
               color: AppTheme.surfaceColor,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
                 // Recipe Image
                 Container(
                   height: 120,
@@ -577,9 +577,9 @@ class ModernRecipeCard extends StatelessWidget {
                             topLeft: Radius.circular(16),
                             topRight: Radius.circular(16),
                           ),
-                          child: CachedNetworkImage(
+                child: CachedNetworkImage(
                             imageUrl: recipe.imageUrl!,
-                            fit: BoxFit.cover,
+                  fit: BoxFit.cover,
                             placeholder: (context, url) => Container(
                               color: Colors.grey.shade200,
                               child: const Center(
@@ -588,9 +588,9 @@ class ModernRecipeCard extends StatelessWidget {
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                     AppTheme.primaryGreen,
                                   ),
-                                ),
-                              ),
-                            ),
+                ),
+              ),
+            ),
                             errorWidget: (context, url, error) =>
                                 _buildPlaceholderImage(),
                           ),
@@ -601,21 +601,21 @@ class ModernRecipeCard extends StatelessWidget {
                 // Recipe Info
                 Container(
                   padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    children: [
+                children: [
                       // Recipe Name
-                      Text(
-                        recipe.name,
+                  Text(
+                    recipe.name,
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.textPrimary,
                           height: 1.1,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
 
@@ -638,30 +638,30 @@ class ModernRecipeCard extends StatelessWidget {
                               color: AppTheme.primaryGreen,
                             ),
                           ),
-                        ),
-                      const SizedBox(height: 6),
+                  ),
+                  const SizedBox(height: 6),
 
                       // Stats row
-                      Row(
-                        children: [
-                          if (recipe.cookTimeMinutes != null) ...[
+                  Row(
+                    children: [
+                      if (recipe.cookTimeMinutes != null) ...[
                             _buildStatChip(
                               Icons.access_time,
                               '${recipe.cookTimeMinutes}m',
                             ),
-                            const SizedBox(width: 4),
+                        const SizedBox(width: 4),
                           ],
                           if (recipe.difficulty != null)
                             _buildStatChip(
                               Icons.star,
                               '${recipe.difficulty}/5',
                             ),
-                        ],
-                      ),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
+            ),
+          ],
             ),
           ),
         ),

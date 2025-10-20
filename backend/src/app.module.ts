@@ -22,6 +22,7 @@ import { FamilyModule } from './modules/family/family.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { GeminiModule } from './modules/gemini/gemini.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     AnalyticsModule,
     ModerationModule,
     SubscriptionsModule,
+    GeminiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
