@@ -6,12 +6,12 @@ export class FamilyService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async createFamilyProfile(userId: string, familyData: any) {
-    const { name, description, member_count } = familyData;
+    const { name, note } = familyData;
 
     const [result] = await this.db.execute(
-      `INSERT INTO family_profiles (owner_user_id, name, description, member_count)
-       VALUES (?, ?, ?, ?)`,
-      [userId, name, description, member_count]
+      `INSERT INTO family_profiles (user_id, name, note)
+       VALUES (?, ?, ?)`,
+      [userId, name, note]
     );
 
     return {
@@ -21,17 +21,18 @@ export class FamilyService {
   }
 
   async getUserFamilyProfiles(userId: string) {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
     const [profiles] = await this.db.execute(
       `SELECT 
         fp.id,
         fp.name,
-        fp.description,
-        fp.member_count,
-        fp.created_at,
-        fp.updated_at
+        fp.note
       FROM family_profiles fp
-      WHERE fp.owner_user_id = ?
-      ORDER BY fp.created_at DESC`,
+      WHERE fp.user_id = ?
+      ORDER BY fp.id DESC`,
       [userId]
     );
 

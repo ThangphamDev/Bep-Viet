@@ -55,30 +55,38 @@ class FeatureBenefitCard extends StatelessWidget {
               ),
               child: Icon(icon, color: AppTheme.primaryGreen, size: 20),
             ),
-            Column(
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+            const SizedBox(height: 4), // Add spacing between icon and text
+            Expanded(
+              child: Column(
+                mainAxisAlignment:
+                    MainAxisAlignment.center, // Center the text vertically
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppTheme.textSecondary,
+                  const SizedBox(height: 4), // Increased spacing
+                  Flexible(
+                    // Use Flexible instead of fixed height
+                    child: Text(
+                      description,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: AppTheme.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

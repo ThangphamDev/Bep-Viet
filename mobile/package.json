@@ -1,0 +1,25 @@
+{
+  "name": "bepviet-gemini-test",
+  "version": "1.0.0",
+  "description": "Test script for Gemini API integration",
+  "main": "test_gemini.js",
+  "scripts": {
+    "test": "node test_gemini.js",
+    "quick": "node quick_test.js",
+    "test-models": "node -e \"require('./test_gemini.js').testMultipleModels()\"",
+    "test-prompts": "node -e \"require('./test_gemini.js').testDifferentPrompts()\""
+  },
+  "dependencies": {
+    "https": "^1.0.0"
+  },
+  "keywords": [
+    "gemini",
+    "ai",
+    "test",
+    "bepviet"
+  ],
+  "author": "BepViet Team",
+  "license": "MIT"
+}
+
+

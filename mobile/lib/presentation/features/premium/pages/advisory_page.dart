@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/advisory_card.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/health_check_card.dart';
 
@@ -359,19 +360,324 @@ class _AdvisoryPageState extends State<AdvisoryPage>
   }
 
   void _runHealthCheck() {
-    // TODO: Implement health check
+    _showHealthCheckDialog(
+      title: 'Kiểm tra sức khỏe tổng quát',
+      description:
+          'Đang phân tích tình trạng sức khỏe của tất cả thành viên...',
+    );
   }
 
   void _runQuickHealthCheck() {
-    // TODO: Implement quick health check
+    _showHealthCheckDialog(
+      title: 'Kiểm tra nhanh',
+      description: 'Đang kiểm tra tình trạng sức khỏe cơ bản...',
+    );
   }
 
   void _runDetailedHealthCheck() {
-    // TODO: Implement detailed health check
+    _showHealthCheckDialog(
+      title: 'Kiểm tra chi tiết',
+      description: 'Đang phân tích sâu về dinh dưỡng và sức khỏe...',
+    );
   }
 
   void _runRecipeSafetyCheck() {
-    // TODO: Implement recipe safety check
+    _showHealthCheckDialog(
+      title: 'Kiểm tra an toàn món ăn',
+      description: 'Đang kiểm tra món ăn có phù hợp với gia đình...',
+    );
+  }
+
+  void _showHealthCheckDialog({
+    required String title,
+    required String description,
+  }) {
+    // Show loading dialog first
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConfig.defaultPadding + 4),
+        ),
+        title: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppTheme.primaryGreen,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: Text(title, style: const TextStyle(fontSize: 16))),
+          ],
+        ),
+        content: Text(description),
+      ),
+    );
+
+    // Simulate health check process and show results
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        // Small delay to ensure dialog is closed
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            _showHealthCheckResults(title);
+          }
+        });
+      }
+    });
+  }
+
+  void _showHealthCheckResults(String checkType) {
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (context) => _buildHealthCheckResultsSheet(checkType),
+    );
+  }
+
+  Widget _buildHealthCheckResultsSheet(String checkType) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.health_and_safety,
+                    color: AppTheme.primaryGreen,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Kết quả $checkType',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Results content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildResultCard(
+                      'Tình trạng tổng thể',
+                      'Tốt',
+                      AppTheme.successColor,
+                      'Sức khỏe gia đình đang ở mức tốt',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildResultCard(
+                      'Cảnh báo',
+                      '2',
+                      AppTheme.warningColor,
+                      'Có 2 vấn đề cần chú ý',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildResultCard(
+                      'Khuyến nghị',
+                      '3',
+                      AppTheme.infoColor,
+                      '3 gợi ý cải thiện sức khỏe',
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Detailed results
+                    Text(
+                      'Chi tiết kết quả',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+
+                    _buildDetailItem(
+                      'Thành viên: Bố',
+                      'Sức khỏe tốt, cần giảm muối',
+                      AppTheme.successColor,
+                    ),
+                    _buildDetailItem(
+                      'Thành viên: Mẹ',
+                      'Cần bổ sung canxi',
+                      AppTheme.warningColor,
+                    ),
+                    _buildDetailItem(
+                      'Thành viên: Con',
+                      'Cân bằng dinh dưỡng tốt',
+                      AppTheme.successColor,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Action buttons
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Đóng'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        // Navigate to detailed report
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Xem báo cáo chi tiết'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultCard(
+    String title,
+    String value,
+    Color color,
+    String description,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.check_circle, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String title, String description, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAdvisoryDetails(AdvisoryItem advisory) {
@@ -550,14 +856,28 @@ class _AdvisoryPageState extends State<AdvisoryPage>
     setState(() {
       advisory.isRead = true;
     });
-    Navigator.pop(context);
+    // Show success message instead of navigating away
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã đánh dấu đã đọc'),
+        backgroundColor: AppTheme.successColor,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   void _dismissAdvisory(AdvisoryItem advisory) {
     setState(() {
       _advisories.remove(advisory);
     });
-    Navigator.pop(context);
+    // Show success message instead of navigating away
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã bỏ qua cảnh báo'),
+        backgroundColor: AppTheme.infoColor,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 }
 

@@ -14,8 +14,6 @@ export class RecipesController {
   @Get()
   @ApiOperation({ summary: 'Get all recipes' })
   @ApiQuery({ name: 'meal_type', required: false, description: 'Filter by meal type' })
-  @ApiQuery({ name: 'difficulty', required: false, description: 'Filter by difficulty' })
-  @ApiQuery({ name: 'base_region', required: false, description: 'Filter by base region' })
   @ApiQuery({ name: 'max_time', required: false, description: 'Maximum cooking time' })
   @ApiQuery({ name: 'search', required: false, description: 'Search term' })
   @ApiQuery({ name: 'limit', required: false, description: 'Limit results' })

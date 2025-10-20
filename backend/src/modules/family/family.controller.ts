@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { FamilyService } from './family.service';
@@ -13,18 +13,18 @@ export class FamilyController {
   @Get('profiles')
   @ApiOperation({ summary: 'Get user family profiles' })
   @ApiResponse({ status: 200, description: 'List of family profiles' })
-  async getUserFamilyProfiles(@Query('userId') userId: string) {
-    return this.familyService.getUserFamilyProfiles(userId);
+  async getUserFamilyProfiles(@Request() req) {
+    return this.familyService.getUserFamilyProfiles(req.user.id);
   }
 
   @Post('profiles')
   @ApiOperation({ summary: 'Create family profile' })
   @ApiResponse({ status: 201, description: 'Family profile created successfully' })
   async createFamilyProfile(
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() familyData: any
   ) {
-    return this.familyService.createFamilyProfile(userId, familyData);
+    return this.familyService.createFamilyProfile(req.user.id, familyData);
   }
 
   @Post('profiles/:id/members')

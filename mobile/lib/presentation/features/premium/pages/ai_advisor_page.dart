@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
+import 'package:bepviet_mobile/core/services/gemini_service.dart';
 
 class AIAdvisorPage extends StatefulWidget {
   const AIAdvisorPage({super.key});
@@ -12,6 +13,9 @@ class AIAdvisorPage extends StatefulWidget {
 
 class _AIAdvisorPageState extends State<AIAdvisorPage> {
   final TextEditingController _messageController = TextEditingController();
+  final GeminiService _geminiService = GeminiService();
+  bool _isLoading = false;
+
   final List<ChatMessage> _messages = [
     ChatMessage(
       text:
@@ -89,7 +93,7 @@ class _AIAdvisorPageState extends State<AIAdvisorPage> {
                       ),
                       const SizedBox(height: AppConfig.smallPadding / 2),
                       Text(
-                        'Sẵn sàng tư vấn 24/7',
+                        _isLoading ? 'Đang xử lý...' : 'Sẵn sàng tư vấn 24/7',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.white.withOpacity(0.9),
                         ),
@@ -170,8 +174,11 @@ class _AIAdvisorPageState extends State<AIAdvisorPage> {
               padding: const EdgeInsets.symmetric(
                 horizontal: AppConfig.defaultPadding,
               ),
-              itemCount: _messages.length,
+              itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
+                if (index == _messages.length && _isLoading) {
+                  return _buildLoadingIndicator();
+                }
                 final message = _messages[index];
                 return _buildMessageBubble(message);
               },
@@ -270,6 +277,63 @@ class _AIAdvisorPageState extends State<AIAdvisorPage> {
     );
   }
 
+  Widget _buildLoadingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppConfig.smallPadding),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryGreen.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(
+              Icons.smart_toy,
+              color: AppTheme.primaryGreen,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: AppConfig.smallPadding),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConfig.defaultPadding,
+              vertical: AppConfig.smallPadding,
+            ),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryGreen.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(AppConfig.smallPadding + 4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppTheme.primaryGreen,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppConfig.smallPadding),
+                Text(
+                  'Đang suy nghĩ...',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.primaryGreen,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageBubble(ChatMessage message) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppConfig.smallPadding),
@@ -353,33 +417,46 @@ class _AIAdvisorPageState extends State<AIAdvisorPage> {
     );
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
+
+    final userMessage = _messageController.text.trim();
+    _messageController.clear();
 
     setState(() {
       _messages.add(
-        ChatMessage(
-          text: _messageController.text.trim(),
-          isUser: true,
-          timestamp: DateTime.now(),
-        ),
+        ChatMessage(text: userMessage, isUser: true, timestamp: DateTime.now()),
       );
+      _isLoading = true;
     });
 
-    _messageController.clear();
+    try {
+      // Gọi Gemini AI
+      final aiResponse = await _geminiService.getNutritionAdvice(userMessage);
 
-    // Simulate AI response
-    Future.delayed(const Duration(seconds: 1), () {
       setState(() {
         _messages.add(
           ChatMessage(
-            text: _generateAIResponse(_messages.last.text),
+            text: aiResponse,
             isUser: false,
             timestamp: DateTime.now(),
           ),
         );
+        _isLoading = false;
       });
-    });
+    } catch (e) {
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            text:
+                'Xin lỗi, tôi gặp lỗi khi xử lý câu hỏi của bạn. Vui lòng thử lại sau.',
+            isUser: false,
+            timestamp: DateTime.now(),
+          ),
+        );
+        _isLoading = false;
+      });
+    }
   }
 
   void _sendQuickQuestion(String question) {

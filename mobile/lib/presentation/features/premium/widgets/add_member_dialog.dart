@@ -16,6 +16,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
+  final _customAllergiesController = TextEditingController();
+  final _customDietaryRestrictionsController = TextEditingController();
+  final _customHealthConditionsController = TextEditingController();
   String _selectedRole = 'Bố';
   final List<String> _selectedAllergies = [];
   final List<String> _selectedDietaryRestrictions = [];
@@ -52,6 +55,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   void dispose() {
     _nameController.dispose();
     _ageController.dispose();
+    _customAllergiesController.dispose();
+    _customDietaryRestrictionsController.dispose();
+    _customHealthConditionsController.dispose();
     super.dispose();
   }
 
@@ -123,54 +129,116 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                       ),
                       const SizedBox(height: AppConfig.defaultPadding),
 
-                      // Age and Role
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _ageController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Tuổi',
-                                hintText: '0',
-                                prefixIcon: Icon(Icons.cake),
+                      // Age and Role - Responsive layout
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Use column layout for small screens
+                          if (constraints.maxWidth < 400) {
+                            return Column(
+                              children: [
+                                TextFormField(
+                                  controller: _ageController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Tuổi',
+                                    hintText: '0',
+                                    prefixIcon: Icon(Icons.cake),
+                                    isDense: true,
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Vui lòng nhập tuổi';
+                                    }
+                                    final age = int.tryParse(value);
+                                    if (age == null || age < 0 || age > 120) {
+                                      return 'Tuổi không hợp lệ';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                DropdownButtonFormField<String>(
+                                  value: _selectedRole,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Vai trò',
+                                    prefixIcon: Icon(Icons.family_restroom),
+                                    isDense: true,
+                                  ),
+                                  items: _roles
+                                      .map(
+                                        (role) => DropdownMenuItem(
+                                          value: role,
+                                          child: Text(role),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedRole = value!;
+                                    });
+                                  },
+                                ),
+                              ],
+                            );
+                          }
+
+                          // Use row layout for larger screens
+                          return Row(
+                            children: [
+                              Flexible(
+                                flex: 1,
+                                child: TextFormField(
+                                  controller: _ageController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Tuổi',
+                                    hintText: '0',
+                                    prefixIcon: Icon(Icons.cake),
+                                    isDense: true,
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Vui lòng nhập tuổi';
+                                    }
+                                    final age = int.tryParse(value);
+                                    if (age == null || age < 0 || age > 120) {
+                                      return 'Tuổi không hợp lệ';
+                                    }
+                                    return null;
+                                  },
+                                ),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Vui lòng nhập tuổi';
-                                }
-                                final age = int.tryParse(value);
-                                if (age == null || age < 0 || age > 120) {
-                                  return 'Tuổi không hợp lệ';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: AppConfig.defaultPadding),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedRole,
-                              decoration: const InputDecoration(
-                                labelText: 'Vai trò',
-                                prefixIcon: Icon(Icons.family_restroom),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                flex: 2,
+                                child: DropdownButtonFormField<String>(
+                                  value: _selectedRole,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Vai trò',
+                                    prefixIcon: Icon(Icons.family_restroom),
+                                    isDense: true,
+                                  ),
+                                  items: _roles
+                                      .map(
+                                        (role) => DropdownMenuItem(
+                                          value: role,
+                                          child: Text(
+                                            role,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedRole = value!;
+                                    });
+                                  },
+                                ),
                               ),
-                              items: _roles
-                                  .map(
-                                    (role) => DropdownMenuItem(
-                                      value: role,
-                                      child: Text(role),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedRole = value!;
-                                });
-                              },
-                            ),
-                          ),
-                        ],
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: AppConfig.largePadding),
 
@@ -188,6 +256,18 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                           }
                         });
                       }, AppTheme.errorColor),
+                      const SizedBox(height: AppConfig.smallPadding),
+                      TextFormField(
+                        controller: _customAllergiesController,
+                        decoration: const InputDecoration(
+                          labelText: 'Dị ứng khác (tùy chỉnh)',
+                          hintText:
+                              'Nhập các dị ứng khác, cách nhau bằng dấu phẩy',
+                          prefixIcon: Icon(Icons.add_circle_outline),
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
+                      ),
                       const SizedBox(height: AppConfig.largePadding),
 
                       // Dietary Restrictions
@@ -209,6 +289,18 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                         },
                         AppTheme.infoColor,
                       ),
+                      const SizedBox(height: AppConfig.smallPadding),
+                      TextFormField(
+                        controller: _customDietaryRestrictionsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Hạn chế ăn uống khác (tùy chỉnh)',
+                          hintText:
+                              'Nhập các hạn chế khác, cách nhau bằng dấu phẩy',
+                          prefixIcon: Icon(Icons.add_circle_outline),
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
+                      ),
                       const SizedBox(height: AppConfig.largePadding),
 
                       // Health Conditions
@@ -227,6 +319,18 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                           });
                         },
                         AppTheme.warningColor,
+                      ),
+                      const SizedBox(height: AppConfig.smallPadding),
+                      TextFormField(
+                        controller: _customHealthConditionsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Tình trạng sức khỏe khác (tùy chỉnh)',
+                          hintText:
+                              'Nhập các tình trạng khác, cách nhau bằng dấu phẩy',
+                          prefixIcon: Icon(Icons.add_circle_outline),
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
                       ),
                     ],
                   ),
@@ -342,6 +446,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         allergies: _selectedAllergies,
         dietaryRestrictions: _selectedDietaryRestrictions,
         healthConditions: _selectedHealthConditions,
+        customAllergies: _customAllergiesController.text.trim(),
+        customDietaryRestrictions: _customDietaryRestrictionsController.text
+            .trim(),
+        customHealthConditions: _customHealthConditionsController.text.trim(),
       );
 
       widget.onSave(member);

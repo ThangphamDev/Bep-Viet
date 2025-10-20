@@ -154,7 +154,7 @@ class WeeklyReportPage extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: AppConfig.smallPadding + 4,
               mainAxisSpacing: AppConfig.smallPadding + 4,
-              childAspectRatio: 1.3,
+              childAspectRatio: 1.4, // Increased to prevent overflow
               children: [
                 _buildNutritionCard(
                   'Calories',
@@ -317,7 +317,9 @@ class WeeklyReportPage extends StatelessWidget {
     String status,
   ) {
     return Container(
-      padding: const EdgeInsets.all(AppConfig.defaultPadding),
+      padding: const EdgeInsets.all(
+        AppConfig.smallPadding + 4,
+      ), // Reduced padding
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(AppConfig.defaultPadding + 4),
@@ -325,41 +327,51 @@ class WeeklyReportPage extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // Prevent overflow
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 20),
+              Icon(icon, color: color, size: 18), // Reduced icon size
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppConfig.smallPadding,
+                  horizontal: 6, // Reduced padding
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppConfig.smallPadding),
+                  borderRadius: BorderRadius.circular(8), // Reduced radius
                 ),
                 child: Text(
                   status,
                   style: TextStyle(
                     color: color,
-                    fontSize: 10,
+                    fontSize: 9, // Reduced font size
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppConfig.smallPadding),
+          const SizedBox(height: 6), // Reduced spacing
           Text(
             value,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ), // Reduced font size
           ),
-          Text(unit, style: const TextStyle(fontSize: 12)),
-          const SizedBox(height: AppConfig.smallPadding / 2),
+          Text(
+            unit,
+            style: const TextStyle(fontSize: 11), // Reduced font size
+          ),
+          const Spacer(), // Add spacer to push title to bottom
           Text(
             title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ), // Reduced font size
           ),
         ],
       ),
@@ -375,11 +387,19 @@ class WeeklyReportPage extends StatelessWidget {
     String severity,
   ) {
     return Container(
+      margin: const EdgeInsets.only(bottom: AppConfig.defaultPadding),
       padding: const EdgeInsets.all(AppConfig.defaultPadding),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(AppConfig.defaultPadding + 4),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withOpacity(0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -387,31 +407,38 @@ class WeeklyReportPage extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.warning_amber, color: color, size: 16),
+                child: Icon(Icons.warning_amber, color: color, size: 18),
               ),
               const SizedBox(width: AppConfig.smallPadding),
               Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                    Text(
+                      'Thành viên: $member',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConfig.smallPadding,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppConfig.smallPadding),
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   severity,
