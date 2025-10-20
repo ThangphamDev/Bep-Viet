@@ -321,6 +321,65 @@ class ApiService {
     }
   }
 
+  // Gemini AI Chatbot - Conversational recipe suggestions
+  Future<Map<String, dynamic>> getAiSuggestionsChatbot({
+    required List<String> ingredientIds,
+    String? region,
+    int? spicePreference,
+    String? userPrompt,
+    int? limit,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/gemini/ai-suggest-chatbot',
+        data: {
+          'ingredient_ids': ingredientIds,
+          if (region != null) 'region': region,
+          if (spicePreference != null) 'spice_preference': spicePreference,
+          if (userPrompt != null && userPrompt.isNotEmpty) 'prompt': userPrompt,
+          if (limit != null) 'limit': limit,
+        },
+      );
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false, 'data': null};
+    } catch (e) {
+      throw Exception('Failed to get AI chatbot suggestions: $e');
+    }
+  }
+
+  // Gemini AI - Text + Filters based suggestion (OLD VERSION)
+  Future<Map<String, dynamic>> getAiSuggestions({
+    required List<String> ingredientIds,
+    String? region,
+    int? spicePreference,
+    String? userPrompt,
+    int? limit,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/gemini/ai-suggest',
+        data: {
+          'ingredient_ids': ingredientIds,
+          if (region != null) 'region': region,
+          if (spicePreference != null) 'spice_preference': spicePreference,
+          if (userPrompt != null && userPrompt.isNotEmpty) 'prompt': userPrompt,
+          if (limit != null) 'limit': limit,
+        },
+      );
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false, 'data': []};
+    } catch (e) {
+      throw Exception('Failed to get AI suggestions: $e');
+    }
+  }
+
+  // NOTE: Prompt building đã được chuyển sang backend
+  // Backend sẽ phân tích user prompt với Gemini và trả về kết quả đã được filter
+
   // Ingredients
   Future<List<Map<String, dynamic>>> getIngredients({
     String? search,

@@ -172,7 +172,7 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            // Camera Button - NEW!
+                            // Camera Button -> Navigate to AI Suggest Page
                             Container(
                               decoration: BoxDecoration(
                                 gradient: AppTheme.primaryGradient,
@@ -190,18 +190,12 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                               child: Material(
                                 color: Colors.transparent,
                                 child: InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _showImageAnalysis = !_showImageAnalysis;
-                                    });
-                                  },
+                                  onTap: () => context.go('/ai-suggest'),
                                   borderRadius: BorderRadius.circular(20),
                                   child: Padding(
                                     padding: const EdgeInsets.all(6),
                                     child: Icon(
-                                      _showImageAnalysis
-                                          ? Icons.close
-                                          : Icons.camera_alt,
+                                      Icons.camera_alt,
                                       size: 14,
                                       color: Colors.white,
                                     ),

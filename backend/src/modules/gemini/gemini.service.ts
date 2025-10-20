@@ -255,4 +255,466 @@ Trả về kết quả dưới dạng JSON với cấu trúc:
       throw error;
     }
   }
+
+  /**
+   * Analyze user intent from prompt using Gemini AI
+   */
+  private async analyzeUserIntent(prompt: string): Promise<any> {
+    try {
+      if (!prompt || !this.apiKey) {
+        return this.getDefaultIntent();
+      }
+
+      const analysisPrompt = `Bạn là chuyên gia phân tích yêu cầu nấu ăn. Phân tích yêu cầu sau: "${prompt}"
+
+Trả về JSON với cấu trúc:
+{
+  "keywords": ["từ khóa chính được phát hiện"],
+  "intent": "baby_food|rich_flavor|light|quick|spicy|low_oil|normal",
+  "preferredTags": ["danh sách tags cần ưu tiên"],
+  "avoidTags": ["danh sách tags cần tránh"],
+  "criteria": {
+    "spice_level_max": 1,
+    "difficulty_max": 3,
+    "cook_time_max": 60
+  }
+}
+
+Quy tắc phân tích:
+- "bé" / "trẻ em" / "em nhỏ" / "con" → intent: "baby_food", preferredTags: ["Cháo", "Súp", "Cho bé ăn", "Hấp", "Luộc", "Mềm nhũn"], avoidTags: ["Chiên", "Cay vừa", "Rất cay"], criteria: {spice_level_max: 0, difficulty_max: 2, cook_time_max: 40}
+- "đậm vị" / "đậm đà" / "mặn mà" / "đậm" → intent: "rich_flavor", preferredTags: ["Kho", "Đậm đà", "Món chính"], criteria: {difficulty_max: 4, cook_time_max: 90}
+- "nhẹ" / "thanh đạm" / "ít dầu" / "ăn kiêng" → intent: "light", preferredTags: ["Thanh đạm", "Ít dầu mỡ", "Luộc", "Hấp", "Canh"], avoidTags: ["Chiên", "Kho", "Đậm đà"], criteria: {spice_level_max: 2, difficulty_max: 3}
+- "nhanh" / "dễ" / "đơn giản" → intent: "quick", preferredTags: ["Nhanh gọn", "Dễ làm", "Xào"], criteria: {difficulty_max: 2, cook_time_max: 25}
+- "cay" / "thêm ớt" → intent: "spicy", preferredTags: ["Cay vừa", "Rất cay"], criteria: {spice_level_max: 5}
+- "không cay" / "bớt cay" → intent: "low_spice", preferredTags: ["Không cay", "Ít cay"], avoidTags: ["Cay vừa", "Rất cay"], criteria: {spice_level_max: 1}
+
+CHỈ trả về JSON, không giải thích thêm.`;
+
+      const requestBody = {
+        contents: [{
+          parts: [{ text: analysisPrompt }]
+        }]
+      };
+
+      const response = await fetch(`${this.apiUrl}?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        this.logger.warn(`Gemini API error for intent analysis: ${response.status}`);
+        return this.getDefaultIntent();
+      }
+
+      const data = await response.json();
+      const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!textContent) {
+        return this.getDefaultIntent();
+      }
+
+      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        this.logger.warn('No JSON found in intent analysis response');
+        return this.getDefaultIntent();
+      }
+
+      return JSON.parse(jsonMatch[0]);
+    } catch (error) {
+      this.logger.error('Error analyzing user intent:', error);
+      return this.getDefaultIntent();
+    }
+  }
+
+  /**
+   * Get default intent when analysis fails
+   */
+  private getDefaultIntent(): any {
+    return {
+      keywords: [],
+      intent: 'normal',
+      preferredTags: [],
+      avoidTags: [],
+      criteria: {
+        spice_level_max: 5,
+        difficulty_max: 5,
+        cook_time_max: 120
+      }
+    };
+  }
+
+  /**
+   * Calculate request match score based on intent analysis
+   */
+  private calculateRequestMatchScore(recipe: any, intent: any): number {
+    let score = 0.5; // base score
+
+    if (!intent || intent.intent === 'normal') {
+      return 0.5;
+    }
+
+    const recipeTags = recipe.tag_names ? recipe.tag_names.split(',').map(t => t.trim()) : [];
+
+    // Check preferred tags match (40% weight)
+    if (intent.preferredTags && intent.preferredTags.length > 0) {
+      const matchedTags = intent.preferredTags.filter(tag => 
+        recipeTags.some(rt => rt === tag)
+      );
+      score += (matchedTags.length / intent.preferredTags.length) * 0.4;
+    }
+
+    // Check avoid tags (penalty)
+    if (intent.avoidTags && intent.avoidTags.length > 0) {
+      const hasAvoidTags = intent.avoidTags.some(tag => 
+        recipeTags.some(rt => rt === tag)
+      );
+      if (hasAvoidTags) {
+        score -= 0.3;
+      }
+    }
+
+    // Check criteria match (30% weight)
+    const criteria = intent.criteria || {};
+    let criteriaMatches = 0;
+    let criteriaTot = 0;
+
+    if (criteria.spice_level_max !== undefined) {
+      criteriaTot++;
+      if (recipe.spice_level <= criteria.spice_level_max) {
+        criteriaMatches++;
+      }
+    }
+
+    if (criteria.difficulty_max !== undefined) {
+      criteriaTot++;
+      if (recipe.difficulty <= criteria.difficulty_max) {
+        criteriaMatches++;
+      }
+    }
+
+    if (criteria.cook_time_max !== undefined) {
+      criteriaTot++;
+      if (recipe.cook_time_min <= criteria.cook_time_max) {
+        criteriaMatches++;
+      }
+    }
+
+    if (criteriaTot > 0) {
+      score += (criteriaMatches / criteriaTot) * 0.3;
+    }
+
+    return Math.max(0, Math.min(1, score));
+  }
+
+  /**
+   * Calculate final score combining request match and ingredient match
+   */
+  private calculateFinalScore(recipe: any, intent: any): number {
+    const hasUserRequest = intent && intent.intent !== 'normal';
+    const requestMatchScore = this.calculateRequestMatchScore(recipe, intent);
+    const ingredientMatchScore = recipe.matched_ingredients / recipe.total_ingredients;
+
+    if (hasUserRequest) {
+      // Prioritize user request 70%, ingredients 30%
+      return (requestMatchScore * 0.7) + (ingredientMatchScore * 0.3);
+    } else {
+      // Only ingredient match
+      return ingredientMatchScore;
+    }
+  }
+
+  /**
+   * AI-powered recipe suggestions - CHATBOT STYLE
+   * Gemini phân tích toàn bộ và trả về response dạng conversation
+   */
+  async aiSuggestChatbot(params: {
+    ingredient_ids: string[];
+    prompt?: string;
+    region?: string;
+    spice_preference?: number;
+    limit?: number;
+  }): Promise<any> {
+    try {
+      const { ingredient_ids, prompt, region, spice_preference, limit = 10 } = params;
+
+      if (ingredient_ids.length === 0) {
+        return {
+          chatResponse: 'Bạn chưa cung cấp nguyên liệu. Hãy chụp ảnh hoặc chọn nguyên liệu nhé!',
+          suggestions: [],
+          generalAdvice: null
+        };
+      }
+
+      // 1. Lấy tên nguyên liệu từ DB
+      const placeholders = ingredient_ids.map(() => '?').join(',');
+      const [dbIngredients] = await this.db.execute(
+        `SELECT name FROM ingredients WHERE id IN (${placeholders})`,
+        ingredient_ids
+      );
+      const ingredientNames = (dbIngredients as any[]).map(i => i.name).join(', ');
+
+      // 2. Lấy danh sách recipes (query rộng để Gemini tự chọn)
+      let recipeQuery = `
+        SELECT 
+          r.id, r.name_vi, r.difficulty, r.cook_time_min, 
+          r.spice_level, r.base_region, r.meal_type,
+          GROUP_CONCAT(DISTINCT t.name ORDER BY t.name SEPARATOR ', ') as tag_names,
+          GROUP_CONCAT(DISTINCT i.name ORDER BY i.name SEPARATOR ', ') as ingredient_names
+        FROM recipes r
+        LEFT JOIN recipe_tags rt ON r.id = rt.recipe_id
+        LEFT JOIN tags t ON rt.tag_id = t.id
+        LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+        LEFT JOIN ingredients i ON ri.ingredient_id = i.id
+        WHERE r.is_public = 1
+      `;
+      
+      const queryParams: any[] = [];
+      if (region) {
+        recipeQuery += ' AND r.base_region = ?';
+        queryParams.push(region);
+      }
+      
+      recipeQuery += ' GROUP BY r.id LIMIT 50';
+
+      const [recipes] = await this.db.execute(recipeQuery, queryParams);
+
+      // 3. Build Gemini prompt (chatbot style)
+      const regionName = region === 'BAC' ? 'Miền Bắc' : region === 'TRUNG' ? 'Miền Trung' : region === 'NAM' ? 'Miền Nam' : 'Việt Nam';
+      const spiceLevel = spice_preference === 0 ? 'KHÔNG cay (cho bé/người ăn kiêng)' 
+        : spice_preference === 1 ? 'Ít cay' 
+        : spice_preference === 2 ? 'Cay vừa' 
+        : spice_preference === 3 ? 'Hơi cay' 
+        : 'Rất cay';
+
+      const geminiPrompt = `Bạn là chuyên gia ẩm thực Việt Nam, đang tư vấn cho người dùng.
+
+📌 THÔNG TIN NGƯỜI DÙNG:
+- Nguyên liệu có sẵn: ${ingredientNames}
+- Yêu cầu: "${prompt || 'Không có yêu cầu đặc biệt, gợi ý món ngon'}"
+- Khu vực: ${regionName}
+- Độ cay mong muốn: ${spiceLevel}
+
+📋 DANH SÁCH CÔNG THỨC CÓ SẴN TRONG HỆ THỐNG:
+${(recipes as any[]).map((r, i) => 
+  `${i + 1}. ${r.name_vi}
+   - Tags: ${r.tag_names || 'N/A'}
+   - Nguyên liệu: ${r.ingredient_names || 'N/A'}
+   - Độ cay: ${r.spice_level}/5, Độ khó: ${r.difficulty}/5, Thời gian: ${r.cook_time_min} phút`
+).join('\n')}
+
+🎯 YÊU CẦU PHÂN TÍCH:
+
+1. **PHÂN TÍCH KỸ YÊU CẦU**: "${prompt || 'món ngon'}"
+   - "bé"/"trẻ em"/"em nhỏ"/"con" → Ưu tiên cháo, súp, luộc, hấp. TRÁNH chiên, kho cay, món khó nhai
+   - "đậm vị"/"đậm đà"/"mặn mà" → Ưu tiên kho, rim, món có nước mắm/tương đậm
+   - "nhẹ"/"thanh đạm"/"ít dầu" → Ưu tiên luộc, hấp, canh, tránh chiên rán
+   - "nhanh"/"dễ"/"đơn giản" → Ưu tiên xào, món < 30 phút, độ khó ≤ 2
+   - "cay" → Ưu tiên món có ớt, sa tế
+   - "không cay" → Chỉ chọn món spice_level = 0
+
+2. **CHỌN 5-7 MÓN PHÙ HỢP NHẤT** theo thứ tự ưu tiên:
+   a. Khớp với YÊU CẦU người dùng (ưu tiên CAO NHẤT)
+   b. Khớp với nguyên liệu có sẵn
+   c. Phù hợp với khu vực địa lý
+
+3. **VỚI MỖI MÓN, TÍNH**:
+   - recipeId: ID từ danh sách trên
+   - recipeName: Tên món
+   - matchReason: TẠI SAO món này phù hợp với yêu cầu "${prompt}" (1 câu ngắn gọn)
+   - advisory: Gợi ý điều chỉnh CỤ THỂ dựa vào yêu cầu (thìa/phút/gram)
+   - ingredientMatch: % nguyên liệu khớp (0-100)
+   - missingIngredients: Danh sách nguyên liệu còn thiếu (tối đa 5)
+
+4. **TẠO CHAT RESPONSE**: Lời giới thiệu thân thiện (2-3 câu), phân tích yêu cầu của người dùng
+
+5. **GENERAL ADVICE**: Lời khuyên chung cho loại món này (1-2 câu)
+
+📊 TRẢ VỀ JSON (CHỈ JSON, KHÔNG GIẢI THÍCH THÊM):
+{
+  "chatResponse": "Chào bạn! [Phân tích yêu cầu và giới thiệu gợi ý]",
+  "suggestions": [
+    {
+      "recipeId": "id-from-list",
+      "recipeName": "...",
+      "matchReason": "...",
+      "advisory": "...",
+      "ingredientMatch": 95,
+      "missingIngredients": ["..."],
+      "tags": ["..."]
+    }
+  ],
+  "generalAdvice": "..."
+}
+
+💡 CỰC KỲ QUAN TRỌNG:
+- Nếu yêu cầu "cho bé ăn", món đầu tiên PHẢI là cháo/súp/hấp, KHÔNG ĐƯỢC là chiên/kho/cay
+- Nếu yêu cầu "đậm vị", món đầu tiên PHẢI là kho/rim/món đậm đà
+- chatResponse phải tự nhiên như đang tư vấn trực tiếp
+- advisory phải CỤ THỂ, đo lường được (ví dụ: "Thêm 2 thìa nước mắm", "Kho thêm 15 phút")
+- Ưu tiên yêu cầu người dùng > nguyên liệu
+`;
+
+      // 4. Call Gemini API
+      if (!this.apiKey) {
+        throw new Error('Gemini API key not configured');
+      }
+
+      const response = await fetch(`${this.apiUrl}?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: geminiPrompt }] }]
+        })
+      });
+
+      if (!response.ok) {
+        this.logger.error(`Gemini API error: ${response.status}`);
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!textContent) {
+        throw new Error('No response from Gemini');
+      }
+
+      // 5. Parse JSON from Gemini response
+      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        this.logger.warn('No JSON found in Gemini response');
+        throw new Error('Gemini không trả về JSON hợp lệ');
+      }
+
+      const result = JSON.parse(jsonMatch[0]);
+      this.logger.log(`Gemini chatbot response: ${result.suggestions?.length || 0} suggestions`);
+      
+      return result;
+    } catch (error) {
+      this.logger.error('Error in AI suggest chatbot:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * AI-powered recipe suggestions with intelligent filtering (OLD VERSION - keep for fallback)
+   */
+  async aiSuggest(params: {
+    ingredient_ids: string[];
+    prompt?: string;
+    region?: string;
+    spice_preference?: number;
+    limit?: number;
+  }): Promise<any[]> {
+    try {
+      const { ingredient_ids, prompt, region, spice_preference, limit = 10 } = params;
+
+      if (ingredient_ids.length === 0) {
+        return [];
+      }
+
+      // Step 1: Analyze user intent
+      const intent = prompt ? await this.analyzeUserIntent(prompt) : this.getDefaultIntent();
+      this.logger.log(`User intent analyzed: ${JSON.stringify(intent)}`);
+
+      // Step 2: Build query with tags
+      const placeholders = ingredient_ids.map(() => '?').join(',');
+      
+      let query = `
+        SELECT 
+          r.id as recipe_id,
+          r.name_vi,
+          r.name_en,
+          r.meal_type,
+          r.difficulty,
+          r.cook_time_min,
+          r.base_region,
+          r.spice_level,
+          r.rating_avg,
+          r.rating_count,
+          r.image_url,
+          COUNT(DISTINCT ri.ingredient_id) as matched_ingredients,
+          COUNT(DISTINCT ri2.ingredient_id) as total_ingredients,
+          GROUP_CONCAT(DISTINCT t.name SEPARATOR ',') as tag_names
+        FROM recipes r
+        JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+        LEFT JOIN recipe_ingredients ri2 ON r.id = ri2.recipe_id
+        LEFT JOIN recipe_tags rt ON r.id = rt.recipe_id
+        LEFT JOIN tags t ON rt.tag_id = t.id
+        WHERE r.is_public = 1 
+          AND ri.ingredient_id IN (${placeholders})
+      `;
+
+      const params_arr: any[] = [...ingredient_ids];
+
+      // Filter by region
+      if (region) {
+        query += ' AND r.base_region = ?';
+        params_arr.push(region);
+      }
+
+      // Filter by spice preference
+      if (spice_preference !== undefined) {
+        query += ' AND r.spice_level <= ?';
+        params_arr.push(spice_preference + 1);
+      }
+
+      // Filter by criteria from intent
+      if (intent.criteria) {
+        if (intent.criteria.spice_level_max !== undefined) {
+          query += ' AND r.spice_level <= ?';
+          params_arr.push(intent.criteria.spice_level_max);
+        }
+        if (intent.criteria.difficulty_max !== undefined) {
+          query += ' AND r.difficulty <= ?';
+          params_arr.push(intent.criteria.difficulty_max);
+        }
+        if (intent.criteria.cook_time_max !== undefined) {
+          query += ' AND r.cook_time_min <= ?';
+          params_arr.push(intent.criteria.cook_time_max);
+        }
+      }
+
+      query += `
+        GROUP BY r.id
+        HAVING matched_ingredients >= 1
+      `;
+
+      // Get all matching recipes first
+      const [recipes] = await this.db.execute(query, params_arr);
+
+      // Step 3: Calculate scores and filter
+      let scoredRecipes = (recipes as any[]).map(recipe => {
+        const requestMatchScore = this.calculateRequestMatchScore(recipe, intent);
+        const ingredientMatchScore = recipe.matched_ingredients / recipe.total_ingredients;
+        const finalScore = this.calculateFinalScore(recipe, intent);
+
+        return {
+          ...recipe,
+          requestMatchScore,
+          ingredientMatchScore,
+          matchScore: finalScore,
+          match_percentage: Math.round(ingredientMatchScore * 100),
+        };
+      });
+
+      // Filter out recipes with avoid tags (hard filter)
+      if (intent.avoidTags && intent.avoidTags.length > 0) {
+        scoredRecipes = scoredRecipes.filter(recipe => {
+          const recipeTags = recipe.tag_names ? recipe.tag_names.split(',').map(t => t.trim()) : [];
+          return !intent.avoidTags.some(avoidTag => recipeTags.includes(avoidTag));
+        });
+      }
+
+      // Sort by final score
+      scoredRecipes.sort((a, b) => b.matchScore - a.matchScore);
+
+      // Return top results
+      return scoredRecipes.slice(0, limit);
+    } catch (error) {
+      this.logger.error('Error in AI suggest:', error);
+      throw error;
+    }
+  }
 }

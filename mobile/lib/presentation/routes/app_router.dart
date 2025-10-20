@@ -12,6 +12,7 @@ import 'package:bepviet_mobile/presentation/features/personal/pages/personal_pag
 import 'package:bepviet_mobile/presentation/features/auth/pages/login_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/pages/register_page.dart';
 import 'package:bepviet_mobile/presentation/widgets/main_navigation.dart';
+import 'package:bepviet_mobile/presentation/features/suggest/pages/ai_suggest_page.dart';
 
 class AppRoutes {
   // Main routes
@@ -109,6 +110,12 @@ class AppRouter {
             path: '/profile',
             name: 'profile',
             builder: (context, state) => const ProfilePage(),
+          ),
+          // AI Suggest standalone page
+          GoRoute(
+            path: '/ai-suggest',
+            name: 'ai-suggest',
+            builder: (context, state) => const AiSuggestPage(),
           ),
         ],
       ),
