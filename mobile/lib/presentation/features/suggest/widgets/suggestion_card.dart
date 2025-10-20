@@ -223,11 +223,17 @@ class SuggestionCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${(suggestion.totalCost / 1000).round()}k VNĐ',
+                            suggestion.totalCost > 0
+                                ? suggestion.totalCost >= 1000
+                                      ? '${(suggestion.totalCost / 1000).round()}k VNĐ'
+                                      : '${suggestion.totalCost.round()} VNĐ'
+                                : 'Chưa có giá',
                             style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryGreen,
+                                  color: suggestion.totalCost > 0
+                                      ? AppTheme.primaryGreen
+                                      : AppTheme.textSecondary,
                                 ),
                           ),
                         ],

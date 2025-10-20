@@ -177,7 +177,7 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
               recipeName: map['recipeName'] ?? 'Unknown',
               recipeImageUrl: map['image_url'] as String?, // ← Lấy từ backend
               variantRegion: map['base_region'] as String? ?? 'BAC',
-              totalCost: 0,
+              totalCost: (map['estimatedCost'] ?? 0).toDouble(),
               seasonScore: 0,
               reason: map['matchReason'] ?? map['reason'] ?? 'Món ngon',
               tagNames: (map['tags'] as List?)?.join(', '),

@@ -50,7 +50,9 @@ class SuggestionModel {
           json['variantRegion'] as String? ??
           json['base_region'] as String? ??
           'BAC',
-      totalCost: _parseDouble(json['total_cost'] ?? json['totalCost']),
+      totalCost: _parseDouble(
+        json['total_cost'] ?? json['totalCost'] ?? json['estimatedCost'],
+      ),
       seasonScore: _parseDouble(json['season_score'] ?? json['seasonScore']),
       reason: json['reason'] as String? ?? 'Món ăn ngon',
       items: json['items'] != null

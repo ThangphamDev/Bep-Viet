@@ -194,7 +194,7 @@ export class SuggestionsService {
       rating_count: recipe.rating_count,
       image_url: recipe.image_url,
       variant_region: region,
-      total_cost: totalCost,
+      total_cost: Math.round(totalCost),
       season_score: Math.round(avgSeasonScore),
       final_score: Math.round(finalScore),
       items: items,

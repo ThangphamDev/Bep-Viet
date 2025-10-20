@@ -611,16 +611,19 @@ ${(recipes as any[]).map((r, i) =>
             recipeIds
           );
           
-          // Lấy ingredients cho từng recipe để tính chính xác % khớp
+          // Lấy ingredients cho từng recipe để tính chính xác % khớp và giá
           const [recipeIngredients] = await this.db.execute(
             `SELECT 
               ri.recipe_id,
               ri.ingredient_id,
               i.name as ingredient_name,
               ri.quantity,
-              ri.unit
+              ri.unit,
+              COALESCE(ip.price_per_unit, 0) as price_per_unit,
+              COALESCE(ip.unit, ri.unit) as price_unit
             FROM recipe_ingredients ri
             JOIN ingredients i ON ri.ingredient_id = i.id
+            LEFT JOIN ingredient_prices ip ON ri.ingredient_id = ip.ingredient_id
             WHERE ri.recipe_id IN (${placeholders})`,
             recipeIds
           );
@@ -635,6 +638,8 @@ ${(recipes as any[]).map((r, i) =>
               name: ri.ingredient_name,
               quantity: ri.quantity,
               unit: ri.unit,
+              price_per_unit: ri.price_per_unit,
+              price_unit: ri.price_unit,
             });
             return acc;
           }, {} as Record<string, any[]>);
@@ -660,6 +665,16 @@ ${(recipes as any[]).map((r, i) =>
                 .map(ri => `${ri.name} (${ri.quantity} ${ri.unit})`)
                 .slice(0, 5);
               
+              // Tính tổng giá nguyên liệu
+              const totalCost = recipeIngredientsList.reduce((sum, ri) => {
+                if (ri.price_per_unit > 0) {
+                  // Convert quantity to price unit if needed (simplified - assume same unit for now)
+                  const cost = ri.quantity * ri.price_per_unit;
+                  return sum + cost;
+                }
+                return sum;
+              }, 0);
+              
               return {
                 ...geminiSugg,
                 image_url: dbRecipe.image_url,
@@ -674,6 +689,7 @@ ${(recipes as any[]).map((r, i) =>
                 // Thêm thông tin bổ sung
                 totalIngredients: totalRequired,
                 matchedIngredients: matchedCount,
+                estimatedCost: Math.round(totalCost),
               };
             }
             return geminiSugg;
