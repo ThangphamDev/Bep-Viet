@@ -11,10 +11,7 @@ class AuthLoginRequested extends AuthEvent {
   final String email;
   final String password;
 
-  const AuthLoginRequested({
-    required this.email,
-    required this.password,
-  });
+  const AuthLoginRequested({required this.email, required this.password});
 }
 
 class AuthRegisterRequested extends AuthEvent {
@@ -122,12 +119,13 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> logout() async {
-    emit(AuthLoading());
     try {
+      // Clear data immediately without loading state for faster logout
       await _authRepository.logout();
       emit(AuthUnauthenticated());
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      // Even if logout fails, still emit unauthenticated to clear the session
+      emit(AuthUnauthenticated());
     }
   }
 

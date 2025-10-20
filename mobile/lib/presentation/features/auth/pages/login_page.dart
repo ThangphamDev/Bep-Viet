@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../cubit/auth_cubit.dart';
+import '../../../routes/app_router.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -10,8 +12,7 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
-    with TickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -31,12 +32,13 @@ class _LoginPageState extends State<LoginPage>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _animationController.forward();
   }
 
@@ -56,11 +58,7 @@ class _LoginPageState extends State<LoginPage>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF0FDF4),
-              Color(0xFFECFDF5),
-              Color(0xFFD1FAE5),
-            ],
+            colors: [Color(0xFFF0FDF4), Color(0xFFECFDF5), Color(0xFFD1FAE5)],
           ),
         ),
         child: SafeArea(
@@ -70,6 +68,8 @@ class _LoginPageState extends State<LoginPage>
                 _showErrorSnackBar(state.message);
               } else if (state is AuthAuthenticated) {
                 _showSuccessSnackBar('Đăng nhập thành công!');
+                // Navigate to home after successful login
+                context.go(AppRoutes.home);
               }
             },
             child: SingleChildScrollView(
@@ -128,7 +128,8 @@ class _LoginPageState extends State<LoginPage>
         const SizedBox(height: 24),
         // Title
         ShaderMask(
-          shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
+          shaderCallback: (bounds) =>
+              AppTheme.primaryGradient.createShader(bounds),
           child: const Text(
             'Bếp Việt',
             style: TextStyle(
@@ -142,9 +143,9 @@ class _LoginPageState extends State<LoginPage>
         Text(
           'Khám phá ẩm thực Việt Nam',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppTheme.textSecondary,
-                fontSize: 16,
-              ),
+            color: AppTheme.textSecondary,
+            fontSize: 16,
+          ),
         ),
       ],
     );
@@ -172,17 +173,17 @@ class _LoginPageState extends State<LoginPage>
             Text(
               'Đăng nhập',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               'Chào mừng bạn quay trở lại!',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -264,7 +265,9 @@ class _LoginPageState extends State<LoginPage>
         ),
         suffixIcon: IconButton(
           icon: Icon(
-            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            _obscurePassword
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
             color: AppTheme.textSecondary,
           ),
           onPressed: () {
@@ -303,16 +306,11 @@ class _LoginPageState extends State<LoginPage>
             });
           },
           activeColor: AppTheme.primaryGreen,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
         const Text(
           'Ghi nhớ đăng nhập',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
         ),
       ],
     );
@@ -330,9 +328,9 @@ class _LoginPageState extends State<LoginPage>
                 : () {
                     if (_formKey.currentState!.validate()) {
                       context.read<AuthCubit>().login(
-                            _emailController.text,
-                            _passwordController.text,
-                          );
+                        _emailController.text,
+                        _passwordController.text,
+                      );
                     }
                   },
             style: ElevatedButton.styleFrom(
@@ -392,10 +390,7 @@ class _LoginPageState extends State<LoginPage>
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'Hoặc đăng nhập bằng',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
               ),
             ),
             const Expanded(child: Divider()),
@@ -408,7 +403,8 @@ class _LoginPageState extends State<LoginPage>
               child: _buildSocialButton(
                 icon: Icons.g_mobiledata,
                 label: 'Google',
-                onTap: () => _showInfoSnackBar('Đăng nhập Google sẽ sớm có mặt!'),
+                onTap: () =>
+                    _showInfoSnackBar('Đăng nhập Google sẽ sớm có mặt!'),
               ),
             ),
             const SizedBox(width: 16),
@@ -416,7 +412,8 @@ class _LoginPageState extends State<LoginPage>
               child: _buildSocialButton(
                 icon: Icons.facebook,
                 label: 'Facebook',
-                onTap: () => _showInfoSnackBar('Đăng nhập Facebook sẽ sớm có mặt!'),
+                onTap: () =>
+                    _showInfoSnackBar('Đăng nhập Facebook sẽ sớm có mặt!'),
               ),
             ),
           ],
@@ -452,11 +449,7 @@ class _LoginPageState extends State<LoginPage>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: AppTheme.textSecondary,
-                size: 24,
-              ),
+              Icon(icon, color: AppTheme.textSecondary, size: 24),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -479,14 +472,12 @@ class _LoginPageState extends State<LoginPage>
       children: [
         Text(
           'Chưa có tài khoản? ',
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
         ),
         GestureDetector(
           onTap: () {
-            Navigator.pushNamed(context, '/register');
+            // Use GoRouter for navigation
+            context.go(AppRoutes.register);
           },
           child: Text(
             'Đăng ký ngay',

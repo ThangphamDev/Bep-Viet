@@ -1,70 +1,155 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
+class UserModel {
+  final String id;
+  final String email;
+  final String name;
+  final String? region;
+  final String? subregion;
+  final String role;
+  final bool isActive;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
-part 'user_model.freezed.dart';
-part 'user_model.g.dart';
+  UserModel({
+    required this.id,
+    required this.email,
+    required this.name,
+    this.region,
+    this.subregion,
+    this.role = 'USER',
+    this.isActive = true,
+    this.createdAt,
+    this.updatedAt,
+  });
 
-@freezed
-class UserModel with _$UserModel {
-  const factory UserModel({
-    required String id,
-    required String email,
-    required String name,
-    String? region,
-    String? subregion,
-    @Default('USER') String role,
-    @Default(true) bool isActive,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) = _UserModel;
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      region: json['region']?.toString(),
+      subregion: json['subregion']?.toString(),
+      role: json['role']?.toString() ?? 'USER',
+      isActive: json['is_active'] ?? json['isActive'] ?? true,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : null,
+    );
+  }
 
-  factory UserModel.fromJson(Map<String, dynamic> json) =>
-      _$UserModelFromJson(json);
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'name': name,
+      'region': region,
+      'subregion': subregion,
+      'role': role,
+      'isActive': isActive,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+    };
+  }
 }
 
-@freezed
-class AuthResponse with _$AuthResponse {
-  const factory AuthResponse({
-    required bool success,
-    required AuthData data,
-  }) = _AuthResponse;
+class AuthResponse {
+  final bool success;
+  final AuthData data;
 
-  factory AuthResponse.fromJson(Map<String, dynamic> json) =>
-      _$AuthResponseFromJson(json);
+  AuthResponse({required this.success, required this.data});
+
+  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    return AuthResponse(
+      success: json['success'] ?? false,
+      data: AuthData.fromJson(json['data'] as Map<String, dynamic>),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'success': success, 'data': data.toJson()};
+  }
 }
 
-@freezed
-class AuthData with _$AuthData {
-  const factory AuthData({
-    required UserModel user,
-    required String accessToken,
-    required String refreshToken,
-  }) = _AuthData;
+class AuthData {
+  final UserModel user;
+  final String accessToken;
+  final String refreshToken;
 
-  factory AuthData.fromJson(Map<String, dynamic> json) =>
-      _$AuthDataFromJson(json);
+  AuthData({
+    required this.user,
+    required this.accessToken,
+    required this.refreshToken,
+  });
+
+  factory AuthData.fromJson(Map<String, dynamic> json) {
+    return AuthData(
+      user: UserModel.fromJson(json['user'] as Map<String, dynamic>),
+      accessToken: json['accessToken']?.toString() ?? '',
+      refreshToken: json['refreshToken']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'user': user.toJson(),
+      'accessToken': accessToken,
+      'refreshToken': refreshToken,
+    };
+  }
 }
 
-@freezed
-class LoginRequest with _$LoginRequest {
-  const factory LoginRequest({
-    required String email,
-    required String password,
-  }) = _LoginRequest;
+class LoginRequest {
+  final String email;
+  final String password;
 
-  factory LoginRequest.fromJson(Map<String, dynamic> json) =>
-      _$LoginRequestFromJson(json);
+  LoginRequest({required this.email, required this.password});
+
+  factory LoginRequest.fromJson(Map<String, dynamic> json) {
+    return LoginRequest(
+      email: json['email']?.toString() ?? '',
+      password: json['password']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'email': email, 'password': password};
+  }
 }
 
-@freezed
-class RegisterRequest with _$RegisterRequest {
-  const factory RegisterRequest({
-    required String email,
-    required String password,
-    required String name,
-    String? region,
-    String? subregion,
-  }) = _RegisterRequest;
+class RegisterRequest {
+  final String email;
+  final String password;
+  final String name;
+  final String? region;
+  final String? subregion;
 
-  factory RegisterRequest.fromJson(Map<String, dynamic> json) =>
-      _$RegisterRequestFromJson(json);
+  RegisterRequest({
+    required this.email,
+    required this.password,
+    required this.name,
+    this.region,
+    this.subregion,
+  });
+
+  factory RegisterRequest.fromJson(Map<String, dynamic> json) {
+    return RegisterRequest(
+      email: json['email']?.toString() ?? '',
+      password: json['password']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      region: json['region']?.toString(),
+      subregion: json['subregion']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'password': password,
+      'name': name,
+      'region': region,
+      'subregion': subregion,
+    };
+  }
 }

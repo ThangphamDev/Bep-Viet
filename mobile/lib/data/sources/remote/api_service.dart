@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
 import 'package:bepviet_mobile/data/models/suggestion_model.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
+import 'package:bepviet_mobile/data/models/user_model.dart';
 
 class ApiService {
   final Dio _dio;
@@ -15,6 +16,55 @@ class ApiService {
 
     // Add ngrok-skip-browser-warning header
     _dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+  }
+
+  // Auth
+  Future<AuthResponse> login(LoginRequest request) async {
+    try {
+      final response = await _dio.post(
+        '/api/auth/login',
+        data: request.toJson(),
+      );
+      if (response.data is Map<String, dynamic>) {
+        return AuthResponse.fromJson(response.data as Map<String, dynamic>);
+      }
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Login failed: $e');
+    }
+  }
+
+  Future<AuthResponse> register(RegisterRequest request) async {
+    try {
+      final response = await _dio.post(
+        '/api/auth/register',
+        data: request.toJson(),
+      );
+      if (response.data is Map<String, dynamic>) {
+        return AuthResponse.fromJson(response.data as Map<String, dynamic>);
+      }
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Registration failed: $e');
+    }
+  }
+
+  Future<UserModel> getUserProfile(String token) async {
+    try {
+      final response = await _dio.get(
+        '/api/auth/profile',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] is Map<String, dynamic>) {
+          return UserModel.fromJson(map['data'] as Map<String, dynamic>);
+        }
+      }
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to get user profile: $e');
+    }
   }
 
   // Recipes
