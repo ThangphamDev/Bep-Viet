@@ -219,6 +219,57 @@ class ApiService {
     }
   }
 
+  // Favorites
+  Future<List<RecipeModel>> getFavorites(String token) async {
+    try {
+      final response = await _dio.get(
+        '/api/recipes/favorites',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is List) {
+          return (responseData['data'] as List)
+              .map((e) => RecipeModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) => RecipeModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get favorites: $e');
+    }
+  }
+
+  Future<void> addFavorite(String token, String recipeId) async {
+    try {
+      await _dio.post(
+        '/api/recipes/$recipeId/favorite',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to add favorite: $e');
+    }
+  }
+
+  Future<void> removeFavorite(String token, String recipeId) async {
+    try {
+      await _dio.delete(
+        '/api/recipes/$recipeId/favorite',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to remove favorite: $e');
+    }
+  }
+
   // Suggestions
   Future<List<SuggestionModel>> searchSuggestions(
     SearchSuggestionsRequest request,

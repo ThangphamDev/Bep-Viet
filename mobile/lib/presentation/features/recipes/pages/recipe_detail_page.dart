@@ -54,6 +54,7 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   double _lastScrollPosition = 0.0;
+  bool _isFavorite = false;
 
   @override
   void initState() {
@@ -364,6 +365,72 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
     }
   }
 
+  Future<void> _toggleFavorite(RecipeModel recipe) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConfig.tokenKey);
+
+      if (token == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vui lòng đăng nhập để sử dụng tính năng này'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        return;
+      }
+
+      final dio = Dio();
+      dio.options.baseUrl =
+          'https://gullably-nonpsychological-leisha.ngrok-free.dev';
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+      final apiService = ApiService(dio);
+
+      if (_isFavorite) {
+        // Remove from favorites
+        await apiService.removeFavorite(token, recipe.id);
+        if (!mounted) return;
+        setState(() => _isFavorite = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã xóa "${recipe.name}" khỏi yêu thích'),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // Add to favorites
+        await apiService.addFavorite(token, recipe.id);
+        if (!mounted) return;
+        setState(() => _isFavorite = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.favorite, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Đã thêm "${recipe.name}" vào yêu thích')),
+              ],
+            ),
+            backgroundColor: AppTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${e.toString()}'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
   Widget _buildTabButton(String text, int index) {
     final isSelected = _selectedTabIndex == index;
     return Expanded(
@@ -495,17 +562,10 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
                     ),
                     actions: [
                       IconButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Đã thêm vào yêu thích'),
-                              backgroundColor: AppTheme.primaryGreen,
-                            ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.favorite_border,
-                          color: Colors.white,
+                        onPressed: () => _toggleFavorite(recipe),
+                        icon: Icon(
+                          _isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: _isFavorite ? Colors.red : Colors.white,
                         ),
                       ),
                       IconButton(

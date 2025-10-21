@@ -110,6 +110,12 @@ class _RecipesPageViewState extends State<RecipesPageView> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 _buildActionButton(
+                                  icon: Icons.favorite_outline,
+                                  label: 'Yêu thích',
+                                  onTap: () => context.push('/favorites'),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildActionButton(
                                   icon: Icons.lightbulb_outline,
                                   label: 'Gợi ý',
                                   onTap: () => context.go('/suggest'),

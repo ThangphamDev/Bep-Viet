@@ -4,6 +4,7 @@ import 'package:bepviet_mobile/presentation/features/home/pages/home_page.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/pages/suggest_page.dart';
 import 'package:bepviet_mobile/presentation/features/recipes/pages/recipes_page.dart';
 import 'package:bepviet_mobile/presentation/features/recipes/pages/recipe_detail_page.dart';
+import 'package:bepviet_mobile/presentation/features/favorites/pages/favorites_page.dart';
 import 'package:bepviet_mobile/presentation/features/planner/pages/planner_page.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/pages/pantry_page.dart';
 import 'package:bepviet_mobile/presentation/features/community/pages/community_page.dart';
@@ -102,6 +103,12 @@ class AppRouter {
                   },
                 ),
               ],
+            ),
+            // Favorites route
+            GoRoute(
+              path: '/favorites',
+              name: 'favorites',
+              builder: (context, state) => const FavoritesPage(),
             ),
             GoRoute(
               path: AppRoutes.planner,

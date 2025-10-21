@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -20,6 +20,17 @@ export class RecipesController {
   @ApiResponse({ status: 200, description: 'List of recipes' })
   async getAllRecipes(@Query() filters: any) {
     return this.recipesService.getAllRecipes(filters);
+  }
+
+  // Favorites - MUST be before :id routes to avoid conflict
+  @Get('favorites')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user favorites' })
+  @ApiResponse({ status: 200, description: 'List of favorite recipes' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getFavorites(@Request() req) {
+    return this.recipesService.getFavorites(req.user.id);
   }
 
   @Get(':id')
@@ -146,5 +157,28 @@ export class RecipesController {
     @Param('tagId') tagId: string
   ) {
     return this.recipesService.removeRecipeTag(id, tagId);
+  }
+
+  // Favorites - Add/Remove
+  @Post(':id/favorite')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add recipe to favorites' })
+  @ApiParam({ name: 'id', description: 'Recipe ID' })
+  @ApiResponse({ status: 201, description: 'Added to favorites' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async addFavorite(@Request() req, @Param('id') recipeId: string) {
+    return this.recipesService.addFavorite(req.user.id, recipeId);
+  }
+
+  @Delete(':id/favorite')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove recipe from favorites' })
+  @ApiParam({ name: 'id', description: 'Recipe ID' })
+  @ApiResponse({ status: 200, description: 'Removed from favorites' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async removeFavorite(@Request() req, @Param('id') recipeId: string) {
+    return this.recipesService.removeFavorite(req.user.id, recipeId);
   }
 }
