@@ -19,7 +19,7 @@ export class MealPlansService {
       const existingId = (existing as any[])[0].id;
       await this.db.execute(
         `UPDATE meal_plans SET note = ? WHERE id = ?`,
-        [note, existingId]
+        [note ?? null, existingId]
       );
       return {
         success: true,
@@ -34,7 +34,7 @@ export class MealPlansService {
     await this.db.execute(
       `INSERT INTO meal_plans (id, user_id, week_start_date, note)
        VALUES (?, ?, ?, ?)`,
-      [mealPlanId, userId, week_start_date, note]
+      [mealPlanId, userId, week_start_date, note ?? null]
     );
 
     return {

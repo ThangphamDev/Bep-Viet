@@ -38,10 +38,10 @@ export class MealPlansController {
   @ApiResponse({ status: 201, description: 'Meal plan created successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createMealPlan(
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() createMealPlanDto: CreateMealPlanDto
   ) {
-    return this.mealPlansService.createMealPlan(userId, createMealPlanDto);
+    return this.mealPlansService.createMealPlan(req.user.id, createMealPlanDto);
   }
 
   @Post('generate')
@@ -49,10 +49,10 @@ export class MealPlansController {
   @ApiResponse({ status: 200, description: 'Meal plan generated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async generateMealPlan(
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() generateMealPlanDto: GenerateMealPlanDto
   ) {
-    return this.mealPlansService.generateMealPlan(userId, generateMealPlanDto);
+    return this.mealPlansService.generateMealPlan(req.user.id, generateMealPlanDto);
   }
 
   @Post(':mealPlanId/meals')

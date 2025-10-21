@@ -15,7 +15,7 @@ export class FamilyService {
     await this.db.execute(
       `INSERT INTO family_profiles (id, user_id, name, note)
        VALUES (?, ?, ?, ?)`,
-      [familyId, userId, name, note]
+      [familyId, userId, name, note ?? null]
     );
 
     return {
@@ -85,11 +85,11 @@ export class FamilyService {
         memberId,
         familyId, 
         name, 
-        age_group, 
-        spice_tolerance || 1,
+        age_group ?? null, 
+        spice_tolerance ?? 1,
         diet_json ? JSON.stringify(diet_json) : null,
         allergies_json ? JSON.stringify(allergies_json) : null,
-        note
+        note ?? null
       ]
     );
 
