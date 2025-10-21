@@ -51,7 +51,7 @@ export class CommunityService {
       params.push(`%${filters.search}%`, `%${filters.search}%`);
     }
 
-    query += ' GROUP BY cr.id ORDER BY cr.created_at DESC';
+    query += ' GROUP BY cr.id, cr.title, cr.region, cr.description_md, cr.difficulty, cr.time_min, cr.cost_hint, cr.status, cr.created_at, cr.updated_at, u.name ORDER BY cr.created_at DESC';
 
     if (filters.limit) {
       query += ' LIMIT ?';
@@ -83,7 +83,7 @@ export class CommunityService {
         u.id as author_id
       FROM community_recipes cr
       JOIN users u ON cr.author_user_id = u.id
-      WHERE cr.id = ? AND cr.status = 'APPROVED'`,
+      WHERE cr.id = ?`,
       [id]
     );
 
@@ -318,7 +318,7 @@ export class CommunityService {
       LEFT JOIN recipe_comments rc ON cr.id = rc.recipe_id AND rc.recipe_type = 'COMMUNITY'
       LEFT JOIN recipe_ratings rr ON cr.id = rr.recipe_id AND rr.recipe_type = 'COMMUNITY'
       WHERE cr.author_user_id = ?
-      GROUP BY cr.id
+      GROUP BY cr.id, cr.title, cr.region, cr.status, cr.created_at, cr.updated_at
       ORDER BY cr.created_at DESC`,
       [userId]
     );
@@ -341,15 +341,12 @@ export class CommunityService {
         cr.cost_hint,
         cr.created_at,
         u.name as author_name,
-        COUNT(DISTINCT rc.id) as comment_count,
-        COUNT(DISTINCT rr.id) as rating_count,
-        AVG(rr.stars) as avg_rating
+        (SELECT COUNT(*) FROM recipe_comments WHERE recipe_id = cr.id AND recipe_type = 'COMMUNITY') as comment_count,
+        (SELECT COUNT(*) FROM recipe_ratings WHERE recipe_id = cr.id AND recipe_type = 'COMMUNITY') as rating_count,
+        (SELECT AVG(stars) FROM recipe_ratings WHERE recipe_id = cr.id AND recipe_type = 'COMMUNITY') as avg_rating
       FROM community_recipes cr
       JOIN users u ON cr.author_user_id = u.id
-      LEFT JOIN recipe_comments rc ON cr.id = rc.recipe_id AND rc.recipe_type = 'COMMUNITY'
-      LEFT JOIN recipe_ratings rr ON cr.id = rr.recipe_id AND rr.recipe_type = 'COMMUNITY'
       WHERE cr.status = 'FEATURED'
-      GROUP BY cr.id
       ORDER BY cr.created_at DESC
       LIMIT ?`,
       [limit]

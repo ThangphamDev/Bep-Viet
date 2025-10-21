@@ -22,7 +22,8 @@ export class CommunityController {
   @ApiOperation({ summary: 'Get featured community recipes' })
   @ApiResponse({ status: 200, description: 'List of featured recipes' })
   async getFeaturedRecipes(@Query('limit') limit?: string) {
-    return this.communityService.getFeaturedRecipes(parseInt(limit || '10'));
+    const parsedLimit = parseInt(limit || '10', 10);
+    return this.communityService.getFeaturedRecipes(isNaN(parsedLimit) ? 10 : parsedLimit);
   }
 
   @Get('recipes/:id')
