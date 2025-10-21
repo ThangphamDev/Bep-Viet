@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RatingsService } from './ratings.service';
@@ -20,11 +20,13 @@ export class RatingsController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string
   ) {
+    const parsedLimit = parseInt(limit || '20', 10) || 20;
+    const parsedOffset = parseInt(offset || '0', 10) || 0;
     return this.ratingsService.getRecipeRatings(
       recipeId, 
       recipeType, 
-      parseInt(limit || '20'), 
-      parseInt(offset || '0')
+      parsedLimit, 
+      parsedOffset
     );
   }
 
@@ -39,10 +41,10 @@ export class RatingsController {
   async addRating(
     @Param('recipeId') recipeId: string,
     @Query('recipeType') recipeType: 'SYSTEM' | 'COMMUNITY',
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() addRatingDto: AddRatingDto
   ) {
-    return this.ratingsService.addRating(recipeId, recipeType, userId, addRatingDto.stars);
+    return this.ratingsService.addRating(recipeId, recipeType, req.user.id, addRatingDto.stars);
   }
 
   @Get('top-rated')
@@ -53,7 +55,8 @@ export class RatingsController {
     @Query('recipeType') recipeType: 'SYSTEM' | 'COMMUNITY',
     @Query('limit') limit?: string
   ) {
-    return this.ratingsService.getTopRatedRecipes(recipeType, parseInt(limit || '10'));
+    const parsedLimit = parseInt(limit || '10', 10) || 10;
+    return this.ratingsService.getTopRatedRecipes(recipeType, parsedLimit);
   }
 
   @Get('my-ratings')
@@ -63,14 +66,16 @@ export class RatingsController {
   @ApiResponse({ status: 200, description: 'User ratings' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getUserRatings(
-    @Query('userId') userId: string,
+    @Request() req,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string
   ) {
+    const parsedLimit = parseInt(limit || '20', 10) || 20;
+    const parsedOffset = parseInt(offset || '0', 10) || 0;
     return this.ratingsService.getUserRatings(
-      userId, 
-      parseInt(limit || '20'), 
-      parseInt(offset || '0')
+      req.user.id, 
+      parsedLimit, 
+      parsedOffset
     );
   }
 
