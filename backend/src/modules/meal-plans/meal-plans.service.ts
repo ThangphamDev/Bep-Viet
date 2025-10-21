@@ -8,16 +8,38 @@ export class MealPlansService {
   async createMealPlan(userId: string, mealPlanData: any) {
     const { week_start_date, note } = mealPlanData;
 
-    const [result] = await this.db.execute(
-      `INSERT INTO meal_plans (user_id, week_start_date, note)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE note = VALUES(note)`,
-      [userId, week_start_date, note]
+    // Check if meal plan already exists
+    const [existing] = await this.db.execute(
+      `SELECT id FROM meal_plans WHERE user_id = ? AND week_start_date = ?`,
+      [userId, week_start_date]
+    );
+
+    if ((existing as any[]).length > 0) {
+      // Update existing meal plan
+      const existingId = (existing as any[])[0].id;
+      await this.db.execute(
+        `UPDATE meal_plans SET note = ? WHERE id = ?`,
+        [note, existingId]
+      );
+      return {
+        success: true,
+        data: { id: existingId },
+      };
+    }
+
+    // Generate UUID and create new meal plan
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const mealPlanId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
+      `INSERT INTO meal_plans (id, user_id, week_start_date, note)
+       VALUES (?, ?, ?, ?)`,
+      [mealPlanId, userId, week_start_date, note]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: mealPlanId },
     };
   }
 
@@ -73,20 +95,42 @@ export class MealPlansService {
   async addMealToPlan(mealPlanId: string, mealData: any) {
     const { date, meal_slot, recipe_id, variant_region, servings } = mealData;
 
-    const [result] = await this.db.execute(
+    // Check if meal already exists in this slot
+    const [existing] = await this.db.execute(
+      `SELECT id FROM meal_plan_items 
+       WHERE meal_plan_id = ? AND date = ? AND meal_slot = ?`,
+      [mealPlanId, date, meal_slot]
+    );
+
+    if ((existing as any[]).length > 0) {
+      // Update existing meal
+      const existingId = (existing as any[])[0].id;
+      await this.db.execute(
+        `UPDATE meal_plan_items 
+         SET recipe_id = ?, variant_region = ?, servings = ?
+         WHERE id = ?`,
+        [recipe_id, variant_region, servings, existingId]
+      );
+      return {
+        success: true,
+        data: { id: existingId },
+      };
+    }
+
+    // Generate UUID and insert new meal
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const mealItemId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
       `INSERT INTO meal_plan_items 
-       (meal_plan_id, date, meal_slot, recipe_id, variant_region, servings)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-       recipe_id = VALUES(recipe_id),
-       variant_region = VALUES(variant_region),
-       servings = VALUES(servings)`,
-      [mealPlanId, date, meal_slot, recipe_id, variant_region, servings]
+       (id, meal_plan_id, date, meal_slot, recipe_id, variant_region, servings)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [mealItemId, mealPlanId, date, meal_slot, recipe_id, variant_region, servings]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: mealItemId },
     };
   }
 
