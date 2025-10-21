@@ -65,6 +65,9 @@ class AuthCubit extends Cubit<AuthState> {
     _checkAuthStatus();
   }
 
+  // Getter for auth repository
+  AuthRepository get authRepository => _authRepository;
+
   Future<void> _checkAuthStatus() async {
     // Show splash screen for at least 1 second
     final splashFuture = Future.delayed(const Duration(seconds: 1));

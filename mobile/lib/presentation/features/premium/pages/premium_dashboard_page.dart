@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
-import 'package:bepviet_mobile/core/services/api_service.dart';
-import 'package:bepviet_mobile/core/models/family_model.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/premium_card.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/feature_benefit_card.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/health_summary_card.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/quick_stats_card.dart';
+import 'package:bepviet_mobile/presentation/features/premium/cubit/premium_cubit.dart';
+import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 
 class PremiumDashboardPage extends StatefulWidget {
   const PremiumDashboardPage({super.key});
@@ -17,49 +18,20 @@ class PremiumDashboardPage extends StatefulWidget {
 }
 
 class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
-  final ApiService _apiService = ApiService();
-  bool _isLoading = true;
-  List<FamilyProfileModel> _familyProfiles = [];
-  int _totalMembers = 0;
-  int _activeWarnings = 0;
-  int _weeklyReports = 0;
-
   @override
   void initState() {
     super.initState();
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    try {
-      setState(() => _isLoading = true);
-
-      // Load family profiles
-      final familyData = await _apiService.getUserFamilyProfiles();
-      _familyProfiles = familyData
-          .map((json) => FamilyProfileModel.fromJson(json))
-          .toList();
-
-      // Calculate total members
-      _totalMembers = _familyProfiles.fold(
-        0,
-        (sum, profile) => sum + profile.memberCount,
-      );
-
-      // Load subscription (for future use)
-      // final subscriptionData = await _apiService.getMySubscription(userId);
-
-      // Mock data for warnings and reports
-      _activeWarnings = 3;
-      _weeklyReports = 2;
-    } catch (e) {
-      print('Error loading premium data: $e');
-      // Fallback to mock data
-      _totalMembers = 4;
-      _activeWarnings = 3;
-      _weeklyReports = 2;
-    } finally {
-      setState(() => _isLoading = false);
+  void _loadData() {
+    final authState = context.read<AuthCubit>().state;
+    if (authState is AuthAuthenticated) {
+      // Get token from AuthRepository
+      final token = context.read<AuthCubit>().authRepository.accessToken;
+      if (token != null) {
+        context.read<PremiumCubit>().add(LoadPremiumData(token));
+      }
     }
   }
 
@@ -80,17 +52,58 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+      body: BlocBuilder<PremiumCubit, PremiumState>(
+        builder: (context, state) {
+          if (state is PremiumLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state is PremiumError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppTheme.errorColor,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Lỗi tải dữ liệu',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    state.message,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadData,
+                    child: const Text('Thử lại'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (state is PremiumLoaded) {
+            final totalMembers = state.familyProfiles.fold(
+              0,
+              (sum, profile) => sum + profile.members.length,
+            );
+
+            return SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Health Summary Card
                   HealthSummaryCard(
-                    totalMembers: _totalMembers,
-                    activeWarnings: _activeWarnings,
-                    weeklyReports: _weeklyReports,
+                    totalMembers: totalMembers,
+                    activeWarnings: 3, // Mock data for now
+                    weeklyReports: 2, // Mock data for now
                     onTap: () => context.go('/premium/family'),
                   ),
                   const SizedBox(height: AppConfig.defaultPadding + 4),
@@ -281,7 +294,13 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
                   const SizedBox(height: AppConfig.defaultPadding + 4),
                 ],
               ),
-            ),
+            );
+          }
+
+          // Fallback for other states
+          return const Center(child: CircularProgressIndicator());
+        },
+      ),
     );
   }
 

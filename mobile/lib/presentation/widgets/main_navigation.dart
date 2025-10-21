@@ -40,10 +40,10 @@ class _MainNavigationState extends State<MainNavigation> {
       route: '/community',
     ),
     NavigationItem(
-      icon: Icons.star_outline,
-      activeIcon: Icons.star,
-      label: 'Premium',
-      route: '/premium',
+      icon: Icons.person_outline,
+      activeIcon: Icons.person,
+      label: 'Profile',
+      route: '/profile',
     ),
   ];
 
