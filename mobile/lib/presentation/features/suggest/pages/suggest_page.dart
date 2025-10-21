@@ -264,8 +264,8 @@ class _SuggestPageViewState extends State<SuggestPageView> {
       }
 
       // Show success
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Row(
             children: [
               const Icon(Icons.check_circle_outline, color: Colors.white),
@@ -347,6 +347,8 @@ class _SuggestPageViewState extends State<SuggestPageView> {
               elevation: 0,
               forceElevated: false,
               flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                centerTitle: true,
                 title: const Text(
                   'Gợi ý món ăn',
                   style: TextStyle(
@@ -355,34 +357,30 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                     fontSize: 18,
                   ),
                 ),
-                titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
                 background: Container(
                   decoration: const BoxDecoration(
                     gradient: AppTheme.primaryGradient,
                   ),
                   child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 12, top: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                          // Công thức Button
-                          _buildActionButton(
-                            icon: Icons.menu_book,
-                            label: 'Công thức',
-                            onTap: () => context.go('/recipes'),
-                            isPrimary: false,
-                          ),
-                          const SizedBox(width: 8),
-                          // AI Camera Button
-                          _buildActionButton(
-                            icon: Icons.camera_alt,
-                            label: 'AI',
-                            onTap: () => context.go('/ai-suggest'),
-                            isPrimary: true,
-                          ),
-                        ],
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8, right: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildHeaderIconButton(
+                              icon: Icons.menu_book_outlined,
+                              onTap: () => context.go('/recipes'),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildHeaderIconButton(
+                              icon: Icons.camera_alt_outlined,
+                              onTap: () => context.go('/ai-suggest'),
+                              isHighlight: true,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -397,26 +395,26 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                   return Container(
                     margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
+                      boxShadow: [
+                        BoxShadow(
                           color: Colors.black.withOpacity(0.06),
                           blurRadius: 12,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
+                      children: [
                         // Region Filter
                         const Text(
                           'Vùng miền',
-                                          style: TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w600,
                             color: AppTheme.textSecondary,
                           ),
                         ),
@@ -455,9 +453,9 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                                 () => context.read<SuggestCubit>().updateRegion(
                                   'NAM',
                                 ),
-                                  ),
-                                ],
                               ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 16),
                         // More Filters Button
@@ -474,24 +472,24 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                                   _showFilters ? Icons.expand_less : Icons.tune,
                                   size: 18,
                                   color: AppTheme.primaryGreen,
-                            ),
-                            const SizedBox(width: 6),
+                                ),
+                                const SizedBox(width: 6),
                                 Text(
-                                      _showFilters
+                                  _showFilters
                                       ? 'Ẩn bộ lọc'
                                       : 'Bộ lọc nâng cao',
                                   style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                      color: AppTheme.primaryGreen,
-                                    ),
+                                    color: AppTheme.primaryGreen,
                                   ),
-                              ],
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -502,55 +500,55 @@ class _SuggestPageViewState extends State<SuggestPageView> {
               child: BlocBuilder<SuggestCubit, SuggestState>(
                 builder: (context, state) {
                   return AnimatedSize(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        child: _showFilters
-                            ? Container(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    child: _showFilters
+                        ? Container(
                             margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: AppTheme.primaryGreen.withOpacity(0.2),
                                 width: 1.5,
                               ),
-                                  boxShadow: [
-                                    BoxShadow(
+                              boxShadow: [
+                                BoxShadow(
                                   color: Colors.black.withOpacity(0.06),
                                   blurRadius: 12,
                                   offset: const Offset(0, 2),
-                                    ),
-                                  ],
                                 ),
-                                child: SuggestFiltersWidget(
-                                  selectedRegion: state.selectedRegion,
-                                  selectedSeason: state.selectedSeason,
-                                  servings: state.servings,
-                                  budget: state.budget,
-                                  spicePreference: state.spicePreference,
-                                  maxTime: state.maxTime,
-                                  onRegionChanged: (region) => context
-                                      .read<SuggestCubit>()
-                                      .updateRegion(region),
-                                  onSeasonChanged: (season) => context
-                                      .read<SuggestCubit>()
-                                      .updateSeason(season),
-                                  onServingsChanged: (servings) => context
-                                      .read<SuggestCubit>()
-                                      .updateServings(servings),
-                                  onBudgetChanged: (budget) => context
-                                      .read<SuggestCubit>()
-                                      .updateBudget(budget),
-                                  onSpicePreferenceChanged: (spice) => context
-                                      .read<SuggestCubit>()
-                                      .updateSpicePreference(spice),
-                                  onMaxTimeChanged: (time) => context
-                                      .read<SuggestCubit>()
-                                      .updateMaxTime(time),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
+                              ],
+                            ),
+                            child: SuggestFiltersWidget(
+                              selectedRegion: state.selectedRegion,
+                              selectedSeason: state.selectedSeason,
+                              servings: state.servings,
+                              budget: state.budget,
+                              spicePreference: state.spicePreference,
+                              maxTime: state.maxTime,
+                              onRegionChanged: (region) => context
+                                  .read<SuggestCubit>()
+                                  .updateRegion(region),
+                              onSeasonChanged: (season) => context
+                                  .read<SuggestCubit>()
+                                  .updateSeason(season),
+                              onServingsChanged: (servings) => context
+                                  .read<SuggestCubit>()
+                                  .updateServings(servings),
+                              onBudgetChanged: (budget) => context
+                                  .read<SuggestCubit>()
+                                  .updateBudget(budget),
+                              onSpicePreferenceChanged: (spice) => context
+                                  .read<SuggestCubit>()
+                                  .updateSpicePreference(spice),
+                              onMaxTimeChanged: (time) => context
+                                  .read<SuggestCubit>()
+                                  .updateMaxTime(time),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   );
                 },
               ),
@@ -564,50 +562,50 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                     child: ElevatedButton(
                       onPressed: state.isSearching
-                                  ? null
-                                  : () => context
-                                        .read<SuggestCubit>()
-                                        .searchSuggestions(),
+                          ? null
+                          : () => context
+                                .read<SuggestCubit>()
+                                .searchSuggestions(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryGreen,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: state.isSearching ? 0 : 4,
                         shadowColor: AppTheme.primaryGreen.withOpacity(0.4),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    if (state.isSearching)
-                                      const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (state.isSearching)
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                    else
-                            const Icon(Icons.search, size: 22),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      state.isSearching
-                                          ? 'Đang tìm kiếm...'
-                                          : 'Tìm gợi ý phù hợp',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ],
+                                  Colors.white,
                                 ),
                               ),
+                            )
+                          else
+                            const Icon(Icons.search, size: 22),
+                          const SizedBox(width: 12),
+                          Text(
+                            state.isSearching
+                                ? 'Đang tìm kiếm...'
+                                : 'Tìm gợi ý phù hợp',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
@@ -880,45 +878,27 @@ class _SuggestPageViewState extends State<SuggestPageView> {
   }
 
   // Helper: Build action button in header
-  Widget _buildActionButton({
+  Widget _buildHeaderIconButton({
     required IconData icon,
-    required String label,
     required VoidCallback onTap,
-    required bool isPrimary,
+    bool isHighlight = false,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: isPrimary ? Colors.white : Colors.white.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isPrimary ? 0.15 : 0.08),
-                blurRadius: isPrimary ? 8 : 4,
-                offset: Offset(0, isPrimary ? 3 : 2),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: AppTheme.primaryGreen),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryGreen,
-                ),
-              ),
-            ],
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isHighlight ? Colors.white : Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(10),
+          border: isHighlight
+              ? null
+              : Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: isHighlight ? AppTheme.primaryGreen : Colors.white,
         ),
       ),
     );

@@ -51,6 +51,10 @@ class AuthAuthenticated extends AuthState {
 
 class AuthUnauthenticated extends AuthState {}
 
+class AuthRegistered extends AuthState {
+  const AuthRegistered();
+}
+
 class AuthError extends AuthState {
   final String message;
 
@@ -149,7 +153,10 @@ class AuthCubit extends Cubit<AuthState> {
         rememberMe: rememberMe,
       );
       if (response.success) {
-        emit(AuthAuthenticated(user: response.data.user));
+        // Logout immediately after registration to clear token
+        await _authRepository.logout();
+        // Emit registered state (not authenticated)
+        emit(const AuthRegistered());
       } else {
         emit(const AuthError(message: 'Registration failed'));
       }

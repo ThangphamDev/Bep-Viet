@@ -47,10 +47,17 @@ class _FavoritesPageViewState extends State<FavoritesPageView> {
       appBar: AppBar(
         title: const Text(
           'Yêu thích',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 20,
+          ),
         ),
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
+        ),
         leading: IconButton(
           onPressed: () => context.pop(),
           icon: const Icon(Icons.arrow_back, color: Colors.white),

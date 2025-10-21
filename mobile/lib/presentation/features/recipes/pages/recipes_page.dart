@@ -87,43 +87,42 @@ class _RecipesPageViewState extends State<RecipesPageView> {
                   backgroundColor: AppTheme.primaryGreen,
                   elevation: 0,
                   flexibleSpace: FlexibleSpaceBar(
+                    titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                    centerTitle: true,
                     title: const Text(
                       'Công thức',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 18,
                       ),
                     ),
-                    titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
                     background: Container(
                       decoration: const BoxDecoration(
                         gradient: AppTheme.primaryGradient,
                       ),
-                      child: Stack(
-                        children: [
-                          // Action Buttons
-                          Positioned(
-                            right: 16,
-                            top: 40,
+                      child: SafeArea(
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 8, right: 8),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _buildActionButton(
+                                _buildHeaderIconButton(
                                   icon: Icons.favorite_outline,
-                                  label: 'Yêu thích',
                                   onTap: () => context.push('/favorites'),
                                 ),
                                 const SizedBox(width: 8),
-                                _buildActionButton(
+                                _buildHeaderIconButton(
                                   icon: Icons.lightbulb_outline,
-                                  label: 'Gợi ý',
                                   onTap: () => context.go('/suggest'),
+                                  isHighlight: true,
                                 ),
                               ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -499,46 +498,27 @@ class _RecipesPageViewState extends State<RecipesPageView> {
     );
   }
 
-  Widget _buildActionButton({
+  Widget _buildHeaderIconButton({
     required IconData icon,
-    required String label,
     required VoidCallback onTap,
+    bool isHighlight = false,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 16, color: AppTheme.primaryGreen),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppTheme.primaryGreen,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isHighlight ? Colors.white : Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(10),
+          border: isHighlight
+              ? null
+              : Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: isHighlight ? AppTheme.primaryGreen : Colors.white,
         ),
       ),
     );
