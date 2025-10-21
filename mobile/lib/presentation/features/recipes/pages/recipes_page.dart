@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:dio/dio.dart';
@@ -16,8 +17,7 @@ class RecipesPage extends StatelessWidget {
     return BlocProvider(
       create: (context) {
         final dio = Dio();
-        dio.options.baseUrl =
-            'https://gullably-nonpsychological-leisha.ngrok-free.dev';
+        dio.options.baseUrl = AppConfig.ngrokBaseUrl;
         dio.options.connectTimeout = const Duration(seconds: 30);
         dio.options.receiveTimeout = const Duration(seconds: 30);
         dio.options.headers['ngrok-skip-browser-warning'] = 'true';

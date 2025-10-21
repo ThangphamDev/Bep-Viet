@@ -20,8 +20,7 @@ class RecipeDetailPage extends StatelessWidget {
       create: (context) {
         final dio = Dio();
         // Configure Dio for ngrok tunnel
-        dio.options.baseUrl =
-            'https://gullably-nonpsychological-leisha.ngrok-free.dev';
+        dio.options.baseUrl = AppConfig.ngrokBaseUrl;
         dio.options.connectTimeout = const Duration(seconds: 30);
         dio.options.receiveTimeout = const Duration(seconds: 30);
 
@@ -289,8 +288,7 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
 
       // Create Dio and ApiService
       final dio = Dio();
-      dio.options.baseUrl =
-          'https://gullably-nonpsychological-leisha.ngrok-free.dev';
+      dio.options.baseUrl = AppConfig.ngrokBaseUrl;
       dio.options.headers['ngrok-skip-browser-warning'] = 'true';
       final apiService = ApiService(dio);
 
@@ -381,8 +379,7 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
       }
 
       final dio = Dio();
-      dio.options.baseUrl =
-          'https://gullably-nonpsychological-leisha.ngrok-free.dev';
+      dio.options.baseUrl = AppConfig.ngrokBaseUrl;
       dio.options.headers['ngrok-skip-browser-warning'] = 'true';
       final apiService = ApiService(dio);
 

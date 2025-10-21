@@ -17,8 +17,7 @@ class FavoritesPage extends StatelessWidget {
     return BlocProvider(
       create: (context) {
         final dio = Dio();
-        dio.options.baseUrl =
-            'https://gullably-nonpsychological-leisha.ngrok-free.dev';
+        dio.options.baseUrl = AppConfig.ngrokBaseUrl;
         dio.options.connectTimeout = const Duration(seconds: 30);
         dio.options.receiveTimeout = const Duration(seconds: 30);
         dio.options.headers['ngrok-skip-browser-warning'] = 'true';
