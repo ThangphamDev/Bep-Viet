@@ -66,7 +66,7 @@ export class PantryService {
         `UPDATE pantry_items 
          SET quantity = quantity + ?, expire_date = ?
          WHERE id = ?`,
-        [quantity, expire_date, existingItem.id]
+        [quantity, expire_date ?? null, existingItem.id]
       );
       return {
         success: true,
@@ -82,7 +82,7 @@ export class PantryService {
       `INSERT INTO pantry_items 
        (id, user_id, ingredient_id, quantity, unit, expire_date, location, batch_code)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [pantryItemId, userId, ingredient_id, quantity, unit, expire_date, location, batch_code]
+      [pantryItemId, userId, ingredient_id, quantity, unit ?? null, expire_date ?? null, location, batch_code]
     );
 
     return {

@@ -6,7 +6,7 @@ export class ShoppingService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async createShoppingList(userId: string, listData: any) {
-    const { title, week_range, is_shared = false } = listData;
+    const { title, week_range, is_shared = false, note } = listData;
 
     // Generate UUID
     const [uuidResult] = await this.db.execute('SELECT UUID() as id');
@@ -15,7 +15,7 @@ export class ShoppingService {
     await this.db.execute(
       `INSERT INTO shopping_lists (id, owner_id, title, week_range, is_shared)
        VALUES (?, ?, ?, ?, ?)`,
-      [listId, userId, title, week_range, is_shared]
+      [listId, userId, title, week_range ?? null, is_shared]
     );
 
     return {
