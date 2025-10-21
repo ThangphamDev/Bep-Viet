@@ -12,7 +12,6 @@ export class CommentsService {
         rc.content,
         rc.likes,
         rc.created_at,
-        rc.updated_at,
         u.id as user_id,
         u.name as user_name,
         u.role as user_role
@@ -20,8 +19,8 @@ export class CommentsService {
       JOIN users u ON rc.user_id = u.id
       WHERE rc.recipe_id = ? AND rc.recipe_type = ?
       ORDER BY rc.created_at DESC
-      LIMIT ? OFFSET ?`,
-      [recipeId, recipeType, limit, offset]
+      LIMIT ${limit} OFFSET ${offset}`,
+      [recipeId, recipeType]
     );
 
     const [totalCount] = await this.db.execute(
@@ -44,22 +43,26 @@ export class CommentsService {
   }
 
   async addComment(recipeId: string, recipeType: 'SYSTEM' | 'COMMUNITY', userId: string, content: string) {
-    const [result] = await this.db.execute(
-      `INSERT INTO recipe_comments (recipe_type, recipe_id, user_id, content)
-       VALUES (?, ?, ?, ?)`,
-      [recipeType, recipeId, userId, content]
+    // Generate UUID
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const commentId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
+      `INSERT INTO recipe_comments (id, recipe_type, recipe_id, user_id, content)
+       VALUES (?, ?, ?, ?, ?)`,
+      [commentId, recipeType, recipeId, userId, content]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: commentId },
       message: 'Comment added successfully'
     };
   }
 
   async updateComment(commentId: string, userId: string, content: string) {
     const [result] = await this.db.execute(
-      'UPDATE recipe_comments SET content = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+      'UPDATE recipe_comments SET content = ? WHERE id = ? AND user_id = ?',
       [content, commentId, userId]
     );
 
@@ -90,47 +93,18 @@ export class CommentsService {
   }
 
   async likeComment(commentId: string, userId: string) {
-    // Check if user already liked this comment
-    const [existingLikes] = await this.db.execute(
-      'SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?',
-      [commentId, userId]
+    // Simple increment - no tracking of individual likes (table doesn't exist)
+    // This is a simplified version without like tracking per user
+    await this.db.execute(
+      'UPDATE recipe_comments SET likes = likes + 1 WHERE id = ?',
+      [commentId]
     );
 
-    if ((existingLikes as any[]).length > 0) {
-      // Unlike
-      await this.db.execute(
-        'DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?',
-        [commentId, userId]
-      );
-
-      await this.db.execute(
-        'UPDATE recipe_comments SET likes = GREATEST(0, likes - 1) WHERE id = ?',
-        [commentId]
-      );
-
-      return {
-        success: true,
-        message: 'Comment unliked',
-        liked: false
-      };
-    } else {
-      // Like
-      await this.db.execute(
-        'INSERT INTO comment_likes (comment_id, user_id) VALUES (?, ?)',
-        [commentId, userId]
-      );
-
-      await this.db.execute(
-        'UPDATE recipe_comments SET likes = likes + 1 WHERE id = ?',
-        [commentId]
-      );
-
-      return {
-        success: true,
-        message: 'Comment liked',
-        liked: true
-      };
-    }
+    return {
+      success: true,
+      message: 'Comment liked',
+      liked: true
+    };
   }
 
   async getUserComments(userId: string, limit: number = 20, offset: number = 0) {
@@ -140,7 +114,6 @@ export class CommentsService {
         rc.content,
         rc.likes,
         rc.created_at,
-        rc.updated_at,
         rc.recipe_id,
         rc.recipe_type,
         CASE 
@@ -152,8 +125,8 @@ export class CommentsService {
       LEFT JOIN community_recipes cr ON rc.recipe_id = cr.id AND rc.recipe_type = 'COMMUNITY'
       WHERE rc.user_id = ?
       ORDER BY rc.created_at DESC
-      LIMIT ? OFFSET ?`,
-      [userId, limit, offset]
+      LIMIT ${limit} OFFSET ${offset}`,
+      [userId]
     );
 
     const [totalCount] = await this.db.execute(
@@ -175,95 +148,4 @@ export class CommentsService {
     };
   }
 
-  async reportComment(commentId: string, userId: string, reason: string) {
-    const [result] = await this.db.execute(
-      `INSERT INTO comment_reports (comment_id, reporter_user_id, reason, status)
-       VALUES (?, ?, ?, 'PENDING')
-       ON DUPLICATE KEY UPDATE reason = VALUES(reason)`,
-      [commentId, userId, reason]
-    );
-
-    return {
-      success: true,
-      message: 'Comment reported successfully'
-    };
-  }
-
-  async getReportedComments() {
-    const [reports] = await this.db.execute(
-      `SELECT 
-        cr.id as report_id,
-        cr.reason,
-        cr.status,
-        cr.created_at,
-        rc.id as comment_id,
-        rc.content,
-        rc.likes,
-        rc.created_at as comment_created_at,
-        u.name as commenter_name,
-        reporter.name as reporter_name
-      FROM comment_reports cr
-      JOIN recipe_comments rc ON cr.comment_id = rc.id
-      JOIN users u ON rc.user_id = u.id
-      JOIN users reporter ON cr.reporter_user_id = reporter.id
-      WHERE cr.status = 'PENDING'
-      ORDER BY cr.created_at DESC`
-    );
-
-    return {
-      success: true,
-      data: reports
-    };
-  }
-
-  async moderateComment(reportId: string, adminUserId: string, action: string, note?: string) {
-    // Get report details
-    const [reports] = await this.db.execute(
-      'SELECT comment_id FROM comment_reports WHERE id = ?',
-      [reportId]
-    );
-
-    const report = (reports as any[])[0];
-    if (!report) {
-      throw new NotFoundException('Report not found');
-    }
-
-    let newStatus = '';
-    switch (action) {
-      case 'approve':
-        newStatus = 'APPROVED';
-        break;
-      case 'reject':
-        newStatus = 'REJECTED';
-        break;
-      case 'delete':
-        newStatus = 'DELETED';
-        // Delete the comment
-        await this.db.execute(
-          'DELETE FROM recipe_comments WHERE id = ?',
-          [report.comment_id]
-        );
-        break;
-      default:
-        throw new Error('Invalid moderation action');
-    }
-
-    // Update report status
-    await this.db.execute(
-      'UPDATE comment_reports SET status = ? WHERE id = ?',
-      [newStatus, reportId]
-    );
-
-    // Log moderation action
-    await this.db.execute(
-      `INSERT INTO moderation_actions (target_type, target_id, admin_user_id, action, note)
-       VALUES ('COMMENT', ?, ?, ?, ?)`,
-      [report.comment_id, adminUserId, action.toUpperCase(), note]
-    );
-
-    return {
-      success: true,
-      message: `Comment ${action}d successfully`
-    };
-  }
 }

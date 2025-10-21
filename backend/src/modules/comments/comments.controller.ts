@@ -1,10 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators';
 import { CommentsService } from './comments.service';
-import { AddCommentDto, UpdateCommentDto, ReportCommentDto } from './dto/comments.dto';
+import { AddCommentDto, UpdateCommentDto } from './dto/comments.dto';
 
 @ApiTags('Comments')
 @Controller('comments')
@@ -24,11 +22,13 @@ export class CommentsController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string
   ) {
+    const parsedLimit = parseInt(limit || '20', 10) || 20;
+    const parsedOffset = parseInt(offset || '0', 10) || 0;
     return this.commentsService.getComments(
       recipeId, 
       recipeType, 
-      parseInt(limit || '20'), 
-      parseInt(offset || '0')
+      parsedLimit, 
+      parsedOffset
     );
   }
 
@@ -43,10 +43,10 @@ export class CommentsController {
   async addComment(
     @Param('recipeId') recipeId: string,
     @Query('recipeType') recipeType: 'SYSTEM' | 'COMMUNITY',
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() addCommentDto: AddCommentDto
   ) {
-    return this.commentsService.addComment(recipeId, recipeType, userId, addCommentDto.content);
+    return this.commentsService.addComment(recipeId, recipeType, req.user.id, addCommentDto.content);
   }
 
   @Put(':id')
@@ -59,10 +59,10 @@ export class CommentsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async updateComment(
     @Param('id') id: string,
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() updateCommentDto: UpdateCommentDto
   ) {
-    return this.commentsService.updateComment(id, userId, updateCommentDto.content);
+    return this.commentsService.updateComment(id, req.user.id, updateCommentDto.content);
   }
 
   @Delete(':id')
@@ -75,9 +75,9 @@ export class CommentsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async deleteComment(
     @Param('id') id: string,
-    @Query('userId') userId: string
+    @Request() req
   ) {
-    return this.commentsService.deleteComment(id, userId);
+    return this.commentsService.deleteComment(id, req.user.id);
   }
 
   @Post(':id/like')
@@ -89,9 +89,9 @@ export class CommentsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async likeComment(
     @Param('id') id: string,
-    @Query('userId') userId: string
+    @Request() req
   ) {
-    return this.commentsService.likeComment(id, userId);
+    return this.commentsService.likeComment(id, req.user.id);
   }
 
   @Get('my-comments')
@@ -103,59 +103,17 @@ export class CommentsController {
   @ApiResponse({ status: 200, description: 'User comments' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getUserComments(
-    @Query('userId') userId: string,
+    @Request() req,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string
   ) {
+    const parsedLimit = parseInt(limit || '20', 10) || 20;
+    const parsedOffset = parseInt(offset || '0', 10) || 0;
     return this.commentsService.getUserComments(
-      userId, 
-      parseInt(limit || '20'), 
-      parseInt(offset || '0')
+      req.user.id, 
+      parsedLimit, 
+      parsedOffset
     );
   }
 
-  @Post(':id/report')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Report comment' })
-  @ApiParam({ name: 'id', description: 'Comment ID' })
-  @ApiResponse({ status: 200, description: 'Comment reported successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async reportComment(
-    @Param('id') id: string,
-    @Query('userId') userId: string,
-    @Body() reportCommentDto: ReportCommentDto
-  ) {
-    return this.commentsService.reportComment(id, userId, reportCommentDto.reason);
-  }
-
-  @Get('moderation/reported')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get reported comments' })
-  @ApiResponse({ status: 200, description: 'List of reported comments' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getReportedComments() {
-    return this.commentsService.getReportedComments();
-  }
-
-  @Put('moderation/:reportId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Moderate reported comment' })
-  @ApiParam({ name: 'reportId', description: 'Report ID' })
-  @ApiResponse({ status: 200, description: 'Comment moderated successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async moderateComment(
-    @Param('reportId') reportId: string,
-    @Query('adminUserId') adminUserId: string,
-    @Body('action') action: string,
-    @Body('note') note?: string
-  ) {
-    return this.commentsService.moderateComment(reportId, adminUserId, action, note);
-  }
 }
