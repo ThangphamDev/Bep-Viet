@@ -48,7 +48,8 @@ class AuthService {
 
       return response;
     } catch (e) {
-      throw Exception('Login failed: $e');
+      // Re-throw the exception as-is (already formatted from api_service)
+      rethrow;
     }
   }
 
@@ -77,7 +78,8 @@ class AuthService {
 
       return response;
     } catch (e) {
-      throw Exception('Registration failed: $e');
+      // Re-throw the exception as-is (already formatted from api_service)
+      rethrow;
     }
   }
 

@@ -29,8 +29,21 @@ class ApiService {
         return AuthResponse.fromJson(response.data as Map<String, dynamic>);
       }
       throw Exception('Invalid API response format');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('Email hoặc mật khẩu không đúng');
+      } else if (e.response?.statusCode == 404) {
+        throw Exception('Tài khoản không tồn tại');
+      } else if (e.response?.data != null && e.response?.data is Map) {
+        final errorMessage =
+            e.response?.data['message'] ?? 'Đăng nhập thất bại';
+        throw Exception(errorMessage);
+      } else {
+        throw Exception('Không thể kết nối đến server');
+      }
     } catch (e) {
-      throw Exception('Login failed: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Đăng nhập thất bại');
     }
   }
 
@@ -44,8 +57,22 @@ class ApiService {
         return AuthResponse.fromJson(response.data as Map<String, dynamic>);
       }
       throw Exception('Invalid API response format');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 409) {
+        throw Exception('Email đã được sử dụng');
+      } else if (e.response?.statusCode == 400) {
+        final errorMessage =
+            e.response?.data['message'] ?? 'Thông tin không hợp lệ';
+        throw Exception(errorMessage);
+      } else if (e.response?.data != null && e.response?.data is Map) {
+        final errorMessage = e.response?.data['message'] ?? 'Đăng ký thất bại';
+        throw Exception(errorMessage);
+      } else {
+        throw Exception('Không thể kết nối đến server');
+      }
     } catch (e) {
-      throw Exception('Registration failed: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Đăng ký thất bại');
     }
   }
 
