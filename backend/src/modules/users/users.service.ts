@@ -107,6 +107,13 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    // Delete moderation_actions that reference this user
+    // (moderation_actions doesn't have ON DELETE CASCADE)
+    await this.db.execute(
+      `DELETE FROM moderation_actions WHERE admin_user_id = ?`,
+      [userId]
+    );
+
     // Delete user account
     // Note: CASCADE DELETE is set in the database schema for related records
     // This will automatically delete:
@@ -120,6 +127,8 @@ export class UsersService {
     // - user_recipes
     // - recipe_ratings & comments
     // - user_followers
+    // - favorites
+    // - notifications
     await this.db.execute(
       `DELETE FROM users WHERE id = ?`,
       [userId]

@@ -26,7 +26,8 @@
     "data:import": "ts-node scripts/import-data.ts",
     "data:fresh": "ts-node scripts/run-import.ts",
     "data:missing": "ts-node scripts/import-missing.ts",
-    "data:enhance": "ts-node scripts/enhance-recipe-data.ts"
+    "data:enhance": "ts-node scripts/enhance-recipe-data.ts",
+    "admin:create": "ts-node scripts/create-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

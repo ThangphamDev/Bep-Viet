@@ -42,6 +42,28 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     _animationController.forward();
   }
 
+  bool _hasShownMessage = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Check for success message from registration (only show once)
+    if (!_hasShownMessage) {
+      final uri = GoRouterState.of(context).uri;
+      final message = uri.queryParameters['message'];
+
+      if (message == 'register_success') {
+        _hasShownMessage = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showInfoSnackBar('🎉 Đăng ký thành công! Vui lòng đăng nhập.');
+          }
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -67,9 +89,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               if (state is AuthError) {
                 _showErrorSnackBar(state.message);
               } else if (state is AuthAuthenticated) {
-                _showSuccessSnackBar('Đăng nhập thành công!');
-                // Navigate to home after successful login
-                context.go(AppRoutes.home);
+                // Get user name for welcome message
+                final userName = state.user.name;
+                final firstName = userName.isNotEmpty && userName.contains(' ')
+                    ? userName.split(' ').last
+                    : userName.isNotEmpty
+                    ? userName
+                    : 'bạn';
+
+                // Navigate to home with welcome message
+                context.go('${AppRoutes.home}?welcome=$firstName');
               }
             },
             child: SingleChildScrollView(
@@ -528,23 +557,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ],
         ),
         backgroundColor: AppTheme.errorColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: AppTheme.successColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
