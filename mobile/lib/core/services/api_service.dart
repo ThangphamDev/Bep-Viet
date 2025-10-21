@@ -11,6 +11,8 @@ class ApiService {
   final Map<String, String> _headers = {
     'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true',
+    // TODO: Add JWT token when authentication is implemented
+    // 'Authorization': 'Bearer $token',
   };
 
   // Generic HTTP methods
@@ -24,6 +26,11 @@ class ApiService {
       final uri = Uri.parse(
         '$_baseUrl/api$endpoint',
       ).replace(queryParameters: queryParams);
+
+      print('🌐 API Request: $method ${uri.toString()}');
+      if (body != null) {
+        print('📤 Request Body: $body');
+      }
 
       http.Response response;
       switch (method.toUpperCase()) {
@@ -58,13 +65,42 @@ class ApiService {
           throw Exception('Unsupported HTTP method: $method');
       }
 
+      print('📥 Response Status: ${response.statusCode}');
+      print('📥 Response Body: ${response.body}');
+
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return jsonDecode(response.body);
+        final responseData = jsonDecode(response.body);
+        // Handle backend response structure: {success: true, data: {...}}
+        if (responseData is Map && responseData.containsKey('success')) {
+          if (responseData['success'] == true) {
+            print(
+              '✅ API Success: ${responseData['message'] ?? 'Request successful'}',
+            );
+            return Map<String, dynamic>.from(responseData);
+          } else {
+            print('❌ API Error: ${responseData['message'] ?? 'Unknown error'}');
+            throw Exception(
+              'API Error: ${responseData['message'] ?? 'Unknown error'}',
+            );
+          }
+        }
+        print('✅ API Response: Success');
+        return Map<String, dynamic>.from(responseData);
       } else {
+        print('❌ HTTP Error: ${response.statusCode} - ${response.body}');
         throw Exception('HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      throw Exception('API request failed: $e');
+      print('❌ API Request Error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network error: Please check your internet connection');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception(
+          'Request timeout: Server is taking too long to respond',
+        );
+      } else {
+        throw Exception('API request failed: $e');
+      }
     }
   }
 
@@ -108,74 +144,33 @@ class ApiService {
     return List<Map<String, dynamic>>.from(response['data'] ?? []);
   }
 
-  // Family API
-  Future<List<Map<String, dynamic>>> getFamilyProfiles(String userId) async {
-    final response = await _makeRequest(
-      'GET',
-      '/family',
-      queryParams: {'userId': userId},
-    );
+  // Family API - Updated to match backend endpoints
+  Future<List<Map<String, dynamic>>> getUserFamilyProfiles() async {
+    final response = await _makeRequest('GET', '/family/profiles');
     return List<Map<String, dynamic>>.from(response['data'] ?? []);
   }
 
   Future<Map<String, dynamic>> createFamilyProfile(
-    String userId,
     Map<String, dynamic> profileData,
   ) async {
     final response = await _makeRequest(
       'POST',
-      '/family',
-      queryParams: {'userId': userId},
+      '/family/profiles',
       body: profileData,
     );
     return response['data'];
   }
 
-  Future<List<Map<String, dynamic>>> getFamilyMembers(
-    String familyId,
-    String userId,
-  ) async {
-    final response = await _makeRequest(
-      'GET',
-      '/family/$familyId/members',
-      queryParams: {'userId': userId},
-    );
-    return List<Map<String, dynamic>>.from(response['data'] ?? []);
-  }
-
   Future<Map<String, dynamic>> addFamilyMember(
-    String userId,
+    String familyId,
     Map<String, dynamic> memberData,
   ) async {
     final response = await _makeRequest(
       'POST',
-      '/family/members',
-      queryParams: {'userId': userId},
+      '/family/profiles/$familyId/members',
       body: memberData,
     );
     return response['data'];
-  }
-
-  Future<Map<String, dynamic>> updateFamilyMember(
-    String memberId,
-    String userId,
-    Map<String, dynamic> memberData,
-  ) async {
-    final response = await _makeRequest(
-      'PATCH',
-      '/family/members/$memberId',
-      queryParams: {'userId': userId},
-      body: memberData,
-    );
-    return response['data'];
-  }
-
-  Future<void> deleteFamilyMember(String memberId, String userId) async {
-    await _makeRequest(
-      'DELETE',
-      '/family/members/$memberId',
-      queryParams: {'userId': userId},
-    );
   }
 
   // Subscriptions API

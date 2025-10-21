@@ -34,11 +34,8 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
     try {
       setState(() => _isLoading = true);
 
-      // Mock user ID - in real app, get from auth service
-      const userId = 'user_123';
-
       // Load family profiles
-      final familyData = await _apiService.getFamilyProfiles(userId);
+      final familyData = await _apiService.getUserFamilyProfiles();
       _familyProfiles = familyData
           .map((json) => FamilyProfileModel.fromJson(json))
           .toList();

@@ -39,9 +39,11 @@ class FamilyMember {
       name: model.name,
       age: model.age,
       role: 'Thành viên', // Default role
-      allergies: model.allergies,
-      dietaryRestrictions: model.dietFlags.map((flag) => flag.value).toList(),
-      healthConditions: model.healthConditions,
+      allergies: model.allergies != null ? [model.allergies!] : [],
+      dietaryRestrictions: model.dietaryRestrictions != null
+          ? [model.dietaryRestrictions!]
+          : [],
+      healthConditions: [], // No health conditions in new model
     );
   }
 }
@@ -69,24 +71,17 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
     try {
       setState(() => _isLoading = true);
 
-      // Mock user ID - in real app, get from auth service
-      const userId = 'user_123';
-
       // Load family profiles
-      final familyData = await _apiService.getFamilyProfiles(userId);
+      final familyData = await _apiService.getUserFamilyProfiles();
       _familyProfiles = familyData
           .map((json) => FamilyProfileModel.fromJson(json))
           .toList();
 
       // Load family members from first profile
       if (_familyProfiles.isNotEmpty) {
-        final membersData = await _apiService.getFamilyMembers(
-          _familyProfiles.first.id,
-          userId,
-        );
-        _familyMembers = membersData
-            .map((json) => FamilyMemberModel.fromJson(json))
-            .toList();
+        // Note: Backend doesn't have separate endpoint for members yet
+        // For now, we'll use mock data
+        _familyMembers = [];
       }
     } catch (e) {
       print('Error loading family data: $e');
@@ -97,13 +92,8 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
           familyId: 'family_1',
           name: 'Nguyễn Văn A',
           age: 35,
-          allergies: ['Hải sản', 'Đậu phộng'],
-          spiceLevel: SpiceLevel.medium,
-          dietFlags: [DietFlag.vegetarian],
-          healthConditions: ['Huyết áp cao'],
-          notes: 'Không thích cay',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          dietaryRestrictions: 'Vegetarian',
+          allergies: 'Hải sản, Đậu phộng',
         ),
       ];
     } finally {
@@ -316,28 +306,8 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
                 : '',
             name: member.name,
             age: member.age,
-            allergies: member.allergies,
-            spiceLevel: SpiceLevel.medium, // Default
-            dietFlags: member.dietaryRestrictions.map((restriction) {
-              switch (restriction) {
-                case 'VEGETARIAN':
-                  return DietFlag.vegetarian;
-                case 'VEGAN':
-                  return DietFlag.vegan;
-                case 'GLUTEN_FREE':
-                  return DietFlag.glutenFree;
-                case 'DAIRY_FREE':
-                  return DietFlag.dairyFree;
-                case 'KETO':
-                  return DietFlag.keto;
-                default:
-                  return DietFlag.vegetarian;
-              }
-            }).toList(),
-            healthConditions: member.healthConditions,
-            notes: null,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
+            dietaryRestrictions: member.dietaryRestrictions.join(', '),
+            allergies: member.allergies.join(', '),
           );
 
           setState(() {
