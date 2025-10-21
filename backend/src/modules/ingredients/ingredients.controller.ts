@@ -59,6 +59,15 @@ export class IngredientsController {
     return this.ingredientsService.getIngredientPrices(id, region);
   }
 
+  @Get(':id/substitutions')
+  @ApiOperation({ summary: 'Get ingredient substitutions' })
+  @ApiParam({ name: 'id', description: 'Ingredient ID' })
+  @ApiResponse({ status: 200, description: 'List of substitute ingredients' })
+  @ApiResponse({ status: 404, description: 'Ingredient not found' })
+  async getIngredientSubstitutions(@Param('id') id: string) {
+    return this.ingredientsService.getIngredientSubstitutions(id);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
