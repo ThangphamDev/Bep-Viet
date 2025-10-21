@@ -34,23 +34,53 @@ export class AnalyticsService {
   }
 
   async getSystemAnalytics() {
-    const [stats] = await this.db.execute(
+    // Use separate queries to avoid Cartesian product
+    const [userCount] = await this.db.execute('SELECT COUNT(*) as count FROM users');
+    const [recipeCount] = await this.db.execute('SELECT COUNT(*) as count FROM recipes');
+    const [communityRecipeCount] = await this.db.execute('SELECT COUNT(*) as count FROM community_recipes');
+    const [ratingCount] = await this.db.execute('SELECT COUNT(*) as count FROM recipe_ratings');
+    const [mealPlanCount] = await this.db.execute('SELECT COUNT(*) as count FROM meal_plans');
+    const [ingredientCount] = await this.db.execute('SELECT COUNT(*) as count FROM ingredients');
+    const [pantryItemCount] = await this.db.execute('SELECT COUNT(*) as count FROM pantry_items');
+    const [shoppingListCount] = await this.db.execute('SELECT COUNT(*) as count FROM shopping_lists');
+
+    // Get top recipes
+    const [topRecipes] = await this.db.execute(
+      `SELECT r.id, r.name_vi as name, COALESCE(r.rating_avg, 0) as rating_avg, r.rating_count
+       FROM recipes r
+       WHERE r.rating_count > 0
+       ORDER BY r.rating_avg DESC, r.rating_count DESC
+       LIMIT 5`
+    );
+
+    // Get recent activity
+    const [recentActivity] = await this.db.execute(
       `SELECT 
-        COUNT(DISTINCT u.id) as total_users,
-        COUNT(DISTINCT r.id) as total_recipes,
-        COUNT(DISTINCT cr.id) as total_community_recipes,
-        COUNT(DISTINCT rr.id) as total_ratings,
-        COUNT(DISTINCT mp.id) as total_meal_plans
-      FROM users u
-      LEFT JOIN recipes r ON 1=1
-      LEFT JOIN community_recipes cr ON 1=1
-      LEFT JOIN recipe_ratings rr ON 1=1
-      LEFT JOIN meal_plans mp ON 1=1`
+        'community_recipe' as type,
+        cr.id,
+        cr.title as name,
+        cr.created_at,
+        u.name as user_name
+       FROM community_recipes cr
+       JOIN users u ON cr.author_user_id = u.id
+       ORDER BY cr.created_at DESC
+       LIMIT 10`
     );
 
     return {
       success: true,
-      data: (stats as any[])[0],
+      data: {
+        total_users: (userCount as any[])[0].count,
+        total_recipes: (recipeCount as any[])[0].count,
+        total_community_recipes: (communityRecipeCount as any[])[0].count,
+        total_ratings: (ratingCount as any[])[0].count,
+        total_meal_plans: (mealPlanCount as any[])[0].count,
+        total_ingredients: (ingredientCount as any[])[0].count,
+        total_pantry_items: (pantryItemCount as any[])[0].count,
+        total_shopping_lists: (shoppingListCount as any[])[0].count,
+        top_recipes: topRecipes,
+        recent_activity: recentActivity
+      },
     };
   }
 }

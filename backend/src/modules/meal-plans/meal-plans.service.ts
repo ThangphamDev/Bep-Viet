@@ -8,16 +8,38 @@ export class MealPlansService {
   async createMealPlan(userId: string, mealPlanData: any) {
     const { week_start_date, note } = mealPlanData;
 
-    const [result] = await this.db.execute(
-      `INSERT INTO meal_plans (user_id, week_start_date, note)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE note = VALUES(note)`,
-      [userId, week_start_date, note]
+    // Check if meal plan already exists
+    const [existing] = await this.db.execute(
+      `SELECT id FROM meal_plans WHERE user_id = ? AND week_start_date = ?`,
+      [userId, week_start_date]
+    );
+
+    if ((existing as any[]).length > 0) {
+      // Update existing meal plan
+      const existingId = (existing as any[])[0].id;
+      await this.db.execute(
+        `UPDATE meal_plans SET note = ? WHERE id = ?`,
+        [note ?? null, existingId]
+      );
+      return {
+        success: true,
+        data: { id: existingId },
+      };
+    }
+
+    // Generate UUID and create new meal plan
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const mealPlanId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
+      `INSERT INTO meal_plans (id, user_id, week_start_date, note)
+       VALUES (?, ?, ?, ?)`,
+      [mealPlanId, userId, week_start_date, note ?? null]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: mealPlanId },
     };
   }
 
@@ -73,20 +95,42 @@ export class MealPlansService {
   async addMealToPlan(mealPlanId: string, mealData: any) {
     const { date, meal_slot, recipe_id, variant_region, servings } = mealData;
 
-    const [result] = await this.db.execute(
+    // Check if meal already exists in this slot
+    const [existing] = await this.db.execute(
+      `SELECT id FROM meal_plan_items 
+       WHERE meal_plan_id = ? AND date = ? AND meal_slot = ?`,
+      [mealPlanId, date, meal_slot]
+    );
+
+    if ((existing as any[]).length > 0) {
+      // Update existing meal
+      const existingId = (existing as any[])[0].id;
+      await this.db.execute(
+        `UPDATE meal_plan_items 
+         SET recipe_id = ?, variant_region = ?, servings = ?
+         WHERE id = ?`,
+        [recipe_id, variant_region ?? null, servings ?? 2, existingId]
+      );
+      return {
+        success: true,
+        data: { id: existingId },
+      };
+    }
+
+    // Generate UUID and insert new meal
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const mealItemId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
       `INSERT INTO meal_plan_items 
-       (meal_plan_id, date, meal_slot, recipe_id, variant_region, servings)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-       recipe_id = VALUES(recipe_id),
-       variant_region = VALUES(variant_region),
-       servings = VALUES(servings)`,
-      [mealPlanId, date, meal_slot, recipe_id, variant_region, servings]
+       (id, meal_plan_id, date, meal_slot, recipe_id, variant_region, servings)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [mealItemId, mealPlanId, date, meal_slot, recipe_id, variant_region ?? null, servings ?? 2]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: mealItemId },
     };
   }
 
@@ -297,6 +341,79 @@ export class MealPlansService {
     return {
       success: true,
       message: 'Meal plan deleted successfully',
+    };
+  }
+
+  async quickAddToToday(userId: string, mealData: any) {
+    const { recipe_id, meal_slot, servings, variant_region } = mealData;
+    
+    // Get today's date
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Calculate week start date (Monday)
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday, go back 6 days, else go to Monday
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() + diff);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    
+    // Find or create meal plan for this week
+    let [mealPlans] = await this.db.execute(
+      `SELECT id FROM meal_plans WHERE user_id = ? AND week_start_date = ?`,
+      [userId, weekStartStr]
+    );
+    
+    let mealPlanId;
+    if ((mealPlans as any[]).length === 0) {
+      // Create new meal plan for this week
+      const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+      mealPlanId = (uuidResult as any[])[0].id;
+      
+      await this.db.execute(
+        `INSERT INTO meal_plans (id, user_id, week_start_date, note) VALUES (?, ?, ?, ?)`,
+        [mealPlanId, userId, weekStartStr, 'Kế hoạch bữa ăn']
+      );
+    } else {
+      mealPlanId = (mealPlans as any[])[0].id;
+    }
+    
+    // Check if meal already exists
+    const [existingMeal] = await this.db.execute(
+      `SELECT id FROM meal_plan_items 
+       WHERE meal_plan_id = ? AND date = ? AND meal_slot = ?`,
+      [mealPlanId, todayStr, meal_slot]
+    );
+    
+    if ((existingMeal as any[]).length > 0) {
+      // Update existing
+      await this.db.execute(
+        `UPDATE meal_plan_items 
+         SET recipe_id = ?, variant_region = ?, servings = ?
+         WHERE meal_plan_id = ? AND date = ? AND meal_slot = ?`,
+        [recipe_id, variant_region ?? null, servings ?? 2, mealPlanId, todayStr, meal_slot]
+      );
+    } else {
+      // Insert new
+      const [mealUuidResult] = await this.db.execute('SELECT UUID() as id');
+      const mealItemId = (mealUuidResult as any[])[0].id;
+      
+      await this.db.execute(
+        `INSERT INTO meal_plan_items 
+         (id, meal_plan_id, date, meal_slot, recipe_id, variant_region, servings)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [mealItemId, mealPlanId, todayStr, meal_slot, recipe_id, variant_region ?? null, servings ?? 2]
+      );
+    }
+    
+    return {
+      success: true,
+      message: 'Đã thêm món ăn vào hôm nay',
+      data: {
+        meal_plan_id: mealPlanId,
+        date: todayStr,
+        meal_slot,
+      },
     };
   }
 }

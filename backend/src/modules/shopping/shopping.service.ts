@@ -6,17 +6,21 @@ export class ShoppingService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async createShoppingList(userId: string, listData: any) {
-    const { title, week_range, is_shared = false } = listData;
+    const { title, week_range, is_shared = false, note } = listData;
 
-    const [result] = await this.db.execute(
-      `INSERT INTO shopping_lists (owner_id, title, week_range, is_shared)
-       VALUES (?, ?, ?, ?)`,
-      [userId, title, week_range, is_shared]
+    // Generate UUID
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const listId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
+      `INSERT INTO shopping_lists (id, owner_id, title, week_range, is_shared)
+       VALUES (?, ?, ?, ?, ?)`,
+      [listId, userId, title, week_range ?? null, is_shared]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: listId },
     };
   }
 
@@ -38,7 +42,7 @@ export class ShoppingService {
       FROM shopping_lists sl
       LEFT JOIN shopping_list_items sli ON sl.id = sli.list_id
       WHERE sl.owner_id = ?
-      GROUP BY sl.id
+      GROUP BY sl.id, sl.title, sl.week_range, sl.is_shared, sl.created_at, sl.updated_at
       ORDER BY sl.created_at DESC`,
       [userId]
     );
@@ -139,19 +143,51 @@ export class ShoppingService {
       source_recipe_id
     } = itemData;
 
-    const [result] = await this.db.execute(
+    // Check if item already exists
+    const [existing] = await this.db.execute(
+      `SELECT id, quantity FROM shopping_list_items 
+       WHERE list_id = ? AND ingredient_id = ?`,
+      [listId, ingredient_id]
+    );
+
+    if ((existing as any[]).length > 0) {
+      // Update existing item
+      const existingItem = (existing as any[])[0];
+      await this.db.execute(
+        `UPDATE shopping_list_items 
+         SET quantity = quantity + ?, note = ?
+         WHERE id = ?`,
+        [quantity, note ?? null, existingItem.id]
+      );
+      return {
+        success: true,
+        data: { id: existingItem.id },
+      };
+    }
+
+    // Generate UUID and insert new item
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const itemId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
       `INSERT INTO shopping_list_items 
-       (list_id, ingredient_id, quantity, unit, store_section, note, source_recipe_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-       quantity = quantity + VALUES(quantity),
-       note = VALUES(note)`,
-      [listId, ingredient_id, quantity, unit, store_section, note, source_recipe_id]
+       (id, list_id, ingredient_id, quantity, unit, store_section, note, source_recipe_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        itemId, 
+        listId, 
+        ingredient_id, 
+        quantity, 
+        unit ?? null, 
+        store_section ?? null, 
+        note ?? null, 
+        source_recipe_id ?? null
+      ]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: itemId },
     };
   }
 
@@ -253,21 +289,26 @@ export class ShoppingService {
     }
 
     // Create shopping list
-    const [listResult] = await this.db.execute(
-      `INSERT INTO shopping_lists (owner_id, title, week_range, is_shared)
-       VALUES (?, ?, ?, 0)`,
-      [userId, `Danh sách mua sắm từ kế hoạch`, new Date().toISOString().split('T')[0]]
-    );
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const listId = (uuidResult as any[])[0].id;
 
-    const listId = (listResult as any).insertId;
+    await this.db.execute(
+      `INSERT INTO shopping_lists (id, owner_id, title, week_range, is_shared)
+       VALUES (?, ?, ?, ?, 0)`,
+      [listId, userId, `Danh sách mua sắm từ kế hoạch`, new Date().toISOString().split('T')[0]]
+    );
 
     // Add items to shopping list
     for (const [ingredientId, ingredient] of ingredientMap) {
+      const [itemUuidResult] = await this.db.execute('SELECT UUID() as id');
+      const itemId = (itemUuidResult as any[])[0].id;
+
       await this.db.execute(
         `INSERT INTO shopping_list_items 
-         (list_id, ingredient_id, quantity, unit, store_section, note)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+         (id, list_id, ingredient_id, quantity, unit, store_section, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
+          itemId,
           listId,
           ingredientId,
           ingredient.total_quantity,
@@ -291,19 +332,21 @@ export class ShoppingService {
   async shareList(listId: string, userId: string, shareData: any) {
     const { invited_email, role = 'VIEWER' } = shareData;
 
-    // Generate invitation token
+    // Generate UUID and invitation token
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const invitationId = (uuidResult as any[])[0].id;
     const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
-    const [result] = await this.db.execute(
-      `INSERT INTO share_invitations (list_id, invited_email, role, token)
-       VALUES (?, ?, ?, ?)`,
-      [listId, invited_email, role, token]
+    await this.db.execute(
+      `INSERT INTO share_invitations (id, list_id, invited_email, role, token)
+       VALUES (?, ?, ?, ?, ?)`,
+      [invitationId, listId, invited_email, role, token]
     );
 
     return {
       success: true,
       data: {
-        invitation_id: (result as any).insertId,
+        invitation_id: invitationId,
         token: token,
         message: 'Invitation sent successfully'
       },

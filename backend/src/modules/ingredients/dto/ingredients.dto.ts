@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsInt, IsBoolean, Min, IsJSON } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean, Min, IsObject } from 'class-validator';
 
 export class CreateIngredientDto {
   @ApiProperty({ example: 'Cà chua' })
@@ -21,10 +21,14 @@ export class CreateIngredientDto {
   @Min(0)
   shelf_life_days?: number;
 
-  @ApiProperty({ example: '{"substitutes": ["cà chua bi", "cà chua cherry"]}', required: false })
+  @ApiProperty({ 
+    example: { substitutes: ['cà chua bi', 'cà chua cherry'] }, 
+    required: false,
+    description: 'JSON object containing ingredient substitutions'
+  })
   @IsOptional()
-  @IsJSON()
-  substitutions_json?: string;
+  @IsObject()
+  substitutions_json?: any;
 
   @ApiProperty({ example: true, required: false })
   @IsOptional()
@@ -59,10 +63,14 @@ export class UpdateIngredientDto {
   @Min(0)
   shelf_life_days?: number;
 
-  @ApiProperty({ example: '{"substitutes": ["cà chua bi", "cà chua cherry"]}', required: false })
+  @ApiProperty({ 
+    example: { substitutes: ['cà chua bi', 'cà chua cherry'] }, 
+    required: false,
+    description: 'JSON object containing ingredient substitutions'
+  })
   @IsOptional()
-  @IsJSON()
-  substitutions_json?: string;
+  @IsObject()
+  substitutions_json?: any;
 
   @ApiProperty({ example: true, required: false })
   @IsOptional()

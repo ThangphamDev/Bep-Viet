@@ -16,18 +16,14 @@ class RecipesPage extends StatelessWidget {
     return BlocProvider(
       create: (context) {
         final dio = Dio();
-        // Configure Dio for ngrok tunnel
         dio.options.baseUrl =
             'https://gullably-nonpsychological-leisha.ngrok-free.dev';
         dio.options.connectTimeout = const Duration(seconds: 30);
         dio.options.receiveTimeout = const Duration(seconds: 30);
-
-        // Add ngrok-skip-browser-warning header
         dio.options.headers['ngrok-skip-browser-warning'] = 'true';
 
         final apiService = ApiService(dio);
         final cubit = RecipesCubit(apiService);
-        // Load initial recipes
         cubit.loadRecipes();
         return cubit;
       },
@@ -45,12 +41,14 @@ class RecipesPageView extends StatefulWidget {
 
 class _RecipesPageViewState extends State<RecipesPageView> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _selectedRegion = '';
-  int? _maxTime;
+  int? _maxTime = 60;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -62,107 +60,175 @@ class _RecipesPageViewState extends State<RecipesPageView> {
     );
   }
 
+  Future<void> _handleRefresh() async {
+    _loadRecipes();
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: BlocBuilder<RecipesCubit, RecipesState>(
-        builder: (context, state) {
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(), // ✅ Scroll mượt mà hơn
-            cacheExtent: 1000, // ✅ Cache để scroll mượt
-            slivers: [
-              // Custom App Bar
-              SliverAppBar(
-                expandedHeight: 120, // ✅ Giảm từ 140 xuống 120
-                floating: false,
-                pinned: true,
-                backgroundColor:
-                    AppTheme.primaryGreen, // ✅ Giữ màu xanh khi collapse
-                elevation: 0,
-                forceElevated: false, // ✅ Tắt elevation để giảm jank
-                stretch: false, // ✅ Tắt stretch để giảm jank
-                flexibleSpace: FlexibleSpaceBar(
-                  title: const Text(
-                    'Công thức',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 20,
+      body: RefreshIndicator(
+        color: AppTheme.primaryGreen,
+        onRefresh: _handleRefresh,
+        child: BlocBuilder<RecipesCubit, RecipesState>(
+          builder: (context, state) {
+            return CustomScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(),
+              cacheExtent: 1000,
+              slivers: [
+                // App Bar với gradient
+                SliverAppBar(
+                  expandedHeight: 100,
+                  floating: false,
+                  pinned: true,
+                  backgroundColor: AppTheme.primaryGreen,
+                  elevation: 0,
+                  flexibleSpace: FlexibleSpaceBar(
+                    title: const Text(
+                      'Công thức',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 20,
+                      ),
+                    ),
+                    titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                    background: Container(
+                      decoration: const BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                      ),
+                      child: Stack(
+                        children: [
+                          // Action Buttons
+                          Positioned(
+                            right: 16,
+                            top: 40,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildActionButton(
+                                  icon: Icons.lightbulb_outline,
+                                  label: 'Gợi ý',
+                                  onTap: () => context.go('/suggest'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
+                ),
+
+                // Search Bar
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: Stack(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Tìm kiếm công thức...',
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 15,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: AppTheme.primaryGreen,
+                          size: 22,
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _searchController.clear();
+                                  });
+                                  _loadRecipes();
+                                },
+                                icon: Icon(
+                                  Icons.clear,
+                                  color: Colors.grey.shade400,
+                                  size: 20,
+                                ),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (_) => _loadRecipes(),
+                    ),
+                  ),
+                ),
+
+                // Region Filters
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Background Icon
-                        const Positioned(
-                          left: 20,
-                          top: 35, // ✅ Tăng từ 30 lên 35 để xuống thấp hơn
-                          child: Icon(
-                            Icons.menu_book,
-                            size: 28, // ✅ Giảm từ 32 xuống 28
-                            color: Colors.white70,
+                        const Text(
+                          'Vùng miền',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textSecondary,
                           ),
                         ),
-                        // Action Buttons
-                        Positioned(
-                          right: 16,
-                          top: 30, // ✅ Tăng từ 20 lên 30 để xuống thấp hơn
+                        const SizedBox(height: 12),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Suggestions Button
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () => context.go('/suggest'),
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, // ✅ Giảm từ 12 xuống 10
-                                        vertical: 6, // ✅ Giảm từ 8 xuống 6
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.lightbulb,
-                                            size: 14, // ✅ Giảm từ 16 xuống 14
-                                            color: AppTheme.primaryGreen,
-                                          ),
-                                          const SizedBox(
-                                            width: 3,
-                                          ), // ✅ Giảm từ 4 xuống 3
-                                          Text(
-                                            'Gợi ý',
-                                            style: TextStyle(
-                                              color: AppTheme.primaryGreen,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize:
-                                                  11, // ✅ Giảm từ 12 xuống 11
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                              _buildRegionChip(
+                                'Tất cả',
+                                _selectedRegion.isEmpty,
+                                '',
+                              ),
+                              _buildRegionChip(
+                                'Miền Bắc',
+                                _selectedRegion == 'BAC',
+                                'BAC',
+                              ),
+                              _buildRegionChip(
+                                'Miền Trung',
+                                _selectedRegion == 'TRUNG',
+                                'TRUNG',
+                              ),
+                              _buildRegionChip(
+                                'Miền Nam',
+                                _selectedRegion == 'NAM',
+                                'NAM',
                               ),
                             ],
                           ),
@@ -171,353 +237,343 @@ class _RecipesPageViewState extends State<RecipesPageView> {
                     ),
                   ),
                 ),
-              ),
 
-              // Search and Filters
-              SliverToBoxAdapter(
-                child: Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceColor,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      // Search Bar
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Tìm kiếm công thức...',
-                            hintStyle: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 14,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: Colors.grey.shade400,
-                              size: 20,
-                            ),
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? IconButton(
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      _loadRecipes();
-                                    },
-                                    icon: Icon(
-                                      Icons.clear,
-                                      color: Colors.grey.shade400,
-                                      size: 18,
-                                    ),
-                                  )
-                                : null,
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                          onSubmitted: (_) => _loadRecipes(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Region Filters
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildModernFilterChip(
-                              'Tất cả',
-                              _selectedRegion.isEmpty,
-                              () {
-                                setState(() {
-                                  _selectedRegion = '';
-                                });
-                                _loadRecipes();
-                              },
-                            ),
-                            _buildModernFilterChip(
-                              'Miền Bắc',
-                              _selectedRegion == 'BAC',
-                              () {
-                                setState(() {
-                                  _selectedRegion = 'BAC';
-                                });
-                                _loadRecipes();
-                              },
-                            ),
-                            _buildModernFilterChip(
-                              'Miền Trung',
-                              _selectedRegion == 'TRUNG',
-                              () {
-                                setState(() {
-                                  _selectedRegion = 'TRUNG';
-                                });
-                                _loadRecipes();
-                              },
-                            ),
-                            _buildModernFilterChip(
-                              'Miền Nam',
-                              _selectedRegion == 'NAM',
-                              () {
-                                setState(() {
-                                  _selectedRegion = 'NAM';
-                                });
-                                _loadRecipes();
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Time Filter
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Thời gian tối đa',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryGreen.withOpacity(
-                                      0.1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '${_maxTime ?? 60} phút',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.primaryGreen,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                activeTrackColor: AppTheme.primaryGreen,
-                                inactiveTrackColor: Colors.grey.shade300,
-                                thumbColor: AppTheme.primaryGreen,
-                                overlayColor: AppTheme.primaryGreen.withOpacity(
-                                  0.2,
-                                ),
-                                trackHeight: 4,
-                              ),
-                              child: Slider(
-                                value: (_maxTime ?? 60).toDouble(),
-                                min: 15,
-                                max: 120,
-                                divisions: 7,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _maxTime = value.round();
-                                  });
-                                  _loadRecipes();
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Error Message
-              if (state.error != null)
+                // Time Filter
                 SliverToBoxAdapter(
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppTheme.errorColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.errorColor.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: AppTheme.errorColor,
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, 2),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            state.error!,
-                            style: const TextStyle(color: AppTheme.errorColor),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.primaryGradient,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.access_time,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Thời gian tối đa',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.primaryGradient,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryGreen.withOpacity(
+                                      0.3,
+                                    ),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                '${_maxTime ?? 60} phút',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: AppTheme.primaryGreen,
+                              inactiveTrackColor: Colors.grey.shade300,
+                              thumbColor: AppTheme.primaryGreen,
+                              overlayColor: AppTheme.primaryGreen.withOpacity(
+                                0.2,
+                              ),
+                              trackHeight: 4,
+                              thumbShape: const RoundSliderThumbShape(
+                                enabledThumbRadius: 8,
+                              ),
+                            ),
+                            child: Slider(
+                              value: (_maxTime ?? 60).toDouble(),
+                              min: 15,
+                              max: 120,
+                              divisions: 7,
+                              onChanged: (value) {
+                                setState(() {
+                                  _maxTime = value.round();
+                                });
+                              },
+                              onChangeEnd: (_) => _loadRecipes(),
+                            ),
                           ),
                         ),
-                        IconButton(
-                          onPressed: () {
-                            context.read<RecipesCubit>().clearError();
-                            _loadRecipes();
-                          },
-                          icon: const Icon(
-                            Icons.refresh,
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Error Message
+                if (state.error != null)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.errorColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.errorColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
                             color: AppTheme.errorColor,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // Loading Shimmer
-              if (state.isLoading)
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.75,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => const RecipeCardShimmer(),
-                      childCount: 6, // Show 6 shimmer cards
-                    ),
-                  ),
-                ),
-
-              // Recipes Grid
-              if (!state.isLoading && state.recipes.isNotEmpty)
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.75,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final recipe = state.recipes[index];
-                      return ModernRecipeCard(
-                        recipe: recipe,
-                        onTap: () => context.go('/recipes/${recipe.id}'),
-                      );
-                    }, childCount: state.recipes.length),
-                  ),
-                ),
-
-              // Empty State
-              if (!state.isLoading && state.recipes.isEmpty)
-                SliverToBoxAdapter(
-                  child: Container(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(60),
-                          ),
-                          child: const Icon(
-                            Icons.menu_book_outlined,
-                            size: 60,
-                            color: AppTheme.primaryGreen,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Không tìm thấy công thức',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              state.error!,
+                              style: const TextStyle(
+                                color: AppTheme.errorColor,
                               ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppTheme.textSecondary,
+                            ),
                           ),
-                        ),
-                      ],
+                          IconButton(
+                            onPressed: () {
+                              context.read<RecipesCubit>().clearError();
+                              _loadRecipes();
+                            },
+                            icon: const Icon(
+                              Icons.refresh,
+                              color: AppTheme.errorColor,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-              // Bottom padding
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
-          );
-        },
+                // Loading Shimmer
+                if (state.isLoading)
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.75,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => const RecipeCardShimmer(),
+                        childCount: 6,
+                      ),
+                    ),
+                  ),
+
+                // Recipes Grid
+                if (!state.isLoading && state.recipes.isNotEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.75,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final recipe = state.recipes[index];
+                        return ModernRecipeCard(
+                          recipe: recipe,
+                          onTap: () => context.push('/recipes/${recipe.id}'),
+                        );
+                      }, childCount: state.recipes.length),
+                    ),
+                  ),
+
+                // Empty State
+                if (!state.isLoading && state.recipes.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.all(48),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppTheme.primaryGreen.withOpacity(0.1),
+                                  AppTheme.primaryGreen.withOpacity(0.05),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(60),
+                            ),
+                            child: const Icon(
+                              Icons.menu_book_outlined,
+                              size: 60,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Không tìm thấy công thức',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Hãy thử thay đổi từ khóa tìm kiếm\nhoặc điều chỉnh bộ lọc',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: AppTheme.textSecondary,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Bottom padding
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildModernFilterChip(
-    String label,
-    bool isSelected,
-    VoidCallback onTap,
-  ) {
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: AppTheme.primaryGreen),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppTheme.primaryGreen,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegionChip(String label, bool isSelected, String value) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () {
+          setState(() {
+            _selectedRegion = value;
+          });
+          _loadRecipes();
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? AppTheme.primaryGreen : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(20),
+            gradient: isSelected ? AppTheme.primaryGradient : null,
+            color: isSelected ? null : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected ? AppTheme.primaryGreen : Colors.grey.shade300,
-              width: 1,
+              width: isSelected ? 1.5 : 1,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryGreen.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
               color: isSelected ? Colors.white : AppTheme.textPrimary,
             ),
           ),
@@ -738,7 +794,6 @@ class RecipeCardShimmer extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image placeholder
             Container(
               height: 120,
               width: double.infinity,
@@ -750,7 +805,6 @@ class RecipeCardShimmer extends StatelessWidget {
                 ),
               ),
             ),
-            // Content placeholder
             Container(
               padding: const EdgeInsets.all(8),
               child: Column(
@@ -823,7 +877,7 @@ class RecipesCubit extends Cubit<RecipesState> {
         region: region,
         maxTime: maxTime,
         search: search,
-        limit: 50, // Limit to 50 recipes
+        limit: 50,
       );
 
       emit(state.copyWith(recipes: recipes, isLoading: false));

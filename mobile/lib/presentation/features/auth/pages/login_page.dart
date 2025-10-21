@@ -332,6 +332,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       context.read<AuthCubit>().login(
                         _emailController.text,
                         _passwordController.text,
+                        rememberMe: _rememberMe,
                       );
                     }
                   },
@@ -500,8 +501,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         ),
         GestureDetector(
           onTap: () {
-            // Use GoRouter for navigation
-            context.go(AppRoutes.register);
+            // Use push to keep navigation stack
+            context.push(AppRoutes.register);
           },
           child: Text(
             'Đăng ký ngay',

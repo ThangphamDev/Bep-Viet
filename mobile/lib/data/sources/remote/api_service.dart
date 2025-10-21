@@ -52,7 +52,7 @@ class ApiService {
   Future<UserModel> getUserProfile(String token) async {
     try {
       final response = await _dio.get(
-        '/api/auth/profile',
+        '/api/users/me',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       if (response.data is Map<String, dynamic>) {
@@ -64,6 +64,45 @@ class ApiService {
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to get user profile: $e');
+    }
+  }
+
+  Future<void> deleteAccount(String token) async {
+    try {
+      await _dio.delete(
+        '/api/users/me',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to delete account: $e');
+    }
+  }
+
+  // Meal Plans
+  Future<Map<String, dynamic>> quickAddToToday({
+    required String token,
+    required String recipeId,
+    required String mealSlot,
+    required int servings,
+    String? variantRegion,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/meal-plans/quick-add',
+        data: {
+          'recipe_id': recipeId,
+          'meal_slot': mealSlot,
+          'servings': servings,
+          if (variantRegion != null) 'variant_region': variantRegion,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false};
+    } catch (e) {
+      throw Exception('Failed to add meal to today: $e');
     }
   }
 
@@ -279,6 +318,106 @@ class ApiService {
       throw Exception('Failed to fetch current season: $e');
     }
   }
+
+  // Gemini AI - Image Recognition
+  Future<Map<String, dynamic>> analyzeImageBase64(String imageBase64) async {
+    try {
+      final response = await _dio.post(
+        '/api/gemini/analyze-image-base64',
+        data: {'imageBase64': imageBase64},
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false, 'message': 'Invalid response format'};
+    } catch (e) {
+      throw Exception('Failed to analyze image: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getSuggestionsFromIngredients({
+    required List<String> ingredientIds,
+    String? region,
+    int? limit,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/gemini/suggest-from-ingredients',
+        queryParameters: {
+          if (region != null) 'region': region,
+          if (limit != null) 'limit': limit,
+        },
+        data: {'ingredient_ids': ingredientIds},
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false, 'data': []};
+    } catch (e) {
+      throw Exception('Failed to get suggestions from ingredients: $e');
+    }
+  }
+
+  // Gemini AI Chatbot - Conversational recipe suggestions
+  Future<Map<String, dynamic>> getAiSuggestionsChatbot({
+    required List<String> ingredientIds,
+    String? region,
+    int? spicePreference,
+    String? userPrompt,
+    int? limit,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/gemini/ai-suggest-chatbot',
+        data: {
+          'ingredient_ids': ingredientIds,
+          if (region != null) 'region': region,
+          if (spicePreference != null) 'spice_preference': spicePreference,
+          if (userPrompt != null && userPrompt.isNotEmpty) 'prompt': userPrompt,
+          if (limit != null) 'limit': limit,
+        },
+      );
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false, 'data': null};
+    } catch (e) {
+      throw Exception('Failed to get AI chatbot suggestions: $e');
+    }
+  }
+
+  // Gemini AI - Text + Filters based suggestion (OLD VERSION)
+  Future<Map<String, dynamic>> getAiSuggestions({
+    required List<String> ingredientIds,
+    String? region,
+    int? spicePreference,
+    String? userPrompt,
+    int? limit,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/gemini/ai-suggest',
+        data: {
+          'ingredient_ids': ingredientIds,
+          if (region != null) 'region': region,
+          if (spicePreference != null) 'spice_preference': spicePreference,
+          if (userPrompt != null && userPrompt.isNotEmpty) 'prompt': userPrompt,
+          if (limit != null) 'limit': limit,
+        },
+      );
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false, 'data': []};
+    } catch (e) {
+      throw Exception('Failed to get AI suggestions: $e');
+    }
+  }
+
+  // NOTE: Prompt building đã được chuyển sang backend
+  // Backend sẽ phân tích user prompt với Gemini và trả về kết quả đã được filter
 
   // Ingredients
   Future<List<Map<String, dynamic>>> getIngredients({

@@ -142,6 +142,44 @@ export class IngredientsService {
     };
   }
 
+  async getIngredientSubstitutions(id: string) {
+    // Get the ingredient with its substitutions
+    const [ingredients] = await this.db.execute(
+      `SELECT 
+        i.id,
+        i.name,
+        i.substitutions_json
+      FROM ingredients i
+      WHERE i.id = ?`,
+      [id]
+    );
+
+    const ingredient = (ingredients as any[])[0];
+    if (!ingredient) {
+      throw new NotFoundException('Ingredient not found');
+    }
+
+    // Parse substitutions_json (MySQL driver auto-parses JSON, but just in case)
+    let substitutions = [];
+    if (ingredient.substitutions_json) {
+      const subsData = typeof ingredient.substitutions_json === 'string' 
+        ? JSON.parse(ingredient.substitutions_json) 
+        : ingredient.substitutions_json;
+      
+      // Extract substitutes array
+      substitutions = subsData.substitutes || subsData || [];
+    }
+
+    return {
+      success: true,
+      data: {
+        ingredient_id: ingredient.id,
+        ingredient_name: ingredient.name,
+        substitutes: substitutions
+      },
+    };
+  }
+
   async createIngredient(ingredientData: any) {
     const {
       name,
@@ -153,16 +191,29 @@ export class IngredientsService {
       notes
     } = ingredientData;
 
-    const [result] = await this.db.execute(
+    // Generate UUID
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const ingredientId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
       `INSERT INTO ingredients 
-       (name, category_id, default_unit, shelf_life_days, substitutions_json, perishable, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, category_id, default_unit, shelf_life_days, substitutions_json, perishable, notes]
+       (id, name, category_id, default_unit, shelf_life_days, substitutions_json, perishable, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        ingredientId,
+        name,
+        category_id ?? null,
+        default_unit,
+        shelf_life_days ?? null,
+        substitutions_json ? JSON.stringify(substitutions_json) : null,
+        perishable ?? 1,
+        notes ?? null
+      ]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: ingredientId },
     };
   }
 
@@ -179,10 +230,24 @@ export class IngredientsService {
 
     const [result] = await this.db.execute(
       `UPDATE ingredients SET 
-       name = ?, category_id = ?, default_unit = ?, shelf_life_days = ?, 
-       substitutions_json = ?, perishable = ?, notes = ?
+       name = COALESCE(?, name),
+       category_id = ?,
+       default_unit = COALESCE(?, default_unit),
+       shelf_life_days = ?,
+       substitutions_json = ?,
+       perishable = COALESCE(?, perishable),
+       notes = ?
        WHERE id = ?`,
-      [name, category_id, default_unit, shelf_life_days, substitutions_json, perishable, notes, id]
+      [
+        name ?? null,
+        category_id ?? null,
+        default_unit ?? null,
+        shelf_life_days ?? null,
+        substitutions_json ? JSON.stringify(substitutions_json) : null,
+        perishable ?? null,
+        notes ?? null,
+        id
+      ]
     );
 
     if ((result as any).affectedRows === 0) {

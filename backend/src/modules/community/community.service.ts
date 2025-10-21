@@ -51,7 +51,7 @@ export class CommunityService {
       params.push(`%${filters.search}%`, `%${filters.search}%`);
     }
 
-    query += ' GROUP BY cr.id ORDER BY cr.created_at DESC';
+    query += ' GROUP BY cr.id, cr.title, cr.region, cr.description_md, cr.difficulty, cr.time_min, cr.cost_hint, cr.status, cr.created_at, cr.updated_at, u.name ORDER BY cr.created_at DESC';
 
     if (filters.limit) {
       query += ' LIMIT ?';
@@ -83,7 +83,7 @@ export class CommunityService {
         u.id as author_id
       FROM community_recipes cr
       JOIN users u ON cr.author_user_id = u.id
-      WHERE cr.id = ? AND cr.status = 'APPROVED'`,
+      WHERE cr.id = ?`,
       [id]
     );
 
@@ -177,33 +177,41 @@ export class CommunityService {
       steps
     } = recipeData;
 
-    // Create community recipe
-    const [result] = await this.db.execute(
-      `INSERT INTO community_recipes 
-       (author_user_id, title, region, description_md, difficulty, time_min, cost_hint, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
-      [userId, title, region, description_md, difficulty, time_min, cost_hint]
-    );
+    // Generate UUID for recipe
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const recipeId = (uuidResult as any[])[0].id;
 
-    const recipeId = (result as any).insertId;
+    // Create community recipe
+    await this.db.execute(
+      `INSERT INTO community_recipes 
+       (id, author_user_id, title, region, description_md, difficulty, time_min, cost_hint, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
+      [recipeId, userId, title, region ?? null, description_md, difficulty, time_min, cost_hint]
+    );
 
     // Add ingredients
     for (const ingredient of ingredients) {
+      const [ingredientUuidResult] = await this.db.execute('SELECT UUID() as id');
+      const ingredientId = (ingredientUuidResult as any[])[0].id;
+      
       await this.db.execute(
         `INSERT INTO community_recipe_ingredients 
-         (community_recipe_id, ingredient_name, quantity, note)
-         VALUES (?, ?, ?, ?)`,
-        [recipeId, ingredient.name, ingredient.quantity, ingredient.note]
+         (id, community_recipe_id, ingredient_name, quantity, note)
+         VALUES (?, ?, ?, ?, ?)`,
+        [ingredientId, recipeId, ingredient.name, ingredient.quantity ?? null, ingredient.note ?? null]
       );
     }
 
     // Add steps
     for (const step of steps) {
+      const [stepUuidResult] = await this.db.execute('SELECT UUID() as id');
+      const stepId = (stepUuidResult as any[])[0].id;
+      
       await this.db.execute(
         `INSERT INTO community_recipe_steps 
-         (community_recipe_id, order_no, content_md)
-         VALUES (?, ?, ?)`,
-        [recipeId, step.order_no, step.content_md]
+         (id, community_recipe_id, order_no, content_md)
+         VALUES (?, ?, ?, ?)`,
+        [stepId, recipeId, step.order_no, step.content_md]
       );
     }
 
@@ -269,7 +277,8 @@ export class CommunityService {
 
   async moderateRecipe(recipeId: string, adminUserId: string, action: string, note?: string) {
     let newStatus = '';
-    switch (action) {
+    const actionLower = action.toLowerCase();
+    switch (actionLower) {
       case 'approve':
         newStatus = 'APPROVED';
         break;
@@ -289,11 +298,15 @@ export class CommunityService {
       [newStatus, recipeId]
     );
 
+    // Generate UUID for moderation action
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const actionId = (uuidResult as any[])[0].id;
+
     // Log moderation action
     await this.db.execute(
-      `INSERT INTO moderation_actions (target_type, target_id, admin_user_id, action, note)
-       VALUES ('COMMUNITY_RECIPE', ?, ?, ?, ?)`,
-      [recipeId, adminUserId, action.toUpperCase(), note]
+      `INSERT INTO moderation_actions (id, target_type, target_id, admin_user_id, action, note)
+       VALUES (?, 'COMMUNITY_RECIPE', ?, ?, ?, ?)`,
+      [actionId, recipeId, adminUserId, action.toUpperCase(), note ?? null]
     );
 
     return {
@@ -318,7 +331,7 @@ export class CommunityService {
       LEFT JOIN recipe_comments rc ON cr.id = rc.recipe_id AND rc.recipe_type = 'COMMUNITY'
       LEFT JOIN recipe_ratings rr ON cr.id = rr.recipe_id AND rr.recipe_type = 'COMMUNITY'
       WHERE cr.author_user_id = ?
-      GROUP BY cr.id
+      GROUP BY cr.id, cr.title, cr.region, cr.status, cr.created_at, cr.updated_at
       ORDER BY cr.created_at DESC`,
       [userId]
     );
@@ -341,18 +354,14 @@ export class CommunityService {
         cr.cost_hint,
         cr.created_at,
         u.name as author_name,
-        COUNT(DISTINCT rc.id) as comment_count,
-        COUNT(DISTINCT rr.id) as rating_count,
-        AVG(rr.stars) as avg_rating
+        (SELECT COUNT(*) FROM recipe_comments WHERE recipe_id = cr.id AND recipe_type = 'COMMUNITY') as comment_count,
+        (SELECT COUNT(*) FROM recipe_ratings WHERE recipe_id = cr.id AND recipe_type = 'COMMUNITY') as rating_count,
+        (SELECT AVG(stars) FROM recipe_ratings WHERE recipe_id = cr.id AND recipe_type = 'COMMUNITY') as avg_rating
       FROM community_recipes cr
       JOIN users u ON cr.author_user_id = u.id
-      LEFT JOIN recipe_comments rc ON cr.id = rc.recipe_id AND rc.recipe_type = 'COMMUNITY'
-      LEFT JOIN recipe_ratings rr ON cr.id = rr.recipe_id AND rr.recipe_type = 'COMMUNITY'
       WHERE cr.status = 'FEATURED'
-      GROUP BY cr.id
       ORDER BY cr.created_at DESC
-      LIMIT ?`,
-      [limit]
+      LIMIT ${limit}`
     );
 
     return {

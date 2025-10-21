@@ -8,15 +8,19 @@ export class FamilyService {
   async createFamilyProfile(userId: string, familyData: any) {
     const { name, note } = familyData;
 
-    const [result] = await this.db.execute(
-      `INSERT INTO family_profiles (user_id, name, note)
-       VALUES (?, ?, ?)`,
-      [userId, name, note]
+    // Generate UUID
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const familyId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
+      `INSERT INTO family_profiles (id, user_id, name, note)
+       VALUES (?, ?, ?, ?)`,
+      [familyId, userId, name, note ?? null]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: familyId },
     };
   }
 
@@ -36,6 +40,30 @@ export class FamilyService {
       [userId]
     );
 
+    // Get members for each profile
+    for (const profile of profiles as any[]) {
+      const [members] = await this.db.execute(
+        `SELECT 
+          id,
+          name,
+          age_group,
+          spice_tolerance,
+          diet_json,
+          allergies_json,
+          note
+        FROM family_members
+        WHERE family_id = ?`,
+        [profile.id]
+      );
+      
+      // Parse JSON fields - MySQL already parses JSON columns
+      profile.members = (members as any[]).map((member) => ({
+        ...member,
+        diet_json: member.diet_json || null,
+        allergies_json: member.allergies_json || null,
+      }));
+    }
+
     return {
       success: true,
       data: profiles,
@@ -43,18 +71,31 @@ export class FamilyService {
   }
 
   async addFamilyMember(familyId: string, memberData: any) {
-    const { name, age, dietary_restrictions, allergies } = memberData;
+    const { name, age_group, spice_tolerance, diet_json, allergies_json, note } = memberData;
 
-    const [result] = await this.db.execute(
+    // Generate UUID
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const memberId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
       `INSERT INTO family_members 
-       (family_id, name, age, dietary_restrictions, allergies)
-       VALUES (?, ?, ?, ?, ?)`,
-      [familyId, name, age, dietary_restrictions, allergies]
+       (id, family_id, name, age_group, spice_tolerance, diet_json, allergies_json, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        memberId,
+        familyId, 
+        name, 
+        age_group ?? null, 
+        spice_tolerance ?? 1,
+        diet_json ? JSON.stringify(diet_json) : null,
+        allergies_json ? JSON.stringify(allergies_json) : null,
+        note ?? null
+      ]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: memberId },
     };
   }
 }

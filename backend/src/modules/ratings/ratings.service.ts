@@ -11,7 +11,6 @@ export class RatingsService {
         rr.id,
         rr.stars,
         rr.created_at,
-        rr.updated_at,
         u.id as user_id,
         u.name as user_name,
         u.role as user_role
@@ -19,8 +18,8 @@ export class RatingsService {
       JOIN users u ON rr.user_id = u.id
       WHERE rr.recipe_id = ? AND rr.recipe_type = ?
       ORDER BY rr.created_at DESC
-      LIMIT ? OFFSET ?`,
-      [recipeId, recipeType, limit, offset]
+      LIMIT ${limit} OFFSET ${offset}`,
+      [recipeId, recipeType]
     );
 
     const [totalCount] = await this.db.execute(
@@ -56,7 +55,7 @@ export class RatingsService {
     const [result] = await this.db.execute(
       `INSERT INTO recipe_ratings (recipe_type, recipe_id, user_id, stars)
        VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE stars = VALUES(stars), updated_at = NOW()`,
+       ON DUPLICATE KEY UPDATE stars = VALUES(stars)`,
       [recipeType, recipeId, userId, stars]
     );
 
@@ -71,7 +70,7 @@ export class RatingsService {
 
   async updateRating(ratingId: string, userId: string, stars: number) {
     const [result] = await this.db.execute(
-      'UPDATE recipe_ratings SET stars = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+      'UPDATE recipe_ratings SET stars = ? WHERE id = ? AND user_id = ?',
       [stars, ratingId, userId]
     );
 
@@ -117,7 +116,6 @@ export class RatingsService {
         rr.id,
         rr.stars,
         rr.created_at,
-        rr.updated_at,
         rr.recipe_id,
         rr.recipe_type,
         CASE 
@@ -129,8 +127,8 @@ export class RatingsService {
       LEFT JOIN community_recipes cr ON rr.recipe_id = cr.id AND rr.recipe_type = 'COMMUNITY'
       WHERE rr.user_id = ?
       ORDER BY rr.created_at DESC
-      LIMIT ? OFFSET ?`,
-      [userId, limit, offset]
+      LIMIT ${limit} OFFSET ${offset}`,
+      [userId]
     );
 
     const [totalCount] = await this.db.execute(
@@ -153,30 +151,48 @@ export class RatingsService {
   }
 
   async getTopRatedRecipes(recipeType: 'SYSTEM' | 'COMMUNITY', limit: number = 10) {
-    const [recipes] = await this.db.execute(
-      `SELECT 
-        r.id,
-        r.name_vi,
-        r.name_en,
-        r.image_url,
-        r.difficulty,
-        r.cook_time_min,
-        AVG(rr.stars) as avg_rating,
-        COUNT(rr.id) as rating_count
-      FROM ${recipeType === 'SYSTEM' ? 'recipes' : 'community_recipes'} r
-      LEFT JOIN recipe_ratings rr ON r.id = rr.recipe_id AND rr.recipe_type = ?
-      WHERE r.is_public = 1 ${recipeType === 'COMMUNITY' ? "AND r.status = 'APPROVED'" : ''}
-      GROUP BY r.id
-      HAVING rating_count >= 5
-      ORDER BY avg_rating DESC, rating_count DESC
-      LIMIT ?`,
-      [recipeType, limit]
-    );
-
-    return {
-      success: true,
-      data: recipes
-    };
+    if (recipeType === 'SYSTEM') {
+      const [recipes] = await this.db.execute(
+        `SELECT 
+          r.id,
+          r.name_vi,
+          r.name_en,
+          r.image_url,
+          r.difficulty,
+          r.cook_time_min,
+          AVG(rr.stars) as avg_rating,
+          COUNT(rr.id) as rating_count
+        FROM recipes r
+        LEFT JOIN recipe_ratings rr ON r.id = rr.recipe_id AND rr.recipe_type = ?
+        WHERE r.is_public = 1
+        GROUP BY r.id, r.name_vi, r.name_en, r.image_url, r.difficulty, r.cook_time_min
+        HAVING rating_count >= 5
+        ORDER BY avg_rating DESC, rating_count DESC
+        LIMIT ${limit}`,
+        [recipeType]
+      );
+      return { success: true, data: recipes };
+    } else {
+      const [recipes] = await this.db.execute(
+        `SELECT 
+          r.id,
+          r.title as name_vi,
+          r.image_url,
+          r.difficulty,
+          r.cook_time_minutes as cook_time_min,
+          AVG(rr.stars) as avg_rating,
+          COUNT(rr.id) as rating_count
+        FROM community_recipes r
+        LEFT JOIN recipe_ratings rr ON r.id = rr.recipe_id AND rr.recipe_type = ?
+        WHERE r.is_public = 1 AND r.status = 'APPROVED'
+        GROUP BY r.id, r.title, r.image_url, r.difficulty, r.cook_time_minutes
+        HAVING rating_count >= 5
+        ORDER BY avg_rating DESC, rating_count DESC
+        LIMIT ${limit}`,
+        [recipeType]
+      );
+      return { success: true, data: recipes };
+    }
   }
 
   async getUserRatingForRecipe(recipeId: string, recipeType: 'SYSTEM' | 'COMMUNITY', userId: string) {

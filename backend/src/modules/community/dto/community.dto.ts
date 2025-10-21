@@ -15,19 +15,19 @@ export class CreateCommunityRecipeDto {
   @IsString()
   description_md: string;
 
-  @ApiProperty({ example: 'MEDIUM', enum: ['EASY', 'MEDIUM', 'HARD'] })
-  @IsEnum(['EASY', 'MEDIUM', 'HARD'])
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  @ApiProperty({ example: 'TRUNG_BINH', enum: ['DE', 'TRUNG_BINH', 'KHO'] })
+  @IsEnum(['DE', 'TRUNG_BINH', 'KHO'])
+  difficulty: 'DE' | 'TRUNG_BINH' | 'KHO';
 
   @ApiProperty({ example: 60 })
   @IsInt()
   @Min(1)
   time_min: number;
 
-  @ApiProperty({ example: 'Trung bình', required: false })
+  @ApiProperty({ example: 50000, required: false })
   @IsOptional()
-  @IsString()
-  cost_hint?: string;
+  @IsInt()
+  cost_hint?: number;
 
   @ApiProperty({ 
     example: [

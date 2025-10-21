@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SuggestionsService } from './suggestions.service';
@@ -33,9 +33,9 @@ export class SuggestionsController {
   @ApiResponse({ status: 200, description: 'Pantry-based suggestions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getSuggestionsByPantry(
-    @Query('userId') userId: string,
+    @Request() req,
     @Query('limit') limit?: string
   ) {
-    return this.suggestionsService.getSuggestionsByPantry(userId, parseInt(limit || '10'));
+    return this.suggestionsService.getSuggestionsByPantry(req.user.id, parseInt(limit || '10'));
   }
 }

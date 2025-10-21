@@ -91,4 +91,38 @@ export class UsersService {
 
     return user;
   }
+
+  async deleteAccount(userId: string): Promise<void> {
+    if (!userId) {
+      throw new NotFoundException('User ID is required');
+    }
+
+    // Check if user exists
+    const [users] = await this.db.execute(
+      `SELECT id FROM users WHERE id = ?`,
+      [userId]
+    );
+
+    if (!users || (users as any[]).length === 0) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Delete user account
+    // Note: CASCADE DELETE is set in the database schema for related records
+    // This will automatically delete:
+    // - user_preferences
+    // - devices
+    // - subscriptions
+    // - family_profiles & family_members
+    // - pantry_items
+    // - meal_plan_items
+    // - shopping_lists & shopping_list_items
+    // - user_recipes
+    // - recipe_ratings & comments
+    // - user_followers
+    await this.db.execute(
+      `DELETE FROM users WHERE id = ?`,
+      [userId]
+    );
+  }
 }

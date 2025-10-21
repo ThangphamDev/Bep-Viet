@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -28,10 +28,10 @@ export class ModerationController {
   async moderateContent(
     @Param('targetType') targetType: string,
     @Param('targetId') targetId: string,
-    @Query('adminUserId') adminUserId: string,
+    @Request() req,
     @Body('action') action: string,
     @Body('note') note?: string
   ) {
-    return this.moderationService.moderateContent(targetType, targetId, adminUserId, action, note);
+    return this.moderationService.moderateContent(targetType, targetId, req.user.id, action, note);
   }
 }

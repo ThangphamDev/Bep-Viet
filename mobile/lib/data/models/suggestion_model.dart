@@ -11,6 +11,10 @@ class SuggestionModel {
   final int? cookTimeMinutes;
   final int? servings;
   final int? difficulty;
+  final String? tagNames; // Tags từ backend (Cháo, Súp, Cho bé ăn, etc.)
+  final double? requestMatchScore; // Điểm khớp với yêu cầu người dùng
+  final double? ingredientMatchScore; // Điểm khớp nguyên liệu
+  final double? matchScore; // Điểm tổng hợp (final score)
 
   SuggestionModel({
     required this.recipeId,
@@ -25,6 +29,10 @@ class SuggestionModel {
     this.cookTimeMinutes,
     this.servings,
     this.difficulty,
+    this.tagNames,
+    this.requestMatchScore,
+    this.ingredientMatchScore,
+    this.matchScore,
   });
 
   factory SuggestionModel.fromJson(Map<String, dynamic> json) {
@@ -40,8 +48,11 @@ class SuggestionModel {
       variantRegion:
           json['variant_region'] as String? ??
           json['variantRegion'] as String? ??
+          json['base_region'] as String? ??
           'BAC',
-      totalCost: _parseDouble(json['total_cost'] ?? json['totalCost']),
+      totalCost: _parseDouble(
+        json['total_cost'] ?? json['totalCost'] ?? json['estimatedCost'],
+      ),
       seasonScore: _parseDouble(json['season_score'] ?? json['seasonScore']),
       reason: json['reason'] as String? ?? 'Món ăn ngon',
       items: json['items'] != null
@@ -58,6 +69,10 @@ class SuggestionModel {
           json['cook_time_min'] as int? ?? json['cookTimeMinutes'] as int?,
       servings: json['servings'] as int?,
       difficulty: json['difficulty'] as int?,
+      tagNames: json['tag_names'] as String?,
+      requestMatchScore: _parseDouble(json['requestMatchScore']),
+      ingredientMatchScore: _parseDouble(json['ingredientMatchScore']),
+      matchScore: _parseDouble(json['matchScore']),
     );
   }
 
@@ -86,6 +101,10 @@ class SuggestionModel {
       'cookTimeMinutes': cookTimeMinutes,
       'servings': servings,
       'difficulty': difficulty,
+      'tagNames': tagNames,
+      'requestMatchScore': requestMatchScore,
+      'ingredientMatchScore': ingredientMatchScore,
+      'matchScore': matchScore,
     };
   }
 }

@@ -23,8 +23,8 @@ export class PantryController {
   @ApiOperation({ summary: 'Get pantry statistics' })
   @ApiResponse({ status: 200, description: 'Pantry statistics' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getPantryStats(@Query('userId') userId: string) {
-    return this.pantryService.getPantryStats(userId);
+  async getPantryStats(@Request() req) {
+    return this.pantryService.getPantryStats(req.user.id);
   }
 
   @Get('expiring')
@@ -33,18 +33,18 @@ export class PantryController {
   @ApiResponse({ status: 200, description: 'List of expiring items' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getExpiringItems(
-    @Query('userId') userId: string,
+    @Request() req,
     @Query('days') days?: string
   ) {
-    return this.pantryService.getExpiringItems(userId, parseInt(days || '3'));
+    return this.pantryService.getExpiringItems(req.user.id, parseInt(days || '3'));
   }
 
   @Get('expired')
   @ApiOperation({ summary: 'Get expired items' })
   @ApiResponse({ status: 200, description: 'List of expired items' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getExpiredItems(@Query('userId') userId: string) {
-    return this.pantryService.getExpiredItems(userId);
+  async getExpiredItems(@Request() req) {
+    return this.pantryService.getExpiredItems(req.user.id);
   }
 
   @Get('suggestions')
@@ -53,10 +53,10 @@ export class PantryController {
   @ApiResponse({ status: 200, description: 'Recipe suggestions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getPantrySuggestions(
-    @Query('userId') userId: string,
+    @Request() req,
     @Query('limit') limit?: string
   ) {
-    return this.pantryService.getPantrySuggestions(userId, parseInt(limit || '10'));
+    return this.pantryService.getPantrySuggestions(req.user.id, parseInt(limit || '10'));
   }
 
   @Post()
@@ -64,10 +64,10 @@ export class PantryController {
   @ApiResponse({ status: 201, description: 'Pantry item added successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async addPantryItem(
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() addPantryItemDto: AddPantryItemDto
   ) {
-    return this.pantryService.addPantryItem(userId, addPantryItemDto);
+    return this.pantryService.addPantryItem(req.user.id, addPantryItemDto);
   }
 
   @Put(':id')
@@ -78,10 +78,10 @@ export class PantryController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async updatePantryItem(
     @Param('id') id: string,
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() updatePantryItemDto: UpdatePantryItemDto
   ) {
-    return this.pantryService.updatePantryItem(id, userId, updatePantryItemDto);
+    return this.pantryService.updatePantryItem(id, req.user.id, updatePantryItemDto);
   }
 
   @Delete(':id')
@@ -92,9 +92,9 @@ export class PantryController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async deletePantryItem(
     @Param('id') id: string,
-    @Query('userId') userId: string
+    @Request() req
   ) {
-    return this.pantryService.deletePantryItem(id, userId);
+    return this.pantryService.deletePantryItem(id, req.user.id);
   }
 
   @Post('consume')
@@ -103,11 +103,11 @@ export class PantryController {
   @ApiResponse({ status: 404, description: 'Insufficient quantity' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async consumePantryItem(
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() consumePantryItemDto: ConsumePantryItemDto
   ) {
     return this.pantryService.consumePantryItem(
-      userId,
+      req.user.id,
       consumePantryItemDto.ingredient_id,
       consumePantryItemDto.quantity
     );

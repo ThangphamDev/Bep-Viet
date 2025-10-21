@@ -34,9 +34,9 @@ export class ShoppingController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getShoppingList(
     @Param('id') id: string,
-    @Query('userId') userId: string
+    @Request() req
   ) {
-    return this.shoppingService.getShoppingList(id, userId);
+    return this.shoppingService.getShoppingList(id, req.user.id);
   }
 
   @Post('lists')
@@ -44,10 +44,10 @@ export class ShoppingController {
   @ApiResponse({ status: 201, description: 'Shopping list created successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createShoppingList(
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() createShoppingListDto: CreateShoppingListDto
   ) {
-    return this.shoppingService.createShoppingList(userId, createShoppingListDto);
+    return this.shoppingService.createShoppingList(req.user.id, createShoppingListDto);
   }
 
   @Post('lists/:id/items')
@@ -97,11 +97,11 @@ export class ShoppingController {
   @ApiResponse({ status: 404, description: 'Meal plan not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async generateFromMealPlan(
-    @Query('userId') userId: string,
+    @Request() req,
     @Body('meal_plan_id') mealPlanId: string,
     @Body('include_pantry') includePantry?: boolean
   ) {
-    return this.shoppingService.generateFromMealPlan(userId, mealPlanId, includePantry);
+    return this.shoppingService.generateFromMealPlan(req.user.id, mealPlanId, includePantry);
   }
 
   @Post('lists/:id/share')
@@ -111,10 +111,10 @@ export class ShoppingController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async shareList(
     @Param('id') id: string,
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() shareListDto: ShareListDto
   ) {
-    return this.shoppingService.shareList(id, userId, shareListDto);
+    return this.shoppingService.shareList(id, req.user.id, shareListDto);
   }
 
   @Post('accept-invitation')
@@ -124,8 +124,8 @@ export class ShoppingController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async acceptInvitation(
     @Body('token') token: string,
-    @Query('userId') userId: string
+    @Request() req
   ) {
-    return this.shoppingService.acceptInvitation(token, userId);
+    return this.shoppingService.acceptInvitation(token, req.user.id);
   }
 }

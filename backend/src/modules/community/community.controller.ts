@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -22,7 +22,8 @@ export class CommunityController {
   @ApiOperation({ summary: 'Get featured community recipes' })
   @ApiResponse({ status: 200, description: 'List of featured recipes' })
   async getFeaturedRecipes(@Query('limit') limit?: string) {
-    return this.communityService.getFeaturedRecipes(parseInt(limit || '10'));
+    const parsedLimit = parseInt(limit || '10', 10);
+    return this.communityService.getFeaturedRecipes(isNaN(parsedLimit) ? 10 : parsedLimit);
   }
 
   @Get('recipes/:id')
@@ -41,10 +42,10 @@ export class CommunityController {
   @ApiResponse({ status: 201, description: 'Community recipe created successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createCommunityRecipe(
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() createCommunityRecipeDto: CreateCommunityRecipeDto
   ) {
-    return this.communityService.createCommunityRecipe(userId, createCommunityRecipeDto);
+    return this.communityService.createCommunityRecipe(req.user.id, createCommunityRecipeDto);
   }
 
   @Post('recipes/:id/comments')
@@ -56,10 +57,10 @@ export class CommunityController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async addComment(
     @Param('id') id: string,
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() addCommentDto: AddCommentDto
   ) {
-    return this.communityService.addComment(id, 'COMMUNITY', userId, addCommentDto.content);
+    return this.communityService.addComment(id, 'COMMUNITY', req.user.id, addCommentDto.content);
   }
 
   @Post('recipes/:id/ratings')
@@ -71,10 +72,10 @@ export class CommunityController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async addRating(
     @Param('id') id: string,
-    @Query('userId') userId: string,
+    @Request() req,
     @Body() addRatingDto: AddRatingDto
   ) {
-    return this.communityService.addRating(id, 'COMMUNITY', userId, addRatingDto.stars);
+    return this.communityService.addRating(id, 'COMMUNITY', req.user.id, addRatingDto.stars);
   }
 
   @Get('my-recipes')
@@ -83,8 +84,8 @@ export class CommunityController {
   @ApiOperation({ summary: 'Get user community recipes' })
   @ApiResponse({ status: 200, description: 'User community recipes' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getUserCommunityRecipes(@Query('userId') userId: string) {
-    return this.communityService.getUserCommunityRecipes(userId);
+  async getUserCommunityRecipes(@Request() req) {
+    return this.communityService.getUserCommunityRecipes(req.user.id);
   }
 
   @Get('moderation/pending')
@@ -110,10 +111,10 @@ export class CommunityController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async moderateRecipe(
     @Param('id') id: string,
-    @Query('adminUserId') adminUserId: string,
+    @Request() req,
     @Body('action') action: string,
     @Body('note') note?: string
   ) {
-    return this.communityService.moderateRecipe(id, adminUserId, action, note);
+    return this.communityService.moderateRecipe(id, req.user.id, action, note);
   }
 }

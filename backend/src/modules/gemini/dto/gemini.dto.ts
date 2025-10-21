@@ -1,0 +1,83 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsArray, IsOptional } from 'class-validator';
+
+export class AnalyzeImageDto {
+  @ApiProperty({
+    description: 'Base64 encoded image data',
+    example: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...'
+  })
+  @IsString()
+  @IsNotEmpty()
+  imageBase64: string;
+}
+
+export class SuggestFromIngredientsDto {
+  @ApiProperty({
+    description: 'Array of ingredient IDs detected from image',
+    example: ['uuid-1', 'uuid-2', 'uuid-3']
+  })
+  @IsArray()
+  @IsNotEmpty()
+  ingredient_ids: string[];
+
+  @ApiProperty({
+    description: 'Filter by region',
+    example: 'NAM',
+    required: false
+  })
+  @IsString()
+  @IsOptional()
+  region?: string;
+
+  @ApiProperty({
+    description: 'Limit number of results',
+    example: 10,
+    required: false
+  })
+  @IsOptional()
+  limit?: number;
+}
+
+export class AiSuggestDto {
+  @ApiProperty({
+    description: 'Array of ingredient IDs detected from image',
+    example: ['uuid-1', 'uuid-2', 'uuid-3']
+  })
+  @IsArray()
+  @IsNotEmpty()
+  ingredient_ids: string[];
+
+  @ApiProperty({
+    description: 'User request/prompt for recipe preferences',
+    example: 'cho bé ăn',
+    required: false
+  })
+  @IsString()
+  @IsOptional()
+  prompt?: string;
+
+  @ApiProperty({
+    description: 'Filter by region (BAC, TRUNG, NAM)',
+    example: 'NAM',
+    required: false
+  })
+  @IsString()
+  @IsOptional()
+  region?: string;
+
+  @ApiProperty({
+    description: 'Spice preference level (0-4)',
+    example: 1,
+    required: false
+  })
+  @IsOptional()
+  spice_preference?: number;
+
+  @ApiProperty({
+    description: 'Limit number of results',
+    example: 10,
+    required: false
+  })
+  @IsOptional()
+  limit?: number;
+}
