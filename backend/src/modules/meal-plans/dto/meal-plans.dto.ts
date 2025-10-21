@@ -70,3 +70,23 @@ export class UpdateMealPlanDto {
   @IsString()
   note?: string;
 }
+
+export class QuickAddMealDto {
+  @ApiProperty({ example: 'recipe-uuid' })
+  @IsString()
+  recipe_id: string;
+
+  @ApiProperty({ example: 'LUNCH', enum: ['BREAKFAST', 'LUNCH', 'DINNER'] })
+  @IsEnum(['BREAKFAST', 'LUNCH', 'DINNER'])
+  meal_slot: 'BREAKFAST' | 'LUNCH' | 'DINNER';
+
+  @ApiProperty({ example: 2, minimum: 1 })
+  @IsInt()
+  @Min(1)
+  servings: number;
+
+  @ApiProperty({ example: 'NAM', enum: ['BAC', 'TRUNG', 'NAM'], required: false })
+  @IsOptional()
+  @IsEnum(['BAC', 'TRUNG', 'NAM'])
+  variant_region?: 'BAC' | 'TRUNG' | 'NAM';
+}

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Requ
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { MealPlansService } from './meal-plans.service';
-import { CreateMealPlanDto, AddMealDto, GenerateMealPlanDto, UpdateMealPlanDto } from './dto/meal-plans.dto';
+import { CreateMealPlanDto, AddMealDto, GenerateMealPlanDto, UpdateMealPlanDto, QuickAddMealDto } from './dto/meal-plans.dto';
 
 @ApiTags('Meal Plans')
 @Controller('meal-plans')
@@ -103,5 +103,16 @@ export class MealPlansController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async deleteMealPlan(@Param('mealPlanId') mealPlanId: string) {
     return this.mealPlansService.deleteMealPlan(mealPlanId);
+  }
+
+  @Post('quick-add')
+  @ApiOperation({ summary: 'Quick add recipe to today meal plan' })
+  @ApiResponse({ status: 201, description: 'Recipe added to today successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async quickAddToToday(
+    @Request() req,
+    @Body() quickAddMealDto: QuickAddMealDto
+  ) {
+    return this.mealPlansService.quickAddToToday(req.user.id, quickAddMealDto);
   }
 }

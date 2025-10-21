@@ -78,6 +78,34 @@ class ApiService {
     }
   }
 
+  // Meal Plans
+  Future<Map<String, dynamic>> quickAddToToday({
+    required String token,
+    required String recipeId,
+    required String mealSlot,
+    required int servings,
+    String? variantRegion,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/meal-plans/quick-add',
+        data: {
+          'recipe_id': recipeId,
+          'meal_slot': mealSlot,
+          'servings': servings,
+          if (variantRegion != null) 'variant_region': variantRegion,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'success': false};
+    } catch (e) {
+      throw Exception('Failed to add meal to today: $e');
+    }
+  }
+
   // Recipes
   Future<List<RecipeModel>> getRecipes({
     String? region,

@@ -299,4 +299,59 @@ export class MealPlansService {
       message: 'Meal plan deleted successfully',
     };
   }
+
+  async quickAddToToday(userId: string, mealData: any) {
+    const { recipe_id, meal_slot, servings, variant_region } = mealData;
+    
+    // Get today's date
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Calculate week start date (Monday)
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday, go back 6 days, else go to Monday
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() + diff);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    
+    // Find or create meal plan for this week
+    let [mealPlans] = await this.db.execute(
+      `SELECT id FROM meal_plans WHERE user_id = ? AND week_start_date = ?`,
+      [userId, weekStartStr]
+    );
+    
+    let mealPlanId;
+    if ((mealPlans as any[]).length === 0) {
+      // Create new meal plan for this week
+      const [result] = await this.db.execute(
+        `INSERT INTO meal_plans (user_id, week_start_date, note) VALUES (?, ?, ?)`,
+        [userId, weekStartStr, 'Kế hoạch bữa ăn']
+      );
+      mealPlanId = (result as any).insertId;
+    } else {
+      mealPlanId = (mealPlans as any[])[0].id;
+    }
+    
+    // Add meal to today
+    await this.db.execute(
+      `INSERT INTO meal_plan_items 
+       (meal_plan_id, date, meal_slot, recipe_id, variant_region, servings)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE 
+       recipe_id = VALUES(recipe_id),
+       variant_region = VALUES(variant_region),
+       servings = VALUES(servings)`,
+      [mealPlanId, todayStr, meal_slot, recipe_id, variant_region, servings]
+    );
+    
+    return {
+      success: true,
+      message: 'Đã thêm món ăn vào hôm nay',
+      data: {
+        meal_plan_id: mealPlanId,
+        date: todayStr,
+        meal_slot,
+      },
+    };
+  }
 }
