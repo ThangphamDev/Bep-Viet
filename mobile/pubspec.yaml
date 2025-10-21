@@ -108,4 +108,4 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 dependency_overrides:
-  shared_preferences_android: ^2.4.15
+  shared_preferences_android: 2.3.0
