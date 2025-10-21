@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:dio/dio.dart';
@@ -108,6 +110,258 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
     }
 
     _lastScrollPosition = currentPosition;
+  }
+
+  Future<void> _showMealSlotDialog(RecipeModel recipe) async {
+    final mealSlot = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.restaurant_menu,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Thêm vào kế hoạch',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              recipe.name,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Chọn bữa ăn hôm nay:',
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            _buildMealSlotOption(
+              dialogContext,
+              'BREAKFAST',
+              '🌅 Bữa sáng',
+              '7:00 - 9:00',
+            ),
+            _buildMealSlotOption(
+              dialogContext,
+              'LUNCH',
+              '☀️ Bữa trưa',
+              '11:00 - 13:00',
+            ),
+            _buildMealSlotOption(
+              dialogContext,
+              'DINNER',
+              '🌙 Bữa tối',
+              '18:00 - 20:00',
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (mealSlot != null) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (mounted) {
+        await _addToToday(recipe, mealSlot);
+      }
+    }
+  }
+
+  Widget _buildMealSlotOption(
+    BuildContext dialogContext,
+    String value,
+    String title,
+    String time,
+  ) {
+    return InkWell(
+      onTap: () => Navigator.of(dialogContext).pop(value),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.primaryGreen.withOpacity(0.05),
+              AppTheme.primaryGreen.withOpacity(0.02),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.2)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    time,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppTheme.primaryGreen.withOpacity(0.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addToToday(RecipeModel recipe, String mealSlot) async {
+    bool isLoading = false;
+
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppTheme.primaryGreen,
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text('Đang thêm vào kế hoạch...'),
+              ],
+            ),
+          ),
+        ),
+      );
+      isLoading = true;
+
+      // Get token from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConfig.tokenKey);
+
+      if (token == null) {
+        throw Exception('Vui lòng đăng nhập để sử dụng tính năng này');
+      }
+
+      // Create Dio and ApiService
+      final dio = Dio();
+      dio.options.baseUrl =
+          'https://gullably-nonpsychological-leisha.ngrok-free.dev';
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+      final apiService = ApiService(dio);
+
+      // Call API
+      await apiService.quickAddToToday(
+        token: token,
+        recipeId: recipe.id,
+        mealSlot: mealSlot,
+        servings: recipe.servings ?? 2,
+        variantRegion: recipe.baseRegion,
+      );
+
+      if (!mounted) return;
+
+      // Close loading dialog
+      if (isLoading) {
+        Navigator.of(context, rootNavigator: true).pop();
+        isLoading = false;
+      }
+
+      // Show success
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Đã thêm "${recipe.name}" vào ${_getMealSlotName(mealSlot)}',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.successColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      // Close loading dialog if showing
+      if (isLoading) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // Show error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${e.toString()}'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  String _getMealSlotName(String mealSlot) {
+    switch (mealSlot) {
+      case 'BREAKFAST':
+        return 'bữa sáng hôm nay';
+      case 'LUNCH':
+        return 'bữa trưa hôm nay';
+      case 'DINNER':
+        return 'bữa tối hôm nay';
+      default:
+        return 'hôm nay';
+    }
   }
 
   Widget _buildTabButton(String text, int index) {
@@ -449,14 +703,7 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
                           children: [
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Đã thêm vào kế hoạch'),
-                                      backgroundColor: AppTheme.primaryGreen,
-                                    ),
-                                  );
-                                },
+                                onPressed: () => _showMealSlotDialog(recipe),
                                 icon: const Icon(Icons.calendar_today),
                                 label: const Text('Thêm vào kế hoạch'),
                                 style: ElevatedButton.styleFrom(
