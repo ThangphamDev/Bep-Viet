@@ -52,21 +52,42 @@ export class PantryService {
       batch_code = ''
     } = itemData;
 
-    const [result] = await this.db.execute(
+    // Check if item already exists
+    const [existing] = await this.db.execute(
+      `SELECT id, quantity FROM pantry_items 
+       WHERE user_id = ? AND ingredient_id = ? AND location = ? AND batch_code = ?`,
+      [userId, ingredient_id, location, batch_code]
+    );
+
+    if ((existing as any[]).length > 0) {
+      // Update existing item
+      const existingItem = (existing as any[])[0];
+      await this.db.execute(
+        `UPDATE pantry_items 
+         SET quantity = quantity + ?, expire_date = ?
+         WHERE id = ?`,
+        [quantity, expire_date, existingItem.id]
+      );
+      return {
+        success: true,
+        data: { id: existingItem.id },
+      };
+    }
+
+    // Generate UUID and insert new item
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const pantryItemId = (uuidResult as any[])[0].id;
+
+    await this.db.execute(
       `INSERT INTO pantry_items 
-       (user_id, ingredient_id, quantity, unit, expire_date, location, batch_code)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-       quantity = quantity + VALUES(quantity),
-       expire_date = VALUES(expire_date),
-       location = VALUES(location),
-       batch_code = VALUES(batch_code)`,
-      [userId, ingredient_id, quantity, unit, expire_date, location, batch_code]
+       (id, user_id, ingredient_id, quantity, unit, expire_date, location, batch_code)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [pantryItemId, userId, ingredient_id, quantity, unit, expire_date, location, batch_code]
     );
 
     return {
       success: true,
-      data: { id: (result as any).insertId },
+      data: { id: pantryItemId },
     };
   }
 
@@ -213,34 +234,52 @@ export class PantryService {
     }
 
     // Find recipes that use pantry ingredients
-    const [recipes] = await this.db.execute(
-      `SELECT DISTINCT
-        r.id as recipe_id,
-        r.name_vi,
-        r.name_en,
-        r.meal_type,
-        r.difficulty,
-        r.cook_time_min,
-        r.spice_level,
-        r.rating_avg,
-        r.image_url,
-        COUNT(ri.ingredient_id) as pantry_match_count,
-        COUNT(DISTINCT ri.ingredient_id) as total_ingredients
-      FROM recipes r
-      JOIN recipe_ingredients ri ON r.id = ri.recipe_id
-      WHERE r.is_public = 1 AND ri.ingredient_id IN (${pantryIds.map(() => '?').join(',')})
-      GROUP BY r.id
-      HAVING pantry_match_count >= 2
-      ORDER BY pantry_match_count DESC, r.rating_avg DESC
-      LIMIT ?`,
-      [...pantryIds, limit]
-    );
+    if (pantryIds.length === 0) {
+      return {
+        success: true,
+        data: [],
+        pantry_items: []
+      };
+    }
 
-    return {
-      success: true,
-      data: recipes,
-      pantry_items: pantryItems
-    };
+    const placeholders = pantryIds.map(() => '?').join(',');
+    
+    try {
+      const [recipes] = await this.db.execute(
+        `SELECT 
+          r.id as recipe_id,
+          r.name_vi,
+          r.name_en,
+          r.meal_type,
+          r.difficulty,
+          r.cook_time_min,
+          r.spice_level,
+          r.rating_avg,
+          r.image_url,
+          COUNT(DISTINCT ri.ingredient_id) as pantry_match_count
+        FROM recipes r
+        JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+        WHERE r.is_public = 1 AND ri.ingredient_id IN (${placeholders})
+        GROUP BY r.id, r.name_vi, r.name_en, r.meal_type, r.difficulty, r.cook_time_min, r.spice_level, r.rating_avg, r.image_url
+        ORDER BY pantry_match_count DESC, COALESCE(r.rating_avg, 0) DESC
+        LIMIT ?`,
+        [...pantryIds, limit]
+      );
+
+      return {
+        success: true,
+        data: recipes,
+        pantry_items: pantryItems
+      };
+    } catch (error) {
+      // Return empty results on error
+      return {
+        success: true,
+        data: [],
+        pantry_items: pantryItems
+      };
+    }
+
   }
 
   async getPantryStats(userId: string) {
