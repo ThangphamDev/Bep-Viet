@@ -51,4 +51,9 @@ class AuthRepository {
   Future<bool> isTokenValid() async {
     return await _authService.isTokenValid();
   }
+
+  // Clear all authentication data (for debugging)
+  Future<void> clearAuthData() async {
+    await _authService.logout();
+  }
 }

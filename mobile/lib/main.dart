@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'core/config/app_config.dart';
 import 'presentation/routes/app_router.dart';
+import 'data/sources/remote/api_service.dart';
+import 'data/sources/remote/auth_service.dart';
+import 'data/repositories/auth_repository.dart';
+import 'presentation/features/auth/cubit/auth_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

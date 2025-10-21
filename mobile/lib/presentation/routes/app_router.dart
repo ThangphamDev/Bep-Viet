@@ -47,19 +47,23 @@ class AppRoutes {
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.login, // Always start with login page
     redirect: (context, state) async {
       // Check if user is authenticated
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(AppConfig.tokenKey);
 
-      // If no token and trying to access protected routes, redirect to login
+      print('Router redirect - Current path: ${state.fullPath}');
+      print(
+        'Router redirect - Token exists: ${token != null && token.isNotEmpty}',
+      );
+
+      // If no token, always redirect to login (except for register page)
       if (token == null || token.isEmpty) {
-        if (state.fullPath != AppRoutes.login &&
-            state.fullPath != AppRoutes.register) {
-          return AppRoutes.login;
+        if (state.fullPath == AppRoutes.register) {
+          return null; // Allow access to register page
         }
-        return null; // Allow access to login/register pages
+        return AppRoutes.login; // Redirect everything else to login
       }
 
       // If has token and trying to access login/register, redirect to home

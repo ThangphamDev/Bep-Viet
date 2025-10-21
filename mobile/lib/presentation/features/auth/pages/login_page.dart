@@ -196,6 +196,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             _buildLoginButton(),
             const SizedBox(height: 16),
             _buildForgotPassword(),
+            const SizedBox(height: 16),
+            _buildDebugButton(),
           ],
         ),
       ),
@@ -374,6 +376,28 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         style: TextStyle(
           color: AppTheme.primaryGreen,
           fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDebugButton() {
+    return TextButton(
+      onPressed: () async {
+        // Clear authentication data for debugging
+        try {
+          await context.read<AuthCubit>().logout();
+          _showSuccessSnackBar('Đã xóa dữ liệu đăng nhập!');
+        } catch (e) {
+          _showErrorSnackBar('Lỗi khi xóa dữ liệu: $e');
+        }
+      },
+      child: Text(
+        'Debug: Xóa dữ liệu đăng nhập',
+        style: TextStyle(
+          color: Colors.red,
+          fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
       ),
