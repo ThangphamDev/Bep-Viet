@@ -14,7 +14,13 @@ class AuthService {
   bool get isLoggedIn => _prefs.getString(AppConfig.tokenKey) != null;
 
   // Get current access token
-  String? get accessToken => _prefs.getString(AppConfig.tokenKey);
+  String? get accessToken {
+    final token = _prefs.getString(AppConfig.tokenKey);
+    print(
+      '🔑 AuthService - Access token: ${token != null ? '${token.substring(0, 20)}...' : 'null'}',
+    );
+    return token;
+  }
 
   // Get current refresh token
   String? get refreshToken => _prefs.getString(AppConfig.refreshTokenKey);

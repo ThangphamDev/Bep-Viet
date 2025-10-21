@@ -30,8 +30,16 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
       // Get token from AuthRepository
       final token = context.read<AuthCubit>().authRepository.accessToken;
       if (token != null) {
+        print(
+          '🔑 Premium Dashboard - Token available: ${token.substring(0, 20)}...',
+        );
+        print('👤 Premium Dashboard - User: ${authState.user.name}');
         context.read<PremiumCubit>().add(LoadPremiumData(token));
+      } else {
+        print('❌ Premium Dashboard - No token available');
       }
+    } else {
+      print('❌ Premium Dashboard - User not authenticated');
     }
   }
 
