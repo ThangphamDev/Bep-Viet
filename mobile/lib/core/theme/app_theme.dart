@@ -5,6 +5,7 @@ class AppTheme {
   static const Color primaryGreen = Color(0xFF10B981);
   static const Color primaryGreenDark = Color(0xFF059669);
   static const Color primaryGreenLight = Color(0xFF34D399);
+  static const Color secondaryGreen = Color(0xFF34D399);
 
   // Secondary Colors
   static const Color secondaryGray = Color(0xFF6B7280);
@@ -15,6 +16,7 @@ class AppTheme {
   static const Color backgroundColor = Color(0xFFF9FAFB);
   static const Color surfaceColor = Color(0xFFFFFFFF);
   static const Color cardColor = Color(0xFFFFFFFF);
+  static const Color borderColor = Color(0xFFE5E7EB);
 
   // Text Colors
   static const Color textPrimary = Color(0xFF111827);

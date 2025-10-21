@@ -63,6 +63,9 @@ dependencies:
   # Animations
   lottie: ^3.0.0
   flutter_animate: ^4.3.0
+  
+  # Sharing
+  share_plus: ^10.0.2
 
 dev_dependencies:
   flutter_test:
