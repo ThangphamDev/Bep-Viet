@@ -52,7 +52,7 @@ class ApiService {
   Future<UserModel> getUserProfile(String token) async {
     try {
       final response = await _dio.get(
-        '/api/auth/profile',
+        '/api/users/me',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       if (response.data is Map<String, dynamic>) {
@@ -64,6 +64,17 @@ class ApiService {
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to get user profile: $e');
+    }
+  }
+
+  Future<void> deleteAccount(String token) async {
+    try {
+      await _dio.delete(
+        '/api/users/me',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to delete account: $e');
     }
   }
 

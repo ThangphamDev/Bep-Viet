@@ -65,23 +65,61 @@ class AuthCubit extends Cubit<AuthState> {
     _checkAuthStatus();
   }
 
-  void _checkAuthStatus() {
-    if (_authRepository.isLoggedIn) {
-      final user = _authRepository.currentUser;
-      if (user != null) {
-        emit(AuthAuthenticated(user: user));
-      } else {
+  Future<void> _checkAuthStatus() async {
+    // Show splash screen for at least 1 second
+    final splashFuture = Future.delayed(const Duration(seconds: 1));
+
+    if (_authRepository.isLoggedIn && _authRepository.shouldAutoLogin) {
+      // Token exists and not expired - verify with server
+      try {
+        final isValid = await _authRepository.isTokenValid();
+        if (isValid) {
+          // Token valid, get fresh user data
+          final user = await _authRepository.getUserProfile();
+
+          // Wait for splash screen minimum duration
+          await splashFuture;
+          emit(AuthAuthenticated(user: user));
+        } else {
+          // Token invalid or expired, logout
+          await _authRepository.logout();
+
+          // Wait for splash screen minimum duration
+          await splashFuture;
+          emit(AuthUnauthenticated());
+        }
+      } catch (e) {
+        // Error verifying token (network error, user deleted, etc.)
+        await _authRepository.logout();
+
+        // Wait for splash screen minimum duration
+        await splashFuture;
         emit(AuthUnauthenticated());
       }
     } else {
+      // No token or token expired
+      if (_authRepository.isLoggedIn) {
+        await _authRepository.logout();
+      }
+
+      // Wait for splash screen minimum duration
+      await splashFuture;
       emit(AuthUnauthenticated());
     }
   }
 
-  Future<void> login(String email, String password) async {
+  Future<void> login(
+    String email,
+    String password, {
+    bool rememberMe = false,
+  }) async {
     emit(AuthLoading());
     try {
-      final response = await _authRepository.login(email, password);
+      final response = await _authRepository.login(
+        email,
+        password,
+        rememberMe: rememberMe,
+      );
       if (response.success) {
         emit(AuthAuthenticated(user: response.data.user));
       } else {
@@ -98,6 +136,7 @@ class AuthCubit extends Cubit<AuthState> {
     required String name,
     String? region,
     String? subregion,
+    bool rememberMe = false,
   }) async {
     emit(AuthLoading());
     try {
@@ -107,6 +146,7 @@ class AuthCubit extends Cubit<AuthState> {
         name: name,
         region: region,
         subregion: subregion,
+        rememberMe: rememberMe,
       );
       if (response.success) {
         emit(AuthAuthenticated(user: response.data.user));
@@ -133,19 +173,26 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final isValid = await _authRepository.isTokenValid();
       if (isValid) {
-        final user = _authRepository.currentUser;
-        if (user != null) {
-          emit(AuthAuthenticated(user: user));
-        } else {
-          emit(AuthUnauthenticated());
-        }
+        // Get fresh user data from server
+        final user = await _authRepository.getUserProfile();
+        emit(AuthAuthenticated(user: user));
       } else {
         await _authRepository.logout();
         emit(AuthUnauthenticated());
       }
     } catch (e) {
+      // Error (network, user deleted, etc.) - logout
       await _authRepository.logout();
       emit(AuthUnauthenticated());
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    try {
+      await _authRepository.deleteAccount();
+      emit(AuthUnauthenticated());
+    } catch (e) {
+      throw Exception('Failed to delete account: $e');
     }
   }
 }

@@ -33,15 +33,19 @@ class AuthService {
   }
 
   // Login
-  Future<AuthResponse> login(String email, String password) async {
+  Future<AuthResponse> login(
+    String email,
+    String password, {
+    bool rememberMe = false,
+  }) async {
     try {
       final request = LoginRequest(email: email, password: password);
       final response = await _apiService.login(request);
-      
+
       if (response.success) {
-        await _saveAuthData(response.data);
+        await _saveAuthData(response.data, rememberMe: rememberMe);
       }
-      
+
       return response;
     } catch (e) {
       throw Exception('Login failed: $e');
@@ -55,6 +59,7 @@ class AuthService {
     required String name,
     String? region,
     String? subregion,
+    bool rememberMe = false,
   }) async {
     try {
       final request = RegisterRequest(
@@ -65,11 +70,11 @@ class AuthService {
         subregion: subregion,
       );
       final response = await _apiService.register(request);
-      
+
       if (response.success) {
-        await _saveAuthData(response.data);
+        await _saveAuthData(response.data, rememberMe: rememberMe);
       }
-      
+
       return response;
     } catch (e) {
       throw Exception('Registration failed: $e');
@@ -81,13 +86,45 @@ class AuthService {
     await _prefs.remove(AppConfig.tokenKey);
     await _prefs.remove(AppConfig.refreshTokenKey);
     await _prefs.remove(AppConfig.userKey);
+    await _prefs.remove(AppConfig.rememberMeKey);
+    await _prefs.remove(AppConfig.tokenExpiryKey);
   }
 
   // Save authentication data
-  Future<void> _saveAuthData(AuthData authData) async {
+  Future<void> _saveAuthData(
+    AuthData authData, {
+    bool rememberMe = false,
+  }) async {
     await _prefs.setString(AppConfig.tokenKey, authData.accessToken);
     await _prefs.setString(AppConfig.refreshTokenKey, authData.refreshToken);
-    await _prefs.setString(AppConfig.userKey, jsonEncode(authData.user.toJson()));
+    await _prefs.setString(
+      AppConfig.userKey,
+      jsonEncode(authData.user.toJson()),
+    );
+    await _prefs.setBool(AppConfig.rememberMeKey, rememberMe);
+
+    // Save token expiry time (7 days from now if remember me, 1 day otherwise)
+    final expiryDays = rememberMe ? 7 : 1;
+    final expiryTime = DateTime.now().add(Duration(days: expiryDays));
+    await _prefs.setString(
+      AppConfig.tokenExpiryKey,
+      expiryTime.toIso8601String(),
+    );
+  }
+
+  // Check if should auto login
+  bool get shouldAutoLogin {
+    // Check token expiry (regardless of remember me flag)
+    // Token expiry is 7 days if remember me, 1 day otherwise
+    final expiryString = _prefs.getString(AppConfig.tokenExpiryKey);
+    if (expiryString == null) return false;
+
+    try {
+      final expiryTime = DateTime.parse(expiryString);
+      return DateTime.now().isBefore(expiryTime);
+    } catch (e) {
+      return false;
+    }
   }
 
   // Get user profile
@@ -96,7 +133,7 @@ class AuthService {
     if (token == null) {
       throw Exception('No access token found');
     }
-    
+
     try {
       return await _apiService.getUserProfile(token);
     } catch (e) {
@@ -108,12 +145,27 @@ class AuthService {
   Future<bool> isTokenValid() async {
     final token = accessToken;
     if (token == null) return false;
-    
+
     try {
       await _apiService.getUserProfile(token);
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  // Delete account
+  Future<void> deleteAccount() async {
+    final token = accessToken;
+    if (token == null) {
+      throw Exception('No access token found');
+    }
+
+    try {
+      await _apiService.deleteAccount(token);
+      await logout();
+    } catch (e) {
+      throw Exception('Failed to delete account: $e');
     }
   }
 }

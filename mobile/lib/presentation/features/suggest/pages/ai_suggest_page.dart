@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:dio/dio.dart';
@@ -284,7 +285,18 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Gợi ý AI từ nguyên liệu'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          onPressed: () => context.go('/suggest'),
+        ),
+        title: const Text(
+          'AI Gợi ý',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
         backgroundColor: AppTheme.surfaceColor,
         elevation: 0,
       ),

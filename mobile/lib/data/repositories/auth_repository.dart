@@ -9,6 +9,9 @@ class AuthRepository {
   // Check if user is logged in
   bool get isLoggedIn => _authService.isLoggedIn;
 
+  // Check if should auto login
+  bool get shouldAutoLogin => _authService.shouldAutoLogin;
+
   // Get current user
   UserModel? get currentUser => _authService.currentUser;
 
@@ -16,8 +19,12 @@ class AuthRepository {
   String? get accessToken => _authService.accessToken;
 
   // Login
-  Future<AuthResponse> login(String email, String password) async {
-    return await _authService.login(email, password);
+  Future<AuthResponse> login(
+    String email,
+    String password, {
+    bool rememberMe = false,
+  }) async {
+    return await _authService.login(email, password, rememberMe: rememberMe);
   }
 
   // Register
@@ -27,6 +34,7 @@ class AuthRepository {
     required String name,
     String? region,
     String? subregion,
+    bool rememberMe = false,
   }) async {
     return await _authService.register(
       email: email,
@@ -34,6 +42,7 @@ class AuthRepository {
       name: name,
       region: region,
       subregion: subregion,
+      rememberMe: rememberMe,
     );
   }
 
@@ -50,5 +59,10 @@ class AuthRepository {
   // Check token validity
   Future<bool> isTokenValid() async {
     return await _authService.isTokenValid();
+  }
+
+  // Delete account
+  Future<void> deleteAccount() async {
+    return await _authService.deleteAccount();
   }
 }
