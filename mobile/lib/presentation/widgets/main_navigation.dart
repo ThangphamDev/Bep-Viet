@@ -28,22 +28,10 @@ class _MainNavigationState extends State<MainNavigation> {
       route: '/suggest',
     ),
     NavigationItem(
-      icon: Icons.menu_book_outlined,
-      activeIcon: Icons.menu_book,
-      label: 'Công thức',
-      route: '/recipes',
-    ),
-    NavigationItem(
       icon: Icons.calendar_today_outlined,
       activeIcon: Icons.calendar_today,
       label: 'Kế hoạch',
       route: '/planner',
-    ),
-    NavigationItem(
-      icon: Icons.kitchen_outlined,
-      activeIcon: Icons.kitchen,
-      label: 'Tủ lạnh',
-      route: '/pantry',
     ),
     NavigationItem(
       icon: Icons.people_outline,

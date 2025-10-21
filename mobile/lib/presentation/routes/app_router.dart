@@ -1,10 +1,14 @@
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/presentation/features/home/pages/home_page.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/pages/suggest_page.dart';
 import 'package:bepviet_mobile/presentation/features/recipes/pages/recipes_page.dart';
+import 'package:bepviet_mobile/presentation/features/recipes/pages/recipe_detail_page.dart';
 import 'package:bepviet_mobile/presentation/features/planner/pages/planner_page.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/pages/pantry_page.dart';
 import 'package:bepviet_mobile/presentation/features/community/pages/community_page.dart';
+import 'package:bepviet_mobile/presentation/features/personal/pages/personal_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/pages/login_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/pages/register_page.dart';
 import 'package:bepviet_mobile/presentation/features/premium/pages/premium_dashboard_page.dart';
@@ -44,6 +48,29 @@ class AppRoutes {
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: AppRoutes.home,
+    redirect: (context, state) async {
+      // Check if user is authenticated
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConfig.tokenKey);
+
+      // If no token and trying to access protected routes, redirect to login
+      if (token == null || token.isEmpty) {
+        if (state.fullPath != AppRoutes.login &&
+            state.fullPath != AppRoutes.register) {
+          return AppRoutes.login;
+        }
+        return null; // Allow access to login/register pages
+      }
+
+      // If has token and trying to access login/register, redirect to home
+      if (state.fullPath == AppRoutes.login ||
+          state.fullPath == AppRoutes.register) {
+        return AppRoutes.home;
+      }
+
+      // Allow access to other routes
+      return null;
+    },
     routes: [
       // Main shell with bottom navigation
       ShellRoute(
@@ -61,6 +88,7 @@ class AppRouter {
             name: 'suggest',
             builder: (context, state) => const SuggestPage(),
           ),
+          // Recipes route (accessible via button from suggest page)
           GoRoute(
             path: AppRoutes.recipes,
             name: 'recipes',

@@ -6,17 +6,18 @@ export class SuggestionsService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
   async searchSuggestions(searchParams: any) {
-    const {
-      region,
-      season,
-      servings = 2,
-      budget,
-      spice_pref,
-      pantry_ids = [],
-      exclude_allergens = [],
-      max_time,
-      meal_type
-    } = searchParams;
+    try {
+      const {
+        region,
+        season,
+        servings = 2,
+        budget,
+        spice_preference,
+        pantry_ids = [],
+        exclude_allergens = [],
+        max_time,
+        meal_type
+      } = searchParams;
 
     // Get current season if not provided
     let currentSeason = season;
@@ -61,9 +62,9 @@ export class SuggestionsService {
       params.push(max_time);
     }
 
-    if (spice_pref !== undefined) {
+    if (spice_preference !== undefined) {
       query += ' AND r.spice_level <= ?';
-      params.push(spice_pref);
+      params.push(spice_preference);
     }
 
     query += ' ORDER BY r.rating_avg DESC, r.created_at DESC LIMIT 50';
@@ -95,6 +96,14 @@ export class SuggestionsService {
       success: true,
       data: suggestions.slice(0, 20), // Return top 20
     };
+    } catch (error) {
+      console.error('SuggestionsService error:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: []
+      };
+    }
   }
 
   private async calculateRecipeScore(recipe: any, params: any) {
@@ -145,7 +154,7 @@ export class SuggestionsService {
       }
 
       // Pantry bonus
-      if (pantry_ids.includes(ingredient.ingredient_id)) {
+      if (pantry_ids && pantry_ids.includes(ingredient.ingredient_id)) {
         pantryBonus += cost; // Reduce cost if already in pantry
       }
 
