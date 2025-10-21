@@ -653,8 +653,7 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
                               child: Row(
                                 children: [
                                   _buildTabButton('Nguyên liệu', 0),
-                                  _buildTabButton('Cách làm', 1),
-                                  _buildTabButton('Thông tin', 2),
+                                  _buildTabButton('Thông tin', 1),
                                 ],
                               ),
                             ),
@@ -664,7 +663,6 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
                               index: _selectedTabIndex,
                               children: [
                                 _buildIngredientsTab(state),
-                                _buildStepsTab(state),
                                 _buildInfoTab(state),
                               ],
                             ),
@@ -939,119 +937,6 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
     );
   }
 
-  Widget _buildStepsTab(RecipeDetailState state) {
-    if (state.recipe?.steps == null || state.recipe!.steps!.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.list_alt_outlined,
-              size: 60,
-              color: AppTheme.textSecondary,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Chưa có hướng dẫn nấu ăn',
-              style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Cách làm (${state.recipe!.steps!.length} bước)',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...state.recipe!.steps!.asMap().entries.map((entry) {
-            final index = entry.key;
-            final step = entry.value;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceColor,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryGreen,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          step.instruction,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: AppTheme.textPrimary,
-                            height: 1.5,
-                          ),
-                        ),
-                        if (step.durationMinutes != null &&
-                            step.durationMinutes! > 0) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.timer,
-                                size: 16,
-                                color: AppTheme.textSecondary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${step.durationMinutes} phút',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ],
-      ),
-    );
-  }
-
   Widget _buildInfoTab(RecipeDetailState state) {
     final recipe = state.recipe!;
     return Padding(
@@ -1072,16 +957,8 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
           _buildInfoCard('Loại món', recipe.mealType ?? 'Chưa xác định'),
           _buildInfoCard('Độ khó', '${recipe.difficulty ?? 1}/5'),
           _buildInfoCard(
-            'Thời gian chuẩn bị',
-            '${recipe.prepTimeMinutes ?? 0} phút',
-          ),
-          _buildInfoCard(
             'Thời gian nấu',
             '${recipe.cookTimeMinutes ?? 0} phút',
-          ),
-          _buildInfoCard(
-            'Tổng thời gian',
-            '${recipe.totalTimeMinutes ?? 0} phút',
           ),
           _buildInfoCard('Số khẩu phần', '${recipe.servings ?? 1} người'),
           _buildInfoCard(
