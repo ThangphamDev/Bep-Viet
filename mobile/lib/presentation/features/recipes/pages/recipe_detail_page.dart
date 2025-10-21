@@ -54,7 +54,6 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   double _lastScrollPosition = 0.0;
-  bool _isFavorite = false;
 
   @override
   void initState() {
@@ -387,11 +386,14 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
       dio.options.headers['ngrok-skip-browser-warning'] = 'true';
       final apiService = ApiService(dio);
 
-      if (_isFavorite) {
+      if (recipe.isFavorite) {
+        // Optimistically update UI
+        context.read<RecipeDetailCubit>().toggleFavoriteStatus(false);
+
         // Remove from favorites
         await apiService.removeFavorite(token, recipe.id);
         if (!mounted) return;
-        setState(() => _isFavorite = false);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Đã xóa "${recipe.name}" khỏi yêu thích'),
@@ -401,10 +403,13 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
           ),
         );
       } else {
+        // Optimistically update UI
+        context.read<RecipeDetailCubit>().toggleFavoriteStatus(true);
+
         // Add to favorites
         await apiService.addFavorite(token, recipe.id);
         if (!mounted) return;
-        setState(() => _isFavorite = true);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -422,6 +427,12 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
       }
     } catch (e) {
       if (!mounted) return;
+
+      // Revert on error
+      context.read<RecipeDetailCubit>().toggleFavoriteStatus(
+        !recipe.isFavorite,
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Lỗi: ${e.toString()}'),
@@ -564,8 +575,10 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
                       IconButton(
                         onPressed: () => _toggleFavorite(recipe),
                         icon: Icon(
-                          _isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: _isFavorite ? Colors.red : Colors.white,
+                          recipe.isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: recipe.isFavorite ? Colors.red : Colors.white,
                         ),
                       ),
                       IconButton(
@@ -1205,7 +1218,11 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
     emit(state.copyWith(isLoading: true, error: null));
 
     try {
-      final recipe = await _apiService.getRecipeById(_recipeId);
+      // Get userId for favorite check
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString(AppConfig.userIdKey);
+
+      final recipe = await _apiService.getRecipeById(_recipeId, userId: userId);
       final ingredients = await _apiService.getRecipeIngredients(_recipeId);
       final variants = await _apiService.getRecipeVariants(_recipeId);
 
@@ -1220,6 +1237,13 @@ class RecipeDetailCubit extends Cubit<RecipeDetailState> {
       );
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  void toggleFavoriteStatus(bool isFavorite) {
+    if (state.recipe != null) {
+      final updatedRecipe = state.recipe!.copyWith(isFavorite: isFavorite);
+      emit(state.copyWith(recipe: updatedRecipe));
     }
   }
 }

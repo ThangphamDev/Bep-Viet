@@ -36,10 +36,11 @@ export class RecipesController {
   @Get(':id')
   @ApiOperation({ summary: 'Get recipe by ID' })
   @ApiParam({ name: 'id', description: 'Recipe ID' })
+  @ApiQuery({ name: 'userId', required: false, description: 'User ID for favorite check' })
   @ApiResponse({ status: 200, description: 'Recipe details' })
   @ApiResponse({ status: 404, description: 'Recipe not found' })
-  async getRecipeById(@Param('id') id: string) {
-    return this.recipesService.getRecipeById(id);
+  async getRecipeById(@Param('id') id: string, @Query('userId') userId?: string) {
+    return this.recipesService.getRecipeById(id, userId);
   }
 
   @Get(':id/ingredients')

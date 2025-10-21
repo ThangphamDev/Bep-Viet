@@ -144,9 +144,13 @@ class ApiService {
     }
   }
 
-  Future<RecipeModel> getRecipeById(String id) async {
+  Future<RecipeModel> getRecipeById(String id, {String? userId}) async {
     try {
-      final response = await _dio.get('/api/recipes/$id');
+      final queryParams = userId != null ? {'userId': userId} : null;
+      final response = await _dio.get(
+        '/api/recipes/$id',
+        queryParameters: queryParams,
+      );
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;

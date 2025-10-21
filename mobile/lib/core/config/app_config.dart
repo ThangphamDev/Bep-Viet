@@ -23,6 +23,7 @@ class AppConfig {
   static const String tokenKey = 'auth_token';
   static const String refreshTokenKey = 'refresh_token';
   static const String userKey = 'user_data';
+  static const String userIdKey = 'user_id';
   static const String preferencesKey = 'user_preferences';
   static const String rememberMeKey = 'remember_me';
   static const String tokenExpiryKey = 'token_expiry';

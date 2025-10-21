@@ -83,7 +83,7 @@ export class RecipesService {
     }
   }
 
-  async getRecipeById(id: string) {
+  async getRecipeById(id: string, userId?: string) {
     const [recipes] = await this.db.execute(
       `SELECT 
         r.id,
@@ -113,6 +113,17 @@ export class RecipesService {
     const recipe = (recipes as any[])[0];
     if (!recipe) {
       throw new NotFoundException('Recipe not found');
+    }
+
+    // Check if recipe is in user's favorites
+    if (userId) {
+      const [favoriteCheck] = await this.db.execute(
+        'SELECT 1 FROM favorites WHERE user_id = ? AND recipe_id = ?',
+        [userId, id]
+      );
+      recipe.is_favorite = (favoriteCheck as any[]).length > 0;
+    } else {
+      recipe.is_favorite = false;
     }
 
     // Get ingredients

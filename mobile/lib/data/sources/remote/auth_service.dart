@@ -86,6 +86,7 @@ class AuthService {
     await _prefs.remove(AppConfig.tokenKey);
     await _prefs.remove(AppConfig.refreshTokenKey);
     await _prefs.remove(AppConfig.userKey);
+    await _prefs.remove(AppConfig.userIdKey);
     await _prefs.remove(AppConfig.rememberMeKey);
     await _prefs.remove(AppConfig.tokenExpiryKey);
   }
@@ -101,6 +102,7 @@ class AuthService {
       AppConfig.userKey,
       jsonEncode(authData.user.toJson()),
     );
+    await _prefs.setString(AppConfig.userIdKey, authData.user.id);
     await _prefs.setBool(AppConfig.rememberMeKey, rememberMe);
 
     // Save token expiry time (7 days from now if remember me, 1 day otherwise)
