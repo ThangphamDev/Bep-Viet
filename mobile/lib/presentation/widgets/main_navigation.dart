@@ -34,16 +34,16 @@ class _MainNavigationState extends State<MainNavigation> {
       route: '/planner',
     ),
     NavigationItem(
-      icon: Icons.people_outline,
-      activeIcon: Icons.people,
-      label: 'Cộng đồng',
-      route: '/community',
+      icon: Icons.shopping_cart_outlined,
+      activeIcon: Icons.shopping_cart,
+      label: 'Mua sắm',
+      route: '/shopping',
     ),
     NavigationItem(
-      icon: Icons.person_outline,
-      activeIcon: Icons.person,
-      label: 'Profile',
-      route: '/profile',
+      icon: Icons.kitchen_outlined,
+      activeIcon: Icons.kitchen,
+      label: 'Tủ lạnh',
+      route: '/pantry',
     ),
   ];
 

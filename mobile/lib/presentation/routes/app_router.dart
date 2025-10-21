@@ -6,6 +6,7 @@ import 'package:bepviet_mobile/presentation/features/suggest/pages/suggest_page.
 import 'package:bepviet_mobile/presentation/features/recipes/pages/recipes_page.dart';
 import 'package:bepviet_mobile/presentation/features/recipes/pages/recipe_detail_page.dart';
 import 'package:bepviet_mobile/presentation/features/planner/pages/planner_page.dart';
+import 'package:bepviet_mobile/presentation/features/shopping/pages/shopping_page.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/pages/pantry_page.dart';
 import 'package:bepviet_mobile/presentation/features/community/pages/community_page.dart';
 import 'package:bepviet_mobile/presentation/features/personal/pages/personal_page.dart';
@@ -19,6 +20,7 @@ class AppRoutes {
   static const String suggest = '/suggest';
   static const String recipes = '/recipes';
   static const String planner = '/planner';
+  static const String shopping = '/shopping';
   static const String pantry = '/pantry';
   static const String community = '/community';
 
@@ -94,6 +96,11 @@ class AppRouter {
             path: AppRoutes.planner,
             name: 'planner',
             builder: (context, state) => const PlannerPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.shopping,
+            name: 'shopping',
+            builder: (context, state) => const ShoppingPage(),
           ),
           GoRoute(
             path: AppRoutes.pantry,
