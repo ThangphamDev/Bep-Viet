@@ -155,10 +155,10 @@ _$CreateCommunityRecipeRequestImpl _$$CreateCommunityRecipeRequestImplFromJson(
     _$CreateCommunityRecipeRequestImpl(
       title: json['title'] as String,
       region: json['region'] as String,
-      descriptionMd: json['descriptionMd'] as String,
+      descriptionMd: json['description_md'] as String,
       difficulty: json['difficulty'] as String,
-      timeMin: (json['timeMin'] as num).toInt(),
-      costHint: (json['costHint'] as num?)?.toInt(),
+      timeMin: (json['time_min'] as num).toInt(),
+      costHint: (json['cost_hint'] as num?)?.toInt(),
       imageBase64: json['imageBase64'] as String?,
       ingredients: (json['ingredients'] as List<dynamic>)
           .map((e) =>
@@ -174,10 +174,10 @@ Map<String, dynamic> _$$CreateCommunityRecipeRequestImplToJson(
     <String, dynamic>{
       'title': instance.title,
       'region': instance.region,
-      'descriptionMd': instance.descriptionMd,
+      'description_md': instance.descriptionMd,
       'difficulty': instance.difficulty,
-      'timeMin': instance.timeMin,
-      'costHint': instance.costHint,
+      'time_min': instance.timeMin,
+      'cost_hint': instance.costHint,
       'imageBase64': instance.imageBase64,
       'ingredients': instance.ingredients,
       'steps': instance.steps,
@@ -202,15 +202,15 @@ Map<String, dynamic> _$$CreateIngredientRequestImplToJson(
 _$CreateStepRequestImpl _$$CreateStepRequestImplFromJson(
         Map<String, dynamic> json) =>
     _$CreateStepRequestImpl(
-      orderNo: (json['orderNo'] as num).toInt(),
-      contentMd: json['contentMd'] as String,
+      orderNo: (json['order_no'] as num).toInt(),
+      contentMd: json['content_md'] as String,
     );
 
 Map<String, dynamic> _$$CreateStepRequestImplToJson(
         _$CreateStepRequestImpl instance) =>
     <String, dynamic>{
-      'orderNo': instance.orderNo,
-      'contentMd': instance.contentMd,
+      'order_no': instance.orderNo,
+      'content_md': instance.contentMd,
     };
 
 _$AddCommentRequestImpl _$$AddCommentRequestImplFromJson(

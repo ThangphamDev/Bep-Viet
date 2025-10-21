@@ -110,10 +110,10 @@ class CreateCommunityRecipeRequest with _$CreateCommunityRecipeRequest {
   const factory CreateCommunityRecipeRequest({
     required String title,
     required String region,
-    required String descriptionMd,
+    @JsonKey(name: 'description_md') required String descriptionMd,
     required String difficulty,
-    required int timeMin,
-    int? costHint,
+    @JsonKey(name: 'time_min') required int timeMin,
+    @JsonKey(name: 'cost_hint') int? costHint,
     String? imageBase64,
     required List<CreateIngredientRequest> ingredients,
     required List<CreateStepRequest> steps,
@@ -138,8 +138,8 @@ class CreateIngredientRequest with _$CreateIngredientRequest {
 @freezed
 class CreateStepRequest with _$CreateStepRequest {
   const factory CreateStepRequest({
-    required int orderNo,
-    required String contentMd,
+    @JsonKey(name: 'order_no') required int orderNo,
+    @JsonKey(name: 'content_md') required String contentMd,
   }) = _CreateStepRequest;
 
   factory CreateStepRequest.fromJson(Map<String, dynamic> json) =>

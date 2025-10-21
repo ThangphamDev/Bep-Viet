@@ -185,7 +185,7 @@ export class CommunityService {
     await this.db.execute(
       `INSERT INTO community_recipes 
        (id, author_user_id, title, region, description_md, difficulty, time_min, cost_hint, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')`,
       [recipeId, userId, title, region ?? null, description_md, difficulty, time_min, cost_hint]
     );
 
@@ -218,7 +218,7 @@ export class CommunityService {
     return {
       success: true,
       data: { id: recipeId },
-      message: 'Community recipe created successfully and pending approval'
+      message: 'Community recipe created successfully and is now visible'
     };
   }
 

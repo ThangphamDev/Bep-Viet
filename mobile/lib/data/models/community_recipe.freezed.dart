@@ -1588,9 +1588,12 @@ CreateCommunityRecipeRequest _$CreateCommunityRecipeRequestFromJson(
 mixin _$CreateCommunityRecipeRequest {
   String get title => throw _privateConstructorUsedError;
   String get region => throw _privateConstructorUsedError;
+  @JsonKey(name: 'description_md')
   String get descriptionMd => throw _privateConstructorUsedError;
   String get difficulty => throw _privateConstructorUsedError;
+  @JsonKey(name: 'time_min')
   int get timeMin => throw _privateConstructorUsedError;
+  @JsonKey(name: 'cost_hint')
   int? get costHint => throw _privateConstructorUsedError;
   String? get imageBase64 => throw _privateConstructorUsedError;
   List<CreateIngredientRequest> get ingredients =>
@@ -1614,10 +1617,10 @@ abstract class $CreateCommunityRecipeRequestCopyWith<$Res> {
   $Res call(
       {String title,
       String region,
-      String descriptionMd,
+      @JsonKey(name: 'description_md') String descriptionMd,
       String difficulty,
-      int timeMin,
-      int? costHint,
+      @JsonKey(name: 'time_min') int timeMin,
+      @JsonKey(name: 'cost_hint') int? costHint,
       String? imageBase64,
       List<CreateIngredientRequest> ingredients,
       List<CreateStepRequest> steps});
@@ -1700,10 +1703,10 @@ abstract class _$$CreateCommunityRecipeRequestImplCopyWith<$Res>
   $Res call(
       {String title,
       String region,
-      String descriptionMd,
+      @JsonKey(name: 'description_md') String descriptionMd,
       String difficulty,
-      int timeMin,
-      int? costHint,
+      @JsonKey(name: 'time_min') int timeMin,
+      @JsonKey(name: 'cost_hint') int? costHint,
       String? imageBase64,
       List<CreateIngredientRequest> ingredients,
       List<CreateStepRequest> steps});
@@ -1780,10 +1783,10 @@ class _$CreateCommunityRecipeRequestImpl
   const _$CreateCommunityRecipeRequestImpl(
       {required this.title,
       required this.region,
-      required this.descriptionMd,
+      @JsonKey(name: 'description_md') required this.descriptionMd,
       required this.difficulty,
-      required this.timeMin,
-      this.costHint,
+      @JsonKey(name: 'time_min') required this.timeMin,
+      @JsonKey(name: 'cost_hint') this.costHint,
       this.imageBase64,
       required final List<CreateIngredientRequest> ingredients,
       required final List<CreateStepRequest> steps})
@@ -1799,12 +1802,15 @@ class _$CreateCommunityRecipeRequestImpl
   @override
   final String region;
   @override
+  @JsonKey(name: 'description_md')
   final String descriptionMd;
   @override
   final String difficulty;
   @override
+  @JsonKey(name: 'time_min')
   final int timeMin;
   @override
+  @JsonKey(name: 'cost_hint')
   final int? costHint;
   @override
   final String? imageBase64;
@@ -1885,10 +1891,10 @@ abstract class _CreateCommunityRecipeRequest
   const factory _CreateCommunityRecipeRequest(
           {required final String title,
           required final String region,
-          required final String descriptionMd,
+          @JsonKey(name: 'description_md') required final String descriptionMd,
           required final String difficulty,
-          required final int timeMin,
-          final int? costHint,
+          @JsonKey(name: 'time_min') required final int timeMin,
+          @JsonKey(name: 'cost_hint') final int? costHint,
           final String? imageBase64,
           required final List<CreateIngredientRequest> ingredients,
           required final List<CreateStepRequest> steps}) =
@@ -1902,12 +1908,15 @@ abstract class _CreateCommunityRecipeRequest
   @override
   String get region;
   @override
+  @JsonKey(name: 'description_md')
   String get descriptionMd;
   @override
   String get difficulty;
   @override
+  @JsonKey(name: 'time_min')
   int get timeMin;
   @override
+  @JsonKey(name: 'cost_hint')
   int? get costHint;
   @override
   String? get imageBase64;
@@ -2107,7 +2116,9 @@ CreateStepRequest _$CreateStepRequestFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$CreateStepRequest {
+  @JsonKey(name: 'order_no')
   int get orderNo => throw _privateConstructorUsedError;
+  @JsonKey(name: 'content_md')
   String get contentMd => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -2122,7 +2133,9 @@ abstract class $CreateStepRequestCopyWith<$Res> {
           CreateStepRequest value, $Res Function(CreateStepRequest) then) =
       _$CreateStepRequestCopyWithImpl<$Res, CreateStepRequest>;
   @useResult
-  $Res call({int orderNo, String contentMd});
+  $Res call(
+      {@JsonKey(name: 'order_no') int orderNo,
+      @JsonKey(name: 'content_md') String contentMd});
 }
 
 /// @nodoc
@@ -2162,7 +2175,9 @@ abstract class _$$CreateStepRequestImplCopyWith<$Res>
       __$$CreateStepRequestImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({int orderNo, String contentMd});
+  $Res call(
+      {@JsonKey(name: 'order_no') int orderNo,
+      @JsonKey(name: 'content_md') String contentMd});
 }
 
 /// @nodoc
@@ -2196,14 +2211,17 @@ class __$$CreateStepRequestImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$CreateStepRequestImpl implements _CreateStepRequest {
   const _$CreateStepRequestImpl(
-      {required this.orderNo, required this.contentMd});
+      {@JsonKey(name: 'order_no') required this.orderNo,
+      @JsonKey(name: 'content_md') required this.contentMd});
 
   factory _$CreateStepRequestImpl.fromJson(Map<String, dynamic> json) =>
       _$$CreateStepRequestImplFromJson(json);
 
   @override
+  @JsonKey(name: 'order_no')
   final int orderNo;
   @override
+  @JsonKey(name: 'content_md')
   final String contentMd;
 
   @override
@@ -2242,15 +2260,18 @@ class _$CreateStepRequestImpl implements _CreateStepRequest {
 
 abstract class _CreateStepRequest implements CreateStepRequest {
   const factory _CreateStepRequest(
-      {required final int orderNo,
-      required final String contentMd}) = _$CreateStepRequestImpl;
+          {@JsonKey(name: 'order_no') required final int orderNo,
+          @JsonKey(name: 'content_md') required final String contentMd}) =
+      _$CreateStepRequestImpl;
 
   factory _CreateStepRequest.fromJson(Map<String, dynamic> json) =
       _$CreateStepRequestImpl.fromJson;
 
   @override
+  @JsonKey(name: 'order_no')
   int get orderNo;
   @override
+  @JsonKey(name: 'content_md')
   String get contentMd;
   @override
   @JsonKey(ignore: true)
