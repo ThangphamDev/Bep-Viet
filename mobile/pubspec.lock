@@ -425,7 +425,7 @@ packages:
     source: sdk
     version: "0.0.0"
   freezed:
-    dependency: "direct main"
+    dependency: "direct dev"
     description:
       name: freezed
       sha256: a434911f643466d78462625df76fd9eb13e57348ff43fe1f77bbe909522c67a1
@@ -985,13 +985,13 @@ packages:
     source: hosted
     version: "2.5.3"
   shared_preferences_android:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: shared_preferences_android
-      sha256: bd14436108211b0d4ee5038689a56d4ae3620fd72fd6036e113bf1345bc74d9e
+      sha256: "93d0ec9dd902d85f326068e6a899487d1f65ffcd5798721a95330b26c8131577"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.13"
+    version: "2.2.3"
   shared_preferences_foundation:
     dependency: transitive
     description:

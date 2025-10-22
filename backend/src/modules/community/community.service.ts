@@ -15,6 +15,7 @@ export class CommunityService {
         cr.difficulty,
         cr.time_min,
         cr.cost_hint,
+        cr.image_url,
         cr.status,
         cr.created_at,
         cr.updated_at,
@@ -51,7 +52,7 @@ export class CommunityService {
       params.push(`%${filters.search}%`, `%${filters.search}%`);
     }
 
-    query += ' GROUP BY cr.id, cr.title, cr.region, cr.description_md, cr.difficulty, cr.time_min, cr.cost_hint, cr.status, cr.created_at, cr.updated_at, u.name ORDER BY cr.created_at DESC';
+    query += ' GROUP BY cr.id, cr.title, cr.region, cr.description_md, cr.difficulty, cr.time_min, cr.cost_hint, cr.image_url, cr.status, cr.created_at, cr.updated_at, u.name ORDER BY cr.created_at DESC';
 
     if (filters.limit) {
       query += ' LIMIT ?';
@@ -76,6 +77,7 @@ export class CommunityService {
         cr.difficulty,
         cr.time_min,
         cr.cost_hint,
+        cr.image_url,
         cr.status,
         cr.created_at,
         cr.updated_at,
@@ -173,6 +175,7 @@ export class CommunityService {
       difficulty,
       time_min,
       cost_hint,
+      image_url,
       ingredients,
       steps
     } = recipeData;
@@ -184,9 +187,9 @@ export class CommunityService {
     // Create community recipe
     await this.db.execute(
       `INSERT INTO community_recipes 
-       (id, author_user_id, title, region, description_md, difficulty, time_min, cost_hint, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')`,
-      [recipeId, userId, title, region ?? null, description_md, difficulty, time_min, cost_hint]
+       (id, author_user_id, title, region, description_md, difficulty, time_min, cost_hint, image_url, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')`,
+      [recipeId, userId, title, region ?? null, description_md, difficulty, time_min, cost_hint, image_url ?? null]
     );
 
     // Add ingredients
@@ -260,6 +263,7 @@ export class CommunityService {
         cr.difficulty,
         cr.time_min,
         cr.cost_hint,
+        cr.image_url,
         cr.status,
         cr.created_at,
         u.name as author_name
@@ -321,6 +325,7 @@ export class CommunityService {
         cr.id,
         cr.title,
         cr.region,
+        cr.image_url,
         cr.status,
         cr.created_at,
         cr.updated_at,
@@ -331,7 +336,7 @@ export class CommunityService {
       LEFT JOIN recipe_comments rc ON cr.id = rc.recipe_id AND rc.recipe_type = 'COMMUNITY'
       LEFT JOIN recipe_ratings rr ON cr.id = rr.recipe_id AND rr.recipe_type = 'COMMUNITY'
       WHERE cr.author_user_id = ?
-      GROUP BY cr.id, cr.title, cr.region, cr.status, cr.created_at, cr.updated_at
+      GROUP BY cr.id, cr.title, cr.region, cr.image_url, cr.status, cr.created_at, cr.updated_at
       ORDER BY cr.created_at DESC`,
       [userId]
     );
@@ -352,6 +357,7 @@ export class CommunityService {
         cr.difficulty,
         cr.time_min,
         cr.cost_hint,
+        cr.image_url,
         cr.created_at,
         u.name as author_name,
         (SELECT COUNT(*) FROM recipe_comments WHERE recipe_id = cr.id AND recipe_type = 'COMMUNITY') as comment_count,
@@ -367,6 +373,34 @@ export class CommunityService {
     return {
       success: true,
       data: recipes,
+    };
+  }
+
+  async deleteCommunityRecipe(recipeId: string, userId: string) {
+    // Check if recipe exists and belongs to user
+    const [recipes] = await this.db.execute(
+      'SELECT id, author_user_id FROM community_recipes WHERE id = ?',
+      [recipeId]
+    );
+
+    const recipe = (recipes as any[])[0];
+    if (!recipe) {
+      throw new NotFoundException('Community recipe not found');
+    }
+
+    if (recipe.author_user_id !== userId) {
+      throw new Error('You are not authorized to delete this recipe');
+    }
+
+    // Delete recipe (CASCADE will delete ingredients, steps, comments, ratings)
+    await this.db.execute(
+      'DELETE FROM community_recipes WHERE id = ?',
+      [recipeId]
+    );
+
+    return {
+      success: true,
+      message: 'Community recipe deleted successfully'
     };
   }
 }

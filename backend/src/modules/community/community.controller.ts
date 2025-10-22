@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators';
@@ -116,5 +117,62 @@ export class CommunityController {
     @Body('note') note?: string
   ) {
     return this.communityService.moderateRecipe(id, req.user.id, action, note);
+  }
+
+  @Delete('recipes/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete community recipe' })
+  @ApiParam({ name: 'id', description: 'Recipe ID' })
+  @ApiResponse({ status: 200, description: 'Recipe deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not the author' })
+  @ApiResponse({ status: 404, description: 'Recipe not found' })
+  async deleteRecipe(@Param('id') id: string, @Request() req) {
+    return this.communityService.deleteCommunityRecipe(id, req.user.id);
+  }
+
+  @Post('upload-image')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload image for community recipe' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+          description: 'Image file to upload'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 200, description: 'Image uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid image file' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseInterceptors(FileInterceptor('image'))
+  async uploadImage(@UploadedFile() file: any) {
+    if (!file) {
+      return {
+        success: false,
+        message: 'No image file provided'
+      };
+    }
+
+    // Convert to base64 for easy storage/transmission
+    const base64Image = file.buffer.toString('base64');
+    const imageUrl = `data:${file.mimetype};base64,${base64Image}`;
+
+    return {
+      success: true,
+      data: {
+        imageUrl: imageUrl,
+        mimetype: file.mimetype,
+        size: file.size
+      },
+      message: 'Image uploaded successfully'
+    };
   }
 }
