@@ -101,6 +101,7 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
   bool _isLoading = true;
   List<FamilyProfileModel> _familyProfiles = [];
   List<FamilyMemberModel> _familyMembers = [];
+  Map<String, dynamic>? _analytics;
   String? _errorMessage;
 
   @override
@@ -126,9 +127,15 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
         throw Exception('Token không hợp lệ');
       }
 
-      // Load family profiles from API
       final premiumRepo = PremiumRepository(PremiumService(Dio()));
-      final profiles = await premiumRepo.getUserFamilyProfiles(token);
+
+      // Load family profiles and analytics in parallel
+      final results = await Future.wait([
+        premiumRepo.getUserFamilyProfiles(token),
+        _loadAnalytics(token),
+      ]);
+
+      final profiles = results[0] as List<FamilyProfileModel>;
 
       setState(() {
         _familyProfiles = profiles;
@@ -143,6 +150,32 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<Map<String, dynamic>?> _loadAnalytics(String token) async {
+    try {
+      final dio = Dio();
+      dio.options.baseUrl = AppConfig.ngrokBaseUrl;
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+
+      final response = await dio.get(
+        '/api/analytics/user',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic> &&
+          response.data['success'] == true) {
+        final analytics = response.data['data'] as Map<String, dynamic>;
+        setState(() {
+          _analytics = analytics;
+        });
+        return analytics;
+      }
+    } catch (e) {
+      print('Error loading analytics: $e');
+      // Don't throw, analytics is optional
+    }
+    return null;
   }
 
   @override
@@ -377,8 +410,20 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
                           ),
                           Expanded(
                             child: _buildFamilyStat(
-                              'Hồ sơ',
-                              '${_familyProfiles.length}',
+                              'Kế hoạch',
+                              '${_analytics?['meal_plans_count'] ?? 0}',
+                              Colors.white,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: Colors.white.withOpacity(0.3),
+                          ),
+                          Expanded(
+                            child: _buildFamilyStat(
+                              'Tủ lạnh',
+                              '${_analytics?['pantry_items_count'] ?? 0}',
                               Colors.white,
                             ),
                           ),
