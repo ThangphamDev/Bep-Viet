@@ -83,6 +83,70 @@ export class CommunityRecipeStepDto {
   content_md: string;
 }
 
+export class UpdateCommunityRecipeDto {
+  @ApiProperty({ example: 'Phở Bò Hà Nội', required: false })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiProperty({ example: 'BAC', enum: ['BAC', 'TRUNG', 'NAM'], required: false })
+  @IsOptional()
+  @IsEnum(['BAC', 'TRUNG', 'NAM'])
+  region?: 'BAC' | 'TRUNG' | 'NAM';
+
+  @ApiProperty({ example: 'Món phở ngon nhất Hà Nội', required: false })
+  @IsOptional()
+  @IsString()
+  description_md?: string;
+
+  @ApiProperty({ example: 'TRUNG_BINH', enum: ['DE', 'TRUNG_BINH', 'KHO'], required: false })
+  @IsOptional()
+  @IsEnum(['DE', 'TRUNG_BINH', 'KHO'])
+  difficulty?: 'DE' | 'TRUNG_BINH' | 'KHO';
+
+  @ApiProperty({ example: 60, required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  time_min?: number;
+
+  @ApiProperty({ example: 50000, required: false })
+  @IsOptional()
+  @IsInt()
+  cost_hint?: number;
+
+  @ApiProperty({ example: 'https://example.com/image.jpg', required: false })
+  @IsOptional()
+  @IsString()
+  image_url?: string;
+
+  @ApiProperty({ 
+    example: [
+      { name: 'Bánh phở', quantity: '200g', note: 'Loại tươi' },
+      { name: 'Thịt bò', quantity: '150g', note: 'Thăn bò' }
+    ],
+    required: false
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CommunityRecipeIngredientDto)
+  ingredients?: CommunityRecipeIngredientDto[];
+
+  @ApiProperty({ 
+    example: [
+      { order_no: 1, content_md: 'Chuẩn bị nguyên liệu' },
+      { order_no: 2, content_md: 'Nấu nước dùng' }
+    ],
+    required: false
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CommunityRecipeStepDto)
+  steps?: CommunityRecipeStepDto[];
+}
+
 export class AddCommentDto {
   @ApiProperty({ example: 'Món này rất ngon!' })
   @IsString()

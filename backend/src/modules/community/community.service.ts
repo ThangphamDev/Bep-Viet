@@ -5,6 +5,36 @@ import { Inject } from '@nestjs/common';
 export class CommunityService {
   constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
 
+  // Helper method to get ingredients and steps for a recipe
+  private async getRecipeDetails(recipeId: string) {
+    // Get ingredients
+    const [ingredients] = await this.db.execute(
+      `SELECT 
+        cri.id,
+        cri.ingredient_name,
+        cri.quantity,
+        cri.note
+      FROM community_recipe_ingredients cri
+      WHERE cri.community_recipe_id = ?
+      ORDER BY cri.id`,
+      [recipeId]
+    );
+
+    // Get steps
+    const [steps] = await this.db.execute(
+      `SELECT 
+        crs.id,
+        crs.order_no,
+        crs.content_md
+      FROM community_recipe_steps crs
+      WHERE crs.community_recipe_id = ?
+      ORDER BY crs.order_no`,
+      [recipeId]
+    );
+
+    return { ingredients, steps };
+  }
+
   async getAllCommunityRecipes(filters: any = {}) {
     let query = `
       SELECT 
@@ -61,9 +91,20 @@ export class CommunityService {
 
     const [recipes] = await this.db.execute(query, params);
 
+    // Get ingredients and steps for each recipe
+    const recipesWithDetails = await Promise.all(
+      (recipes as any[]).map(async (recipe) => {
+        const details = await this.getRecipeDetails(recipe.id);
+        return {
+          ...recipe,
+          ...details,
+        };
+      })
+    );
+
     return {
       success: true,
-      data: recipes,
+      data: recipesWithDetails,
     };
   }
 
@@ -273,9 +314,20 @@ export class CommunityService {
       ORDER BY cr.created_at ASC`
     );
 
+    // Get ingredients and steps for each recipe
+    const recipesWithDetails = await Promise.all(
+      (recipes as any[]).map(async (recipe) => {
+        const details = await this.getRecipeDetails(recipe.id);
+        return {
+          ...recipe,
+          ...details,
+        };
+      })
+    );
+
     return {
       success: true,
-      data: recipes,
+      data: recipesWithDetails,
     };
   }
 
@@ -341,9 +393,20 @@ export class CommunityService {
       [userId]
     );
 
+    // Get ingredients and steps for each recipe
+    const recipesWithDetails = await Promise.all(
+      (recipes as any[]).map(async (recipe) => {
+        const details = await this.getRecipeDetails(recipe.id);
+        return {
+          ...recipe,
+          ...details,
+        };
+      })
+    );
+
     return {
       success: true,
-      data: recipes,
+      data: recipesWithDetails,
     };
   }
 
@@ -370,10 +433,129 @@ export class CommunityService {
       LIMIT ${limit}`
     );
 
+    // Get ingredients and steps for each recipe
+    const recipesWithDetails = await Promise.all(
+      (recipes as any[]).map(async (recipe) => {
+        const details = await this.getRecipeDetails(recipe.id);
+        return {
+          ...recipe,
+          ...details,
+        };
+      })
+    );
+
     return {
       success: true,
-      data: recipes,
+      data: recipesWithDetails,
     };
+  }
+
+  async updateCommunityRecipe(recipeId: string, userId: string, updateData: any) {
+    // Check if recipe exists and belongs to user
+    const [recipes] = await this.db.execute(
+      'SELECT id, author_user_id FROM community_recipes WHERE id = ?',
+      [recipeId]
+    );
+
+    const recipe = (recipes as any[])[0];
+    if (!recipe) {
+      throw new NotFoundException('Community recipe not found');
+    }
+
+    if (recipe.author_user_id !== userId) {
+      throw new Error('You are not authorized to update this recipe');
+    }
+
+    // Build UPDATE query dynamically for only provided fields
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+
+    if (updateData.title !== undefined) {
+      updateFields.push('title = ?');
+      updateValues.push(updateData.title);
+    }
+    if (updateData.region !== undefined) {
+      updateFields.push('region = ?');
+      updateValues.push(updateData.region);
+    }
+    if (updateData.description_md !== undefined) {
+      updateFields.push('description_md = ?');
+      updateValues.push(updateData.description_md);
+    }
+    if (updateData.difficulty !== undefined) {
+      updateFields.push('difficulty = ?');
+      updateValues.push(updateData.difficulty);
+    }
+    if (updateData.time_min !== undefined) {
+      updateFields.push('time_min = ?');
+      updateValues.push(updateData.time_min);
+    }
+    if (updateData.cost_hint !== undefined) {
+      updateFields.push('cost_hint = ?');
+      updateValues.push(updateData.cost_hint);
+    }
+    if (updateData.image_url !== undefined) {
+      updateFields.push('image_url = ?');
+      updateValues.push(updateData.image_url);
+    }
+
+    // Update recipe if there are fields to update
+    if (updateFields.length > 0) {
+      updateFields.push('updated_at = CURRENT_TIMESTAMP');
+      updateValues.push(recipeId);
+      
+      await this.db.execute(
+        `UPDATE community_recipes SET ${updateFields.join(', ')} WHERE id = ?`,
+        updateValues
+      );
+    }
+
+    // Update ingredients if provided
+    if (updateData.ingredients !== undefined && Array.isArray(updateData.ingredients)) {
+      // Delete existing ingredients
+      await this.db.execute(
+        'DELETE FROM community_recipe_ingredients WHERE community_recipe_id = ?',
+        [recipeId]
+      );
+
+      // Add new ingredients
+      for (const ingredient of updateData.ingredients) {
+        const [ingredientUuidResult] = await this.db.execute('SELECT UUID() as id');
+        const ingredientId = (ingredientUuidResult as any[])[0].id;
+        
+        await this.db.execute(
+          `INSERT INTO community_recipe_ingredients 
+           (id, community_recipe_id, ingredient_name, quantity, note)
+           VALUES (?, ?, ?, ?, ?)`,
+          [ingredientId, recipeId, ingredient.name, ingredient.quantity ?? null, ingredient.note ?? null]
+        );
+      }
+    }
+
+    // Update steps if provided
+    if (updateData.steps !== undefined && Array.isArray(updateData.steps)) {
+      // Delete existing steps
+      await this.db.execute(
+        'DELETE FROM community_recipe_steps WHERE community_recipe_id = ?',
+        [recipeId]
+      );
+
+      // Add new steps
+      for (const step of updateData.steps) {
+        const [stepUuidResult] = await this.db.execute('SELECT UUID() as id');
+        const stepId = (stepUuidResult as any[])[0].id;
+        
+        await this.db.execute(
+          `INSERT INTO community_recipe_steps 
+           (id, community_recipe_id, order_no, content_md)
+           VALUES (?, ?, ?, ?)`,
+          [stepId, recipeId, step.order_no, step.content_md]
+        );
+      }
+    }
+
+    // Return updated recipe
+    return this.getCommunityRecipeById(recipeId);
   }
 
   async deleteCommunityRecipe(recipeId: string, userId: string) {

@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators';
 import { CommunityService } from './community.service';
-import { CreateCommunityRecipeDto, AddCommentDto, AddRatingDto } from './dto/community.dto';
+import { CreateCommunityRecipeDto, UpdateCommunityRecipeDto, AddCommentDto, AddRatingDto } from './dto/community.dto';
 
 @ApiTags('Community')
 @Controller('community')
@@ -117,6 +117,23 @@ export class CommunityController {
     @Body('note') note?: string
   ) {
     return this.communityService.moderateRecipe(id, req.user.id, action, note);
+  }
+
+  @Put('recipes/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update community recipe' })
+  @ApiParam({ name: 'id', description: 'Recipe ID' })
+  @ApiResponse({ status: 200, description: 'Recipe updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not the author' })
+  @ApiResponse({ status: 404, description: 'Recipe not found' })
+  async updateRecipe(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() updateCommunityRecipeDto: UpdateCommunityRecipeDto
+  ) {
+    return this.communityService.updateCommunityRecipe(id, req.user.id, updateCommunityRecipeDto);
   }
 
   @Delete('recipes/:id')
