@@ -151,59 +151,57 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppConfig.defaultPadding,
                     ),
-                    child: SizedBox(
-                      height: 210,
-                      child: GridView.count(
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        crossAxisSpacing: AppConfig.defaultPadding,
-                        mainAxisSpacing: AppConfig.defaultPadding,
-                        childAspectRatio: 1.5,
-                        children: [
-                          QuickStatsCard(
-                            title: 'Kế hoạch bữa ăn',
-                            subtitle: 'Tổng số',
-                            icon: Icons.calendar_today,
-                            color: AppTheme.primaryGreen,
-                            value: analytics.mealPlansCount.toString(),
-                            unit: 'kế hoạch',
-                            onTap: () => context.go('/planner'),
-                          ),
-                          QuickStatsCard(
-                            title: 'Tủ lạnh',
-                            subtitle: 'Nguyên liệu',
-                            icon: Icons.kitchen,
-                            color: AppTheme.infoColor,
-                            value: analytics.pantryItemsCount.toString(),
-                            unit: 'món',
-                            onTap: () => context.go('/pantry'),
-                          ),
-                          QuickStatsCard(
-                            title: 'Danh sách mua',
-                            subtitle: 'Tổng số',
-                            icon: Icons.shopping_cart,
-                            color: AppTheme.warningColor,
-                            value: analytics.shoppingListsCount.toString(),
-                            unit: 'danh sách',
-                            onTap: () => context.go('/pantry'),
-                          ),
-                          QuickStatsCard(
-                            title: 'Đóng góp cộng đồng',
-                            subtitle: 'Công thức & đánh giá',
-                            icon: Icons.star,
-                            color: AppTheme.successColor,
-                            value:
-                                (analytics.communityRecipesCount +
-                                        analytics.ratingsGivenCount)
-                                    .toString(),
-                            unit: 'lượt',
-                            onTap: () => context.go('/community'),
-                          ),
-                        ],
-                      ),
+                    child: GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      crossAxisSpacing: AppConfig.defaultPadding,
+                      mainAxisSpacing: AppConfig.defaultPadding,
+                      childAspectRatio: 1.25,
+                      children: [
+                        QuickStatsCard(
+                          title: 'Kế hoạch bữa ăn',
+                          subtitle: 'Tổng số',
+                          icon: Icons.calendar_today,
+                          color: AppTheme.primaryGreen,
+                          value: analytics.mealPlansCount.toString(),
+                          unit: 'kế hoạch',
+                          onTap: () => context.go('/planner'),
+                        ),
+                        QuickStatsCard(
+                          title: 'Tủ lạnh',
+                          subtitle: 'Nguyên liệu',
+                          icon: Icons.kitchen,
+                          color: AppTheme.infoColor,
+                          value: analytics.pantryItemsCount.toString(),
+                          unit: 'món',
+                          onTap: () => context.go('/pantry'),
+                        ),
+                        QuickStatsCard(
+                          title: 'Danh sách mua',
+                          subtitle: 'Tổng số',
+                          icon: Icons.shopping_cart,
+                          color: AppTheme.warningColor,
+                          value: analytics.shoppingListsCount.toString(),
+                          unit: 'danh sách',
+                          onTap: () => context.go('/pantry'),
+                        ),
+                        QuickStatsCard(
+                          title: 'Đóng góp cộng đồng',
+                          subtitle: 'Công thức & đánh giá',
+                          icon: Icons.star,
+                          color: AppTheme.successColor,
+                          value:
+                              (analytics.communityRecipesCount +
+                                      analytics.ratingsGivenCount)
+                                  .toString(),
+                          unit: 'lượt',
+                          onTap: () => context.go('/community'),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: AppConfig.largePadding + 8),
+                  const SizedBox(height: AppConfig.largePadding),
 
                   // Premium Features Section
                   Padding(
@@ -222,44 +220,42 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppConfig.defaultPadding,
                     ),
-                    child: SizedBox(
-                      height: 220,
-                      child: GridView.count(
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        crossAxisSpacing: AppConfig.defaultPadding,
-                        mainAxisSpacing: AppConfig.defaultPadding,
-                        childAspectRatio: 1.5,
-                        children: [
-                          FeatureBenefitCard(
-                            icon: Icons.family_restroom,
-                            title: 'Hồ sơ gia đình',
-                            description: 'Quản lý thành viên',
-                            onTap: () => context.go('/premium/family'),
-                          ),
-                          FeatureBenefitCard(
-                            icon: Icons.health_and_safety,
-                            title: 'Cảnh báo thông minh',
-                            description: 'Dị ứng & dinh dưỡng',
-                            onTap: () => context.go('/premium/advisory'),
-                          ),
-                          FeatureBenefitCard(
-                            icon: Icons.analytics,
-                            title: 'Báo cáo tuần',
-                            description: 'Thống kê sức khỏe',
-                            onTap: () => context.go('/premium/report'),
-                          ),
-                          FeatureBenefitCard(
-                            icon: Icons.smart_toy,
-                            title: 'Chuyên gia ảo',
-                            description: 'Tư vấn AI',
-                            onTap: () => context.go('/premium/ai-advisor'),
-                          ),
-                        ],
-                      ),
+                    child: GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      crossAxisSpacing: AppConfig.defaultPadding,
+                      mainAxisSpacing: AppConfig.defaultPadding,
+                      childAspectRatio: 1.25,
+                      children: [
+                        FeatureBenefitCard(
+                          icon: Icons.family_restroom,
+                          title: 'Hồ sơ gia đình',
+                          description: 'Quản lý thành viên',
+                          onTap: () => context.go('/premium/family'),
+                        ),
+                        FeatureBenefitCard(
+                          icon: Icons.health_and_safety,
+                          title: 'Cảnh báo thông minh',
+                          description: 'Dị ứng & dinh dưỡng',
+                          onTap: () => context.go('/premium/advisory'),
+                        ),
+                        FeatureBenefitCard(
+                          icon: Icons.analytics,
+                          title: 'Báo cáo tuần',
+                          description: 'Thống kê sức khỏe',
+                          onTap: () => context.go('/premium/report'),
+                        ),
+                        FeatureBenefitCard(
+                          icon: Icons.smart_toy,
+                          title: 'Chuyên gia ảo',
+                          description: 'Tư vấn AI',
+                          onTap: () => context.go('/premium/ai-advisor'),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: AppConfig.defaultPadding + 4),
+                  const SizedBox(height: AppConfig.largePadding),
 
                   // Quick Actions
                   Padding(

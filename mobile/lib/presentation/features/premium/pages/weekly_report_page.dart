@@ -116,7 +116,7 @@ class _WeeklyReportPageState extends State<WeeklyReportPage> {
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
                   Text(
-                    'Đang phân tích, chờ chút nhé... 🔍',
+                    'Đang phân tích, chờ chút nhé...',
                     style: TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 14,

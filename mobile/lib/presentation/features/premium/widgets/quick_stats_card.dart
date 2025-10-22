@@ -27,7 +27,7 @@ class QuickStatsCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.circular(AppConfig.defaultPadding + 4),
@@ -74,12 +74,11 @@ class QuickStatsCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8), // Add spacing between header and text
+            const SizedBox(height: 8),
             Expanded(
-              // Use Expanded to take available space
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center, // Center the text
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     title,
@@ -87,21 +86,18 @@ class QuickStatsCard extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4), // Increased spacing
-                  Flexible(
-                    // Use Flexible for subtitle
-                    child: Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.textSecondary,
-                      ),
-                      maxLines: 2, // Allow 2 lines for subtitle
-                      overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.textSecondary,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

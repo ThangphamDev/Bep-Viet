@@ -21,7 +21,7 @@ class FeatureBenefitCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.circular(AppConfig.defaultPadding + 4),
@@ -38,7 +38,7 @@ class FeatureBenefitCard extends StatelessWidget {
           ],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(8),
@@ -55,38 +55,24 @@ class FeatureBenefitCard extends StatelessWidget {
               ),
               child: Icon(icon, color: AppTheme.primaryGreen, size: 20),
             ),
-            const SizedBox(height: 4), // Add spacing between icon and text
-            Expanded(
-              child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center, // Center the text vertically
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4), // Increased spacing
-                  Flexible(
-                    // Use Flexible instead of fixed height
-                    child: Text(
-                      description,
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: AppTheme.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              description,
+              style: const TextStyle(
+                fontSize: 9,
+                color: AppTheme.textSecondary,
               ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
