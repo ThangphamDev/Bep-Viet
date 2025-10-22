@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsObject, IsEnum, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsEnum, IsInt, Min, Max, MinLength } from 'class-validator';
 
 export class UserPreferencesDto {
   @ApiProperty({ example: 2, minimum: 1, required: false })
@@ -63,6 +63,17 @@ export class UpdateProfileDto {
   @ApiProperty({ type: UserPreferencesDto, required: false })
   @IsOptional()
   preferences?: UserPreferencesDto;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty({ example: 'currentPassword123' })
+  @IsString()
+  currentPassword: string;
+
+  @ApiProperty({ example: 'newPassword123' })
+  @IsString()
+  @MinLength(8)
+  newPassword: string;
 }
 
 export class UserProfileDto {

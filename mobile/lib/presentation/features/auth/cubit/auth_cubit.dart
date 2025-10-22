@@ -209,4 +209,39 @@ class AuthCubit extends Cubit<AuthState> {
       throw Exception('Failed to delete account: $e');
     }
   }
+
+  Future<void> updateProfile({
+    required String name,
+    required String region,
+    required String subregion,
+  }) async {
+    try {
+      final updatedUser = await _authRepository.updateProfile(
+        name: name,
+        region: region,
+        subregion: subregion,
+      );
+
+      // Update the current state with new user data
+      if (state is AuthAuthenticated) {
+        emit(AuthAuthenticated(user: updatedUser));
+      }
+    } catch (e) {
+      throw Exception('Failed to update profile: $e');
+    }
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _authRepository.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      throw Exception('Failed to change password: $e');
+    }
+  }
 }

@@ -65,4 +65,28 @@ class AuthRepository {
   Future<void> deleteAccount() async {
     return await _authService.deleteAccount();
   }
+
+  // Update profile
+  Future<UserModel> updateProfile({
+    required String name,
+    required String region,
+    required String subregion,
+  }) async {
+    return await _authService.updateProfile(
+      name: name,
+      region: region,
+      subregion: subregion,
+    );
+  }
+
+  // Change password
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    return await _authService.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
 }

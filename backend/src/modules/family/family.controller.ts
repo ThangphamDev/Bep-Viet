@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { FamilyService } from './family.service';
@@ -35,5 +35,24 @@ export class FamilyController {
     @Body() memberData: any
   ) {
     return this.familyService.addFamilyMember(familyId, memberData);
+  }
+
+  @Put('members/:id')
+  @ApiOperation({ summary: 'Update family member' })
+  @ApiResponse({ status: 200, description: 'Family member updated successfully' })
+  async updateFamilyMember(
+    @Param('id') memberId: string,
+    @Body() memberData: any
+  ) {
+    return this.familyService.updateFamilyMember(memberId, memberData);
+  }
+
+  @Delete('members/:id')
+  @ApiOperation({ summary: 'Delete family member' })
+  @ApiResponse({ status: 200, description: 'Family member deleted successfully' })
+  async deleteFamilyMember(
+    @Param('id') memberId: string
+  ) {
+    return this.familyService.deleteFamilyMember(memberId);
   }
 }

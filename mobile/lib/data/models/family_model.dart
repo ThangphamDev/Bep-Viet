@@ -172,6 +172,46 @@ class AddFamilyMemberRequest {
   }
 }
 
+class UpdateFamilyMemberRequest {
+  final String name;
+  final String? ageGroup;
+  final int spiceTolerance;
+  final Map<String, dynamic>? dietJson;
+  final Map<String, dynamic>? allergiesJson;
+  final String? note;
+
+  const UpdateFamilyMemberRequest({
+    required this.name,
+    this.ageGroup,
+    this.spiceTolerance = 1,
+    this.dietJson,
+    this.allergiesJson,
+    this.note,
+  });
+
+  factory UpdateFamilyMemberRequest.fromJson(Map<String, dynamic> json) {
+    return UpdateFamilyMemberRequest(
+      name: json['name'] as String,
+      ageGroup: json['age_group'] as String?,
+      spiceTolerance: json['spice_tolerance'] as int? ?? 1,
+      dietJson: json['diet_json'] as Map<String, dynamic>?,
+      allergiesJson: json['allergies_json'] as Map<String, dynamic>?,
+      note: json['note'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'age_group': ageGroup,
+      'spice_tolerance': spiceTolerance,
+      'diet_json': dietJson,
+      'allergies_json': allergiesJson,
+      'note': note,
+    };
+  }
+}
+
 class FamilyProfilesResponse {
   final bool success;
   final List<FamilyProfileModel> data;

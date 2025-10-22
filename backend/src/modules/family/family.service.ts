@@ -113,4 +113,49 @@ export class FamilyService {
       },
     };
   }
+
+  async updateFamilyMember(memberId: string, memberData: any) {
+    const { name, age_group, spice_tolerance, diet_json, allergies_json, note } = memberData;
+
+    await this.db.execute(
+      `UPDATE family_members 
+       SET name = ?, age_group = ?, spice_tolerance = ?, diet_json = ?, allergies_json = ?, note = ?
+       WHERE id = ?`,
+      [
+        name,
+        age_group ?? null,
+        spice_tolerance ?? 1,
+        diet_json ? JSON.stringify(diet_json) : null,
+        allergies_json ? JSON.stringify(allergies_json) : null,
+        note ?? null,
+        memberId
+      ]
+    );
+
+    // Return the updated member data
+    return {
+      success: true,
+      data: {
+        id: memberId,
+        name: name,
+        age_group: age_group ?? null,
+        spice_tolerance: spice_tolerance ?? 1,
+        diet_json: diet_json ?? null,
+        allergies_json: allergies_json ?? null,
+        note: note ?? null,
+      },
+    };
+  }
+
+  async deleteFamilyMember(memberId: string) {
+    await this.db.execute(
+      `DELETE FROM family_members WHERE id = ?`,
+      [memberId]
+    );
+
+    return {
+      success: true,
+      message: 'Family member deleted successfully',
+    };
+  }
 }

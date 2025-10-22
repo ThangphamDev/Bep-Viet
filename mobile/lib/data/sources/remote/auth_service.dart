@@ -178,4 +178,56 @@ class AuthService {
       throw Exception('Failed to delete account: $e');
     }
   }
+
+  // Update profile
+  Future<UserModel> updateProfile({
+    required String name,
+    required String region,
+    required String subregion,
+  }) async {
+    final token = accessToken;
+    if (token == null) {
+      throw Exception('No access token found');
+    }
+
+    try {
+      final updatedUser = await _apiService.updateProfile(
+        token,
+        name: name,
+        region: region,
+        subregion: subregion,
+      );
+
+      // Update stored user data
+      await _prefs.setString(
+        AppConfig.userKey,
+        jsonEncode(updatedUser.toJson()),
+      );
+
+      return updatedUser;
+    } catch (e) {
+      throw Exception('Failed to update profile: $e');
+    }
+  }
+
+  // Change password
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final token = accessToken;
+    if (token == null) {
+      throw Exception('No access token found');
+    }
+
+    try {
+      await _apiService.changePassword(
+        token,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      throw Exception('Failed to change password: $e');
+    }
+  }
 }
