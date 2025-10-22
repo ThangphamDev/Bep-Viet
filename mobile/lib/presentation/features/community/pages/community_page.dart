@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_api_service.dart';
 import '../cubit/community_cubit.dart';
-import '../widgets/community_filters_bottom_sheet.dart';
-import '../widgets/community_feed_card.dart';
+import '../widgets/community_feed_card_new.dart';
 import 'community_detail_page.dart';
 import 'create_recipe_page.dart';
 
@@ -21,10 +22,10 @@ class CommunityPage extends StatefulWidget {
 
 class _CommunityPageState extends State<CommunityPage>
     with TickerProviderStateMixin {
-  late CommunityCubit _communityCubit;
+  CommunityCubit? _communityCubit;
   late TabController _tabController;
-  
-  bool _showFeatured = false;
+
+  bool _showMyRecipes = false;
   String? _selectedRegion;
   String? _selectedDifficulty;
   int? _maxTime;
@@ -35,19 +36,34 @@ class _CommunityPageState extends State<CommunityPage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _initializeCubit();
+  }
+
+  Future<void> _initializeCubit() async {
+    final dio = Dio();
+
+    // Add authentication token
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConfig.tokenKey);
+    if (token != null) {
+      dio.options.headers['Authorization'] = 'Bearer $token';
+    }
+
+    final communityApiService = CommunityApiService(dio);
+    final communityService = CommunityService(communityApiService);
+
+    setState(() {
+      _communityCubit = CommunityCubit(communityService);
+    });
+
+    // Load recipes after cubit is initialized
     _loadRecipes();
   }
 
-  void _initializeCubit() {
-    final dio = Dio();
-    final communityApiService = CommunityApiService(dio);
-    final communityService = CommunityService(communityApiService);
-    _communityCubit = CommunityCubit(communityService);
-  }
-
   void _loadRecipes({bool refresh = true}) {
+    if (_communityCubit == null) return;
+    
     if (refresh) {
-      _communityCubit.loadRecipes(
+      _communityCubit!.loadRecipes(
         region: _selectedRegion,
         difficulty: _selectedDifficulty,
         maxTime: _maxTime,
@@ -55,23 +71,31 @@ class _CommunityPageState extends State<CommunityPage>
         refresh: refresh,
       );
     } else {
-      _communityCubit.loadMoreRecipes();
+      _communityCubit!.loadMoreRecipes();
     }
   }
 
-  void _loadFeaturedRecipes() {
-    _communityCubit.loadFeaturedRecipes();
+  void _loadMyRecipes() {
+    if (_communityCubit == null) return;
+    _communityCubit!.loadMyRecipes();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _communityCubit.close();
+    _communityCubit?.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_communityCubit == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8F9FA),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
@@ -79,21 +103,23 @@ class _CommunityPageState extends State<CommunityPage>
           children: [
             _buildAppBar(),
             _buildTabBar(),
-            if (!_showFeatured) _buildSearchAndFilters(),
+            // Search and filters removed for cleaner UI like Threads
             Expanded(
               child: BlocProvider.value(
-                value: _communityCubit,
+                value: _communityCubit!,
                 child: BlocBuilder<CommunityCubit, CommunityState>(
                   builder: (context, state) {
                     return state.when(
-                      initial: () => const _EmptyState(),
+                      initial: () => _EmptyState(showMyRecipes: _showMyRecipes),
                       loading: () => const _LoadingState(),
                       loaded: (recipes, hasReachedMax) => _FeedView(
                         recipes: recipes,
                         hasReachedMax: hasReachedMax,
-                        showFeatured: _showFeatured,
+                        showMyRecipes: _showMyRecipes,
                         onLoadMore: () => _loadRecipes(refresh: false),
                         onRecipeTap: (recipe) => _navigateToDetail(recipe),
+                        onEditRecipe: _showMyRecipes ? (recipe) => _navigateToEdit(recipe) : null,
+                        onDeleteRecipe: _showMyRecipes ? (recipe) => _showDeleteDialog(recipe) : null,
                       ),
                       error: (message) => _ErrorState(
                         message: message,
@@ -113,239 +139,112 @@ class _CommunityPageState extends State<CommunityPage>
 
   Widget _buildAppBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.grey.shade200,
+            width: 0.5,
           ),
-        ],
+        ),
       ),
       child: Row(
         children: [
-          // Logo/Title
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppTheme.primaryGreen, AppTheme.secondaryGreen],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.restaurant_menu,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Cộng đồng',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
+          // Logo/Title with modern design
+          const Text(
+            'Cộng đồng',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textPrimary,
+              letterSpacing: -0.5,
+            ),
           ),
-          
+
           const Spacer(),
-          
-          // Action buttons
-          Row(
-            children: [
-              _buildActionButton(
-                icon: Icons.search,
-                onTap: () => _showSearchDialog(),
-              ),
-              const SizedBox(width: 8),
-              _buildActionButton(
-                icon: Icons.notifications_outlined,
-                onTap: () {},
-              ),
-              const SizedBox(width: 8),
-              _buildActionButton(
-                icon: Icons.more_vert,
-                onTap: () => _showMoreOptions(),
-              ),
-            ],
+
+          // Action buttons - threads style
+          _buildIconButton(
+            icon: Icons.notifications_outlined,
+            onTap: () {},
+          ),
+          const SizedBox(width: 4),
+          _buildIconButton(
+            icon: Icons.chat_bubble_outline,
+            onTap: () {},
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton({
+  Widget _buildIconButton({
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.borderColor,
-          width: 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Icon(
-            icon,
-            size: 20,
-            color: AppTheme.textSecondary,
-          ),
-        ),
-      ),
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(icon, size: 26, color: AppTheme.textPrimary),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      splashRadius: 24,
     );
   }
 
   Widget _buildTabBar() {
     return Container(
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.grey.shade200,
+            width: 0.5,
+          ),
+        ),
+      ),
       child: TabBar(
         controller: _tabController,
         onTap: (index) {
           setState(() {
-            _showFeatured = index == 1;
+            _showMyRecipes = index == 1;
           });
-          if (_showFeatured) {
-            _loadFeaturedRecipes();
+          if (_showMyRecipes) {
+            _loadMyRecipes();
           } else {
             _loadRecipes();
           }
         },
-        indicatorColor: AppTheme.primaryGreen,
-        indicatorWeight: 3,
-        labelColor: AppTheme.primaryGreen,
+        indicatorColor: AppTheme.textPrimary,
+        indicatorWeight: 2,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelColor: AppTheme.textPrimary,
         unselectedLabelColor: AppTheme.textSecondary,
         labelStyle: const TextStyle(
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
         ),
         unselectedLabelStyle: const TextStyle(
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w500,
         ),
         tabs: const [
-          Tab(text: 'Tất cả'),
-          Tab(text: 'Nổi bật'),
+          Tab(text: 'Dành cho bạn'),
+          Tab(text: 'Bài viết của tôi'),
         ],
       ),
     );
   }
 
-  Widget _buildSearchAndFilters() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          // Search bar
-          Expanded(
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: AppTheme.borderColor,
-                  width: 1,
-                ),
-              ),
-              child: TextField(
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                  if (value.isEmpty) {
-                    _loadRecipes();
-                  }
-                },
-                onSubmitted: (value) => _loadRecipes(),
-                decoration: const InputDecoration(
-                  hintText: 'Tìm kiếm công thức...',
-                  hintStyle: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: AppTheme.textSecondary,
-                    size: 20,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-            ),
-          ),
-          
-          const SizedBox(width: 12),
-          
-          // Filter button
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryGreen,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _showFilterBottomSheet(),
-                borderRadius: BorderRadius.circular(24),
-                child: const Icon(
-                  Icons.filter_list,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Search and filter UI removed to streamline the experience like modern social feeds.
 
   Widget _buildFloatingActionButton() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppTheme.primaryGreen, AppTheme.secondaryGreen],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryGreen.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: FloatingActionButton(
-        onPressed: () => _navigateToCreateRecipe(),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-          size: 28,
-        ),
-      ),
+    return FloatingActionButton(
+      onPressed: () => _navigateToCreateRecipe(),
+      backgroundColor: AppTheme.textPrimary,
+      elevation: 2,
+      child: const Icon(Icons.edit_outlined, color: Colors.white, size: 26),
     );
   }
 
@@ -361,137 +260,170 @@ class _CommunityPageState extends State<CommunityPage>
   void _navigateToCreateRecipe() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const CreateRecipePage(),
-      ),
+      MaterialPageRoute(builder: (context) => const CreateRecipePage()),
     );
   }
 
-  void _showSearchDialog() {
+  void _navigateToEdit(CommunityRecipe recipe) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateRecipePage(editingRecipe: recipe),
+      ),
+    ).then((_) {
+      // Refresh the recipes list after editing
+      if (_showMyRecipes) {
+        _loadMyRecipes();
+      } else {
+        _loadRecipes();
+      }
+    });
+  }
+
+  void _showDeleteDialog(CommunityRecipe recipe) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Tìm kiếm'),
-        content: TextField(
-          decoration: const InputDecoration(
-            hintText: 'Nhập từ khóa...',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (value) {
-            setState(() {
-              _searchQuery = value;
-            });
-            _loadRecipes();
-            Navigator.pop(context);
-          },
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.red.shade600,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Xóa bài viết',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Bạn có chắc chắn muốn xóa bài viết này không?',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppTheme.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.red.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '"${recipe.title}"',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red.shade700,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Hành động này không thể hoàn tác.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.red.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () {
-              setState(() {
-                _searchQuery = '';
-              });
-              _loadRecipes();
-              Navigator.pop(context);
+              Navigator.of(context).pop();
+              _deleteRecipe(recipe.id);
             },
-            child: const Text('Xóa'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Xóa',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _showFilterBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.5,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (_, scrollController) {
-            return CommunityFiltersBottomSheet(
-              initialRegion: _selectedRegion,
-              initialDifficulty: _selectedDifficulty,
-              initialMaxTime: _maxTime,
-              onFiltersChanged: (region, difficulty, maxTime) {
-                setState(() {
-                  _selectedRegion = region;
-                  _selectedDifficulty = difficulty;
-                  _maxTime = maxTime;
-                });
-                _loadRecipes();
-                Navigator.pop(context); // Close bottom sheet after applying filters
-              },
-              onClearFilters: () {
-                setState(() {
-                  _selectedRegion = null;
-                  _selectedDifficulty = null;
-                  _maxTime = null;
-                });
-                _loadRecipes();
-                Navigator.pop(context); // Close bottom sheet after clearing filters
-              },
-            );
-          },
-        );
-      },
-    );
+  void _deleteRecipe(String recipeId) {
+    if (_communityCubit != null) {
+      _communityCubit!.deleteRecipe(recipeId);
+    }
   }
 
-  void _showMoreOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.refresh),
-              title: const Text('Làm mới'),
-              onTap: () {
-                _loadRecipes();
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Cài đặt'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.help),
-              title: const Text('Trợ giúp'),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Legacy search dialog removed (unused)
+
+  // Legacy filter bottom sheet removed (unused)
+
+  // Legacy more options sheet removed (unused)
 }
 
 class _FeedView extends StatelessWidget {
   final List<CommunityRecipe> recipes;
   final bool hasReachedMax;
-  final bool showFeatured;
+  final bool showMyRecipes;
   final VoidCallback onLoadMore;
   final Function(CommunityRecipe) onRecipeTap;
+  final Function(CommunityRecipe)? onEditRecipe;
+  final Function(CommunityRecipe)? onDeleteRecipe;
 
   const _FeedView({
     required this.recipes,
     required this.hasReachedMax,
-    required this.showFeatured,
+    required this.showMyRecipes,
     required this.onLoadMore,
     required this.onRecipeTap,
+    this.onEditRecipe,
+    this.onDeleteRecipe,
   });
 
   @override
@@ -504,26 +436,29 @@ class _FeedView extends StatelessWidget {
         slivers: [
           // Feed content
           if (recipes.isEmpty)
-            const SliverFillRemaining(
-              child: _EmptyState(),
+            SliverFillRemaining(
+              child: _EmptyState(showMyRecipes: showMyRecipes),
             )
           else
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   if (index < recipes.length) {
-                    return CommunityFeedCard(
-                      recipe: recipes[index],
-                      onTap: () => onRecipeTap(recipes[index]),
-                    ).animate().fadeIn(
-                      duration: 300.ms,
-                      delay: (index * 50).ms,
-                    ).slideY(
-                      begin: 0.2,
-                      end: 0,
-                      duration: 300.ms,
-                      delay: (index * 50).ms,
-                    );
+                    return CommunityFeedCardNew(
+                          recipe: recipes[index],
+                          onTap: () => onRecipeTap(recipes[index]),
+                          onEdit: showMyRecipes ? () => onEditRecipe?.call(recipes[index]) : null,
+                          onDelete: showMyRecipes ? () => onDeleteRecipe?.call(recipes[index]) : null,
+                          showEditOptions: showMyRecipes,
+                        )
+                        .animate()
+                        .fadeIn(duration: 300.ms, delay: (index * 50).ms)
+                        .slideY(
+                          begin: 0.1,
+                          end: 0,
+                          duration: 300.ms,
+                          delay: (index * 50).ms,
+                        );
                   } else if (!hasReachedMax) {
                     onLoadMore();
                     return const Center(
@@ -545,7 +480,9 @@ class _FeedView extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final bool showMyRecipes;
+
+  const _EmptyState({this.showMyRecipes = false});
 
   @override
   Widget build(BuildContext context) {
@@ -568,7 +505,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            'Chưa có công thức nào',
+            showMyRecipes ? 'Chưa có bài viết nào' : 'Chưa có công thức nào',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -577,12 +514,11 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Hãy là người đầu tiên chia sẻ\ncông thức nấu ăn của bạn!',
+            showMyRecipes
+                ? 'Hãy tạo công thức đầu tiên của bạn!'
+                : 'Hãy là người đầu tiên chia sẻ\ncông thức nấu ăn của bạn!',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textSecondary,
-            ),
+            style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -603,10 +539,7 @@ class _LoadingState extends StatelessWidget {
           SizedBox(height: 16),
           Text(
             'Đang tải...',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppTheme.textSecondary,
-            ),
+            style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -618,10 +551,7 @@ class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -668,7 +598,10 @@ class _ErrorState extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryGreen,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),

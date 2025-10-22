@@ -20,14 +20,16 @@ class CommunityState with _$CommunityState {
 class CommunityDetailState with _$CommunityDetailState {
   const factory CommunityDetailState.initial() = _DetailInitial;
   const factory CommunityDetailState.loading() = _DetailLoading;
-  const factory CommunityDetailState.loaded(CommunityRecipe recipe) = _DetailLoaded;
+  const factory CommunityDetailState.loaded(CommunityRecipe recipe) =
+      _DetailLoaded;
   const factory CommunityDetailState.error(String message) = _DetailError;
 }
 
 class CommunityCubit extends Cubit<CommunityState> {
   final CommunityService _communityService;
 
-  CommunityCubit(this._communityService) : super(const CommunityState.initial());
+  CommunityCubit(this._communityService)
+    : super(const CommunityState.initial());
 
   List<CommunityRecipe> _allRecipes = [];
   int _currentPage = 1;
@@ -76,10 +78,12 @@ class CommunityCubit extends Cubit<CommunityState> {
 
       final hasReachedMax = recipes.length < _pageSize;
 
-      emit(CommunityState.loaded(
-        recipes: List.from(_allRecipes),
-        hasReachedMax: hasReachedMax,
-      ));
+      emit(
+        CommunityState.loaded(
+          recipes: List.from(_allRecipes),
+          hasReachedMax: hasReachedMax,
+        ),
+      );
 
       _currentPage++;
     } catch (e) {
@@ -89,7 +93,7 @@ class CommunityCubit extends Cubit<CommunityState> {
 
   Future<void> loadMoreRecipes() async {
     if (state is! _Loaded) return;
-    
+
     final currentState = state as _Loaded;
     if (currentState.hasReachedMax) return;
 
@@ -105,10 +109,12 @@ class CommunityCubit extends Cubit<CommunityState> {
       _allRecipes.addAll(recipes);
       final hasReachedMax = recipes.length < _pageSize;
 
-      emit(CommunityState.loaded(
-        recipes: List.from(_allRecipes),
-        hasReachedMax: hasReachedMax,
-      ));
+      emit(
+        CommunityState.loaded(
+          recipes: List.from(_allRecipes),
+          hasReachedMax: hasReachedMax,
+        ),
+      );
 
       _currentPage++;
     } catch (e) {
@@ -122,11 +128,31 @@ class CommunityCubit extends Cubit<CommunityState> {
     try {
       final recipes = await _communityService.getFeaturedRecipes(limit: 10);
       _allRecipes = recipes;
-      
-      emit(CommunityState.loaded(
-        recipes: List.from(_allRecipes),
-        hasReachedMax: true,
-      ));
+
+      emit(
+        CommunityState.loaded(
+          recipes: List.from(_allRecipes),
+          hasReachedMax: true,
+        ),
+      );
+    } catch (e) {
+      emit(CommunityState.error(e.toString()));
+    }
+  }
+
+  Future<void> loadMyRecipes() async {
+    emit(const CommunityState.loading());
+
+    try {
+      final recipes = await _communityService.getUserCommunityRecipes();
+      _allRecipes = recipes;
+
+      emit(
+        CommunityState.loaded(
+          recipes: List.from(_allRecipes),
+          hasReachedMax: true,
+        ),
+      );
     } catch (e) {
       emit(CommunityState.error(e.toString()));
     }
@@ -141,12 +167,39 @@ class CommunityCubit extends Cubit<CommunityState> {
       refresh: true,
     );
   }
+
+  Future<void> updateRecipe(String recipeId, CreateCommunityRecipeRequest request) async {
+    try {
+      await _communityService.updateCommunityRecipe(recipeId, request);
+      // Refresh the recipes list to show updated data
+      await refreshRecipes();
+    } catch (e) {
+      emit(CommunityState.error(e.toString()));
+    }
+  }
+
+  Future<void> deleteRecipe(String recipeId) async {
+    try {
+      await _communityService.deleteCommunityRecipe(recipeId);
+      // Remove the recipe from the current list
+      _allRecipes.removeWhere((recipe) => recipe.id == recipeId);
+      emit(
+        CommunityState.loaded(
+          recipes: List.from(_allRecipes),
+          hasReachedMax: _allRecipes.length < _pageSize,
+        ),
+      );
+    } catch (e) {
+      emit(CommunityState.error(e.toString()));
+    }
+  }
 }
 
 class CommunityDetailCubit extends Cubit<CommunityDetailState> {
   final CommunityService _communityService;
 
-  CommunityDetailCubit(this._communityService) : super(const CommunityDetailState.initial());
+  CommunityDetailCubit(this._communityService)
+    : super(const CommunityDetailState.initial());
 
   Future<void> loadRecipe(String recipeId) async {
     emit(const CommunityDetailState.loading());

@@ -5,7 +5,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
-import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_api_service.dart';
@@ -13,7 +12,9 @@ import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/auth_service.dart';
 
 class CreateRecipePage extends StatefulWidget {
-  const CreateRecipePage({super.key});
+  final CommunityRecipe? editingRecipe;
+  
+  const CreateRecipePage({super.key, this.editingRecipe});
 
   @override
   State<CreateRecipePage> createState() => _CreateRecipePageState();
@@ -42,6 +43,64 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
   XFile? _selectedImage;
   
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editingRecipe != null) {
+      _initializeEditingData();
+    }
+  }
+
+  void _initializeEditingData() {
+    final recipe = widget.editingRecipe!;
+    
+    // Set basic fields
+    _titleController.text = recipe.title;
+    _descriptionController.text = recipe.descriptionMd ?? '';
+    _timeController.text = recipe.timeMin?.toString() ?? '';
+    _costController.text = recipe.costHint?.toString() ?? '';
+    _selectedRegion = recipe.region;
+    _selectedDifficulty = recipe.difficulty;
+    
+    // Set image if available
+    if (recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty) {
+      // Note: We can't directly set the image from URL, user would need to re-select
+    }
+    
+    // Set ingredients
+    if (recipe.ingredients != null) {
+      _ingredients.clear();
+      _ingredientNameControllers.clear();
+      _ingredientQuantityControllers.clear();
+      
+      for (var ingredient in recipe.ingredients!) {
+        _ingredients.add(CreateIngredientRequest(
+          name: ingredient.ingredientName,
+          quantity: ingredient.quantity,
+          note: ingredient.note,
+        ));
+        
+        _ingredientNameControllers.add(TextEditingController(text: ingredient.ingredientName));
+        _ingredientQuantityControllers.add(TextEditingController(text: ingredient.quantity ?? ''));
+      }
+    }
+    
+    // Set steps
+    if (recipe.steps != null) {
+      _steps.clear();
+      _stepControllers.clear();
+      
+      for (var step in recipe.steps!) {
+        _steps.add(CreateStepRequest(
+          orderNo: step.orderNo,
+          contentMd: step.contentMd,
+        ));
+        
+        _stepControllers.add(TextEditingController(text: step.contentMd));
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -90,14 +149,14 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Tạo công thức'),
+        title: Text(widget.editingRecipe != null ? 'Chỉnh sửa công thức' : 'Tạo công thức'),
         backgroundColor: AppTheme.surfaceColor,
         elevation: 0,
         actions: [
           TextButton(
             onPressed: _isLoading ? null : _saveRecipe,
             child: Text(
-              'Lưu',
+              widget.editingRecipe != null ? 'Cập nhật' : 'Lưu',
               style: TextStyle(
                 color: _isLoading ? AppTheme.textSecondary : AppTheme.primaryGreen,
                 fontWeight: FontWeight.bold,
@@ -415,7 +474,6 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                   children: [
                     ..._steps.asMap().entries.map((entry) {
                       final index = entry.key;
-                      final step = entry.value;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(12),
@@ -535,8 +593,8 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
-                          'Tạo công thức',
+                      : Text(
+                          widget.editingRecipe != null ? 'Cập nhật công thức' : 'Tạo công thức',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -709,19 +767,35 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
       print('Ingredients count: ${request.ingredients.length}');
       print('Steps count: ${request.steps.length}');
       print('Has image: ${imageBase64 != null}');
-      print('Token: ${token?.substring(0, 20)}...');
+      print('Token: ${token.substring(0, 20)}...');
       print('=============================');
 
-      await communityService.createCommunityRecipe(request);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Công thức đã được tạo và đang chờ duyệt'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context);
+      if (widget.editingRecipe != null) {
+        // Update existing recipe
+        await communityService.updateCommunityRecipe(widget.editingRecipe!.id, request);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Công thức đã được cập nhật'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } else {
+        // Create new recipe
+        await communityService.createCommunityRecipe(request);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Công thức đã được tạo và đang chờ duyệt'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {

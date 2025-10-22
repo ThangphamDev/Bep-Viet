@@ -46,17 +46,27 @@ class CommunityApiService {
   }
 
   Future<Map<String, dynamic>> getUserCommunityRecipes() async {
-    final response = await _dio.get('/api/community/recipes/my');
+    final response = await _dio.get('/api/community/my-recipes');
     return response.data;
   }
 
   Future<Map<String, dynamic>> getPendingRecipes() async {
-    final response = await _dio.get('/api/community/recipes/pending');
+    final response = await _dio.get('/api/community/moderation/pending');
     return response.data;
   }
 
   Future<Map<String, dynamic>> moderateRecipe(String recipeId, Map<String, dynamic> request) async {
-    final response = await _dio.patch('/api/community/recipes/$recipeId/moderate', data: request);
+    final response = await _dio.put('/api/community/moderation/$recipeId', data: request);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> updateCommunityRecipe(String recipeId, Map<String, dynamic> request) async {
+    final response = await _dio.put('/api/community/recipes/$recipeId', data: request);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> deleteCommunityRecipe(String recipeId) async {
+    final response = await _dio.delete('/api/community/recipes/$recipeId');
     return response.data;
   }
 }

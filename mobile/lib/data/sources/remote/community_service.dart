@@ -123,6 +123,26 @@ class CommunityService {
     }
   }
 
+  Future<void> updateCommunityRecipe(String recipeId, CreateCommunityRecipeRequest request) async {
+    try {
+      await _apiService.updateCommunityRecipe(recipeId, request.toJson());
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Failed to update community recipe: $e');
+    }
+  }
+
+  Future<void> deleteCommunityRecipe(String recipeId) async {
+    try {
+      await _apiService.deleteCommunityRecipe(recipeId);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Failed to delete community recipe: $e');
+    }
+  }
+
   Exception _handleDioError(DioException e) {
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
