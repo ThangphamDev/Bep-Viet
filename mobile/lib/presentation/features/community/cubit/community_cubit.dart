@@ -209,6 +209,28 @@ class CommunityCubit extends Cubit<CommunityState> {
       emit(CommunityError(e.toString()));
     }
   }
+
+  Future<void> addComment(String recipeId, String content) async {
+    try {
+      await _communityService.addComment(recipeId, content);
+      
+      // Reload recipes to get updated comment count
+      await loadRecipes(refresh: true);
+    } catch (e) {
+      emit(CommunityError(e.toString()));
+    }
+  }
+
+  Future<void> addRating(String recipeId, int stars) async {
+    try {
+      await _communityService.addRating(recipeId, stars);
+      
+      // Reload recipes to get updated rating
+      await loadRecipes(refresh: true);
+    } catch (e) {
+      emit(CommunityError(e.toString()));
+    }
+  }
 }
 
 class CommunityDetailCubit extends Cubit<CommunityDetailState> {

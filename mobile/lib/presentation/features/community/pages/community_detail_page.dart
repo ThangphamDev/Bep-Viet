@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_api_service.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
@@ -25,20 +27,51 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   late CommunityDetailCubit _detailCubit;
   final TextEditingController _commentController = TextEditingController();
   int _selectedRating = 0;
+  bool _isInitialized = false;
+  bool _hasUserRated = false;
+  int? _userRating;
 
   @override
   void initState() {
     super.initState();
     _initializeCubit();
-    // No need to load recipe since we already have it
   }
 
-  void _initializeCubit() {
+  Future<void> _initializeCubit() async {
+    // Initialize cubit immediately with basic Dio
     final dio = Dio();
     final communityApiService = CommunityApiService(dio);
     final communityService = CommunityService(communityApiService);
-    
     _detailCubit = CommunityDetailCubit(communityService);
+    
+    // Add authentication token
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConfig.tokenKey);
+    if (token != null) {
+      dio.options.headers['Authorization'] = 'Bearer $token';
+    }
+    
+    // Load recipe detail
+    _detailCubit.loadRecipe(widget.recipe.id);
+    
+    // Check if user has already rated this recipe
+    _checkUserRating();
+    
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+    }
+  }
+
+  void _checkUserRating() {
+    // Check if current user has already rated this recipe
+    // This would need to be implemented based on your user authentication system
+    // For now, we'll assume no rating initially
+    setState(() {
+      _hasUserRated = false;
+      _userRating = null;
+    });
   }
 
   @override
@@ -113,21 +146,49 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
           ),
         ],
       ),
-      body: BlocProvider.value(
-        value: _detailCubit,
-        child: _RecipeDetailContent(
-          recipe: widget.recipe,
-          onAddComment: _addComment,
-          onAddRating: _addRating,
-          commentController: _commentController,
-          selectedRating: _selectedRating,
-          onRatingChanged: (rating) {
-            setState(() {
-              _selectedRating = rating;
-            });
-          },
-        ),
-      ),
+      body: !_isInitialized 
+        ? Center(child: CircularProgressIndicator())
+        : BlocProvider.value(
+            value: _detailCubit,
+            child: BlocBuilder<CommunityDetailCubit, CommunityDetailState>(
+              builder: (context, state) {
+                if (state is CommunityDetailLoaded) {
+              return _RecipeDetailContent(
+                recipe: state.recipe,
+                onAddComment: _addComment,
+                onAddRating: _addRating,
+                commentController: _commentController,
+                selectedRating: _selectedRating,
+                onRatingChanged: (rating) {
+                  setState(() {
+                    _selectedRating = rating;
+                  });
+                },
+                hasUserRated: _hasUserRated,
+                userRating: _userRating,
+              );
+            } else if (state is CommunityDetailError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, size: 64, color: Colors.red),
+                    SizedBox(height: 16),
+                    Text('Lỗi: ${state.message}'),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => _detailCubit.loadRecipe(widget.recipe.id),
+                      child: Text('Thử lại'),
+                    ),
+                  ],
+                ),
+              );
+                } else {
+                  return Center(child: CircularProgressIndicator());
+                }
+              },
+            ),
+          ),
     );
   }
 
@@ -139,9 +200,11 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   }
 
   void _addRating() {
-    if (_selectedRating > 0) {
+    if (_selectedRating > 0 && !_hasUserRated) {
       _detailCubit.addRating(widget.recipe.id, _selectedRating);
       setState(() {
+        _hasUserRated = true;
+        _userRating = _selectedRating;
         _selectedRating = 0;
       });
     }
@@ -303,13 +366,15 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   }
 }
 
-class _RecipeDetailContent extends StatelessWidget {
+class _RecipeDetailContent extends StatefulWidget {
   final CommunityRecipe recipe;
   final VoidCallback onAddComment;
   final VoidCallback onAddRating;
   final TextEditingController commentController;
   final int selectedRating;
   final Function(int) onRatingChanged;
+  final bool hasUserRated;
+  final int? userRating;
 
   const _RecipeDetailContent({
     required this.recipe,
@@ -318,7 +383,30 @@ class _RecipeDetailContent extends StatelessWidget {
     required this.commentController,
     required this.selectedRating,
     required this.onRatingChanged,
+    required this.hasUserRated,
+    required this.userRating,
   });
+
+  @override
+  State<_RecipeDetailContent> createState() => _RecipeDetailContentState();
+}
+
+class _RecipeDetailContentState extends State<_RecipeDetailContent> {
+  @override
+  void initState() {
+    super.initState();
+    widget.commentController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.commentController.removeListener(() {
+      setState(() {});
+    });
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +438,7 @@ class _RecipeDetailContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Recipe image
-                if (recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty) ...[
+                if (widget.recipe.imageUrl != null && widget.recipe.imageUrl!.isNotEmpty) ...[
                   Container(
                     width: double.infinity,
                     height: 200,
@@ -360,9 +448,9 @@ class _RecipeDetailContent extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      child: recipe.imageUrl!.startsWith('data:image')
+                      child: widget.recipe.imageUrl!.startsWith('data:image')
                           ? Image.memory(
-                              Uri.parse(recipe.imageUrl!).data!.contentAsBytes(),
+                              Uri.parse(widget.recipe.imageUrl!).data!.contentAsBytes(),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
@@ -389,7 +477,7 @@ class _RecipeDetailContent extends StatelessWidget {
                               },
                             )
                           : Image.network(
-                              recipe.imageUrl!,
+                              widget.recipe.imageUrl!,
                               fit: BoxFit.cover,
                               loadingBuilder: (context, child, loadingProgress) {
                                 if (loadingProgress == null) return child;
@@ -440,7 +528,7 @@ class _RecipeDetailContent extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        recipe.title,
+                        widget.recipe.title,
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -448,9 +536,9 @@ class _RecipeDetailContent extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (recipe.region != null) ...[
+                    if (widget.recipe.region != null) ...[
                       const SizedBox(width: 12),
-                      _buildRegionBadge(recipe.region!),
+                      _buildRegionBadge(widget.recipe.region!),
                     ],
                   ],
                 ),
@@ -467,14 +555,14 @@ class _RecipeDetailContent extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Tác giả: ${recipe.authorName ?? 'Người dùng'}',
+                      'Tác giả: ${widget.recipe.authorName ?? 'Người dùng'}',
                       style: TextStyle(
                         fontSize: 16,
                         color: AppTheme.textSecondary,
                       ),
                     ),
                     const Spacer(),
-                    if (recipe.timeMin != null) ...[
+                    if (widget.recipe.timeMin != null) ...[
                       Icon(
                         Icons.access_time,
                         size: 18,
@@ -482,7 +570,7 @@ class _RecipeDetailContent extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${recipe.timeMin} phút',
+                        '${widget.recipe.timeMin} phút',
                         style: TextStyle(
                           fontSize: 16,
                           color: AppTheme.textSecondary,
@@ -497,7 +585,7 @@ class _RecipeDetailContent extends StatelessWidget {
                 // Difficulty and cost
                 Row(
                   children: [
-                    if (recipe.difficulty != null) ...[
+                    if (widget.recipe.difficulty != null) ...[
                       Icon(
                         Icons.star_outline,
                         size: 18,
@@ -505,7 +593,7 @@ class _RecipeDetailContent extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _getDifficultyName(recipe.difficulty!),
+                        _getDifficultyName(widget.recipe.difficulty!),
                         style: TextStyle(
                           fontSize: 16,
                           color: AppTheme.textSecondary,
@@ -513,7 +601,7 @@ class _RecipeDetailContent extends StatelessWidget {
                       ),
                     ],
                     const Spacer(),
-                    if (recipe.costHint != null) ...[
+                    if (widget.recipe.costHint != null) ...[
                       Icon(
                         Icons.attach_money,
                         size: 18,
@@ -521,7 +609,7 @@ class _RecipeDetailContent extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _getCostLevel(recipe.costHint!),
+                        _getCostLevel(widget.recipe.costHint!),
                         style: TextStyle(
                           fontSize: 16,
                           color: AppTheme.textSecondary,
@@ -536,13 +624,21 @@ class _RecipeDetailContent extends StatelessWidget {
                 // Rating and stats
                 Row(
                   children: [
-                    if (recipe.avgRating > 0) ...[
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 20),
-                          const SizedBox(width: 4),
+                    // Rating display
+                    Row(
+                      children: [
+                        // Display stars based on rating
+                        if (widget.recipe.avgRating != null && widget.recipe.avgRating! > 0) ...[
+                          ...List.generate(5, (index) {
+                            return Icon(
+                              index < widget.recipe.avgRating!.round() ? Icons.star : Icons.star_border,
+                              color: Colors.amber,
+                              size: 18,
+                            );
+                          }),
+                          const SizedBox(width: 8),
                           Text(
-                            recipe.avgRating.toStringAsFixed(1),
+                            widget.recipe.avgRating!.toStringAsFixed(1),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -551,24 +647,34 @@ class _RecipeDetailContent extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '(${recipe.ratingCount} đánh giá)',
+                            '(${widget.recipe.ratingCount} đánh giá)',
                             style: TextStyle(
                               fontSize: 14,
                               color: AppTheme.textSecondary,
                             ),
                           ),
+                        ] else ...[
+                          // Display empty stars when no rating
+                          ...List.generate(5, (index) {
+                            return Icon(
+                              Icons.star_border,
+                              color: Colors.grey.shade400,
+                              size: 18,
+                            );
+                          }),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Chưa có đánh giá',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
                         ],
-                      ),
-                    ] else ...[
-                      Text(
-                        'Chưa có đánh giá',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                     const Spacer(),
+                    // Comment count
                     Icon(
                       Icons.comment_outlined,
                       size: 18,
@@ -576,7 +682,7 @@ class _RecipeDetailContent extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${recipe.commentCount} bình luận',
+                      '${widget.recipe.commentCount} bình luận',
                       style: TextStyle(
                         fontSize: 16,
                         color: AppTheme.textSecondary,
@@ -586,10 +692,10 @@ class _RecipeDetailContent extends StatelessWidget {
                 ),
                 
                 // Description
-                if (recipe.descriptionMd != null) ...[
+                if (widget.recipe.descriptionMd != null) ...[
                   const SizedBox(height: 16),
                   Text(
-                    recipe.descriptionMd!,
+                    widget.recipe.descriptionMd!,
                     style: TextStyle(
                       fontSize: 16,
                       color: AppTheme.textPrimary,
@@ -605,13 +711,13 @@ class _RecipeDetailContent extends StatelessWidget {
           _buildSection(
             title: 'Nguyên liệu',
             icon: Icons.shopping_cart_outlined,
-            child: recipe.ingredients != null && recipe.ingredients!.isNotEmpty
+            child: widget.recipe.ingredients != null && widget.recipe.ingredients!.isNotEmpty
                 ? ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: recipe.ingredients!.length,
+                    itemCount: widget.recipe.ingredients!.length,
                     itemBuilder: (context, index) {
-                      final ingredient = recipe.ingredients![index];
+                      final ingredient = widget.recipe.ingredients![index];
                       return Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         padding: const EdgeInsets.all(12),
@@ -681,13 +787,13 @@ class _RecipeDetailContent extends StatelessWidget {
           _buildSection(
             title: 'Cách làm',
             icon: Icons.list_alt_outlined,
-            child: recipe.steps != null && recipe.steps!.isNotEmpty
+            child: widget.recipe.steps != null && widget.recipe.steps!.isNotEmpty
                 ? ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: recipe.steps!.length,
+                    itemCount: widget.recipe.steps!.length,
                     itemBuilder: (context, index) {
-                      final step = recipe.steps![index];
+                      final step = widget.recipe.steps![index];
                       return Container(
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         padding: const EdgeInsets.all(16),
@@ -790,20 +896,50 @@ class _RecipeDetailContent extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(5, (index) {
                           return IconButton(
-                            onPressed: () => onRatingChanged(index + 1),
+                            onPressed: widget.hasUserRated ? null : () => widget.onRatingChanged(index + 1),
                             icon: Icon(
-                              index < selectedRating ? Icons.star : Icons.star_border,
-                              color: index < selectedRating ? Colors.amber : AppTheme.textSecondary,
+                              index < widget.selectedRating ? Icons.star : Icons.star_border,
+                              color: index < widget.selectedRating ? Colors.amber : AppTheme.textSecondary,
                               size: 32,
                             ),
                           );
                         }),
                       ),
                       const SizedBox(height: 12),
+                      if (widget.hasUserRated) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryGreen.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppTheme.primaryGreen.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: AppTheme.primaryGreen,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Bạn đã đánh giá ${widget.userRating} sao cho công thức này',
+                                style: TextStyle(
+                                  color: AppTheme.primaryGreen,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: selectedRating > 0 ? onAddRating : null,
+                          onPressed: (!widget.hasUserRated && widget.selectedRating > 0) ? widget.onAddRating : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryGreen,
                             shape: RoundedRectangleBorder(
@@ -823,8 +959,8 @@ class _RecipeDetailContent extends StatelessWidget {
                 const SizedBox(height: 16),
                 
                 // Existing ratings
-                if (recipe.ratings?.details != null && recipe.ratings!.details!.isNotEmpty) ...[
-                  ...recipe.ratings!.details!.map((rating) => Container(
+                if (widget.recipe.ratings?.details != null && widget.recipe.ratings!.details!.isNotEmpty) ...[
+                  ...widget.recipe.ratings!.details!.map((rating) => Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -889,7 +1025,7 @@ class _RecipeDetailContent extends StatelessWidget {
                   child: Column(
                     children: [
                       TextField(
-                        controller: commentController,
+                        controller: widget.commentController,
                         decoration: InputDecoration(
                           hintText: 'Viết bình luận...',
                           border: OutlineInputBorder(
@@ -910,7 +1046,7 @@ class _RecipeDetailContent extends StatelessWidget {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: commentController.text.trim().isNotEmpty ? onAddComment : null,
+                          onPressed: widget.commentController.text.trim().isNotEmpty ? widget.onAddComment : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryGreen,
                             shape: RoundedRectangleBorder(
@@ -930,8 +1066,8 @@ class _RecipeDetailContent extends StatelessWidget {
                 const SizedBox(height: 16),
                 
                 // Existing comments
-                if (recipe.comments != null && recipe.comments!.isNotEmpty) ...[
-                  ...recipe.comments!.map((comment) => Container(
+                if (widget.recipe.comments != null && widget.recipe.comments!.isNotEmpty) ...[
+                  ...widget.recipe.comments!.map((comment) => Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(

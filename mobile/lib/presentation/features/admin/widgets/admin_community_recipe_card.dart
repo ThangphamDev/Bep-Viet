@@ -165,7 +165,7 @@ class AdminCommunityRecipeCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${recipe.avgRating.toStringAsFixed(1)} (${recipe.ratingCount} đánh giá)',
+                          '${recipe.avgRating?.toStringAsFixed(1) ?? '0.0'} (${recipe.ratingCount} đánh giá)',
                           style: const TextStyle(
                             color: AppTheme.textSecondary,
                             fontSize: 14,

@@ -122,6 +122,9 @@ class _CommunityPageState extends State<CommunityPage>
                         onRecipeTap: (recipe) => _navigateToDetail(recipe),
                         onEditRecipe: _showMyRecipes ? (recipe) => _navigateToEdit(recipe) : null,
                         onDeleteRecipe: _showMyRecipes ? (recipe) => _showDeleteDialog(recipe) : null,
+                        onComment: _handleComment,
+                        onRating: _handleRating,
+                        onShare: _handleShare,
                       );
                     } else if (state is CommunityError) {
                       return _ErrorState(
@@ -404,6 +407,24 @@ class _CommunityPageState extends State<CommunityPage>
     }
   }
 
+  void _handleComment(String recipeId, String comment) {
+    if (_communityCubit != null) {
+      _communityCubit!.addComment(recipeId, comment);
+    }
+  }
+
+  void _handleRating(String recipeId, int stars) {
+    if (_communityCubit != null) {
+      _communityCubit!.addRating(recipeId, stars);
+    }
+  }
+
+  void _handleShare(String recipeId) {
+    // Handle share functionality
+    print('Shared recipe: $recipeId');
+    // Share functionality is already handled in the widget
+  }
+
 
   // Legacy search dialog removed (unused)
 
@@ -420,6 +441,9 @@ class _FeedView extends StatelessWidget {
   final Function(CommunityRecipe) onRecipeTap;
   final Function(CommunityRecipe)? onEditRecipe;
   final Function(CommunityRecipe)? onDeleteRecipe;
+  final Function(String, String) onComment;
+  final Function(String, int) onRating;
+  final Function(String) onShare;
 
   const _FeedView({
     required this.recipes,
@@ -429,6 +453,9 @@ class _FeedView extends StatelessWidget {
     required this.onRecipeTap,
     this.onEditRecipe,
     this.onDeleteRecipe,
+    required this.onComment,
+    required this.onRating,
+    required this.onShare,
   });
 
   @override
@@ -455,9 +482,9 @@ class _FeedView extends StatelessWidget {
                           onEdit: showMyRecipes ? () => onEditRecipe?.call(recipes[index]) : null,
                           onDelete: showMyRecipes ? () => onDeleteRecipe?.call(recipes[index]) : null,
                           showEditOptions: showMyRecipes,
-                          onLike: _handleLike,
-                          onComment: _handleComment,
-                          onShare: _handleShare,
+                          onComment: onComment,
+                          onRating: onRating,
+                          onShare: onShare,
                         )
                         .animate()
                         .fadeIn(duration: 300.ms, delay: (index * 50).ms)
@@ -486,23 +513,6 @@ class _FeedView extends StatelessWidget {
     );
   }
 
-  void _handleLike(String recipeId) {
-    // Handle like functionality
-    print('Liked recipe: $recipeId');
-    // You can implement API call to like/unlike recipe here
-  }
-
-  void _handleComment(String recipeId, String comment) {
-    // Handle comment functionality
-    print('Comment on recipe $recipeId: $comment');
-    // You can implement API call to add comment here
-  }
-
-  void _handleShare(String recipeId) {
-    // Handle share functionality
-    print('Shared recipe: $recipeId');
-    // Share functionality is already handled in the widget
-  }
 }
 
 class _EmptyState extends StatelessWidget {

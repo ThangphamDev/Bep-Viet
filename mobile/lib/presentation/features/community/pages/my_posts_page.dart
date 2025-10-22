@@ -93,6 +93,9 @@ class _MyPostsPageState extends State<MyPostsPage> {
                         onRecipeTap: (recipe) => _navigateToDetail(recipe),
                         onEditRecipe: (recipe) => _navigateToEdit(recipe),
                         onDeleteRecipe: (recipe) => _showDeleteDialog(recipe),
+                        onComment: _handleComment,
+                        onRating: _handleRating,
+                        onShare: _handleShare,
                       );
                     } else if (state is CommunityError) {
                       return _MyErrorState(
@@ -194,6 +197,24 @@ class _MyPostsPageState extends State<MyPostsPage> {
       _communityCubit!.deleteRecipe(recipeId);
     }
   }
+
+  void _handleComment(String recipeId, String comment) {
+    if (_communityCubit != null) {
+      _communityCubit!.addComment(recipeId, comment);
+    }
+  }
+
+  void _handleRating(String recipeId, int stars) {
+    if (_communityCubit != null) {
+      _communityCubit!.addRating(recipeId, stars);
+    }
+  }
+
+  void _handleShare(String recipeId) {
+    // Handle share functionality
+    print('Shared recipe: $recipeId');
+    // Share functionality is already handled in the widget
+  }
 }
 
 class _MyFeedView extends StatelessWidget {
@@ -203,6 +224,9 @@ class _MyFeedView extends StatelessWidget {
   final Function(CommunityRecipe) onRecipeTap;
   final Function(CommunityRecipe) onEditRecipe;
   final Function(CommunityRecipe) onDeleteRecipe;
+  final Function(String, String) onComment;
+  final Function(String, int) onRating;
+  final Function(String) onShare;
 
   const _MyFeedView({
     required this.recipes,
@@ -211,6 +235,9 @@ class _MyFeedView extends StatelessWidget {
     required this.onRecipeTap,
     required this.onEditRecipe,
     required this.onDeleteRecipe,
+    required this.onComment,
+    required this.onRating,
+    required this.onShare,
   });
 
   @override
@@ -236,6 +263,9 @@ class _MyFeedView extends StatelessWidget {
                           onEdit: () => onEditRecipe(recipes[index]),
                           onDelete: () => onDeleteRecipe(recipes[index]),
                           showEditOptions: true,
+                          onComment: onComment,
+                          onRating: onRating,
+                          onShare: onShare,
                         )
                         .animate()
                         .fadeIn(duration: 300.ms, delay: (index * 50).ms)

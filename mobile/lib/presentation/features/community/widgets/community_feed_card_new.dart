@@ -11,8 +11,8 @@ class CommunityFeedCardNew extends StatefulWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final bool showEditOptions;
-  final Function(String recipeId)? onLike;
   final Function(String recipeId, String comment)? onComment;
+  final Function(String recipeId, int stars)? onRating;
   final Function(String recipeId)? onShare;
 
   const CommunityFeedCardNew({
@@ -22,8 +22,8 @@ class CommunityFeedCardNew extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.showEditOptions = false,
-    this.onLike,
     this.onComment,
+    this.onRating,
     this.onShare,
   });
 
@@ -32,15 +32,12 @@ class CommunityFeedCardNew extends StatefulWidget {
 }
 
 class _CommunityFeedCardNewState extends State<CommunityFeedCardNew> {
-  bool _isLiked = false;
-  int _likeCount = 0;
   int _shareCount = 0;
   final TextEditingController _commentController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _likeCount = widget.recipe.ratingCount; // Using rating as like count
     _shareCount = 0; // Initialize share count
   }
 
@@ -354,6 +351,8 @@ class _CommunityFeedCardNewState extends State<CommunityFeedCardNew> {
 
   Widget _buildActions() {
     final commentCount = widget.recipe.commentCount;
+    final ratingCount = widget.recipe.ratingCount;
+    final avgRating = widget.recipe.avgRating;
 
     return Column(
       children: [
@@ -361,10 +360,10 @@ class _CommunityFeedCardNewState extends State<CommunityFeedCardNew> {
         Row(
           children: [
             _buildActionButton(
-              icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-              label: _likeCount > 0 ? '$_likeCount' : '',
-              color: _isLiked ? Colors.red : Colors.grey.shade700,
-              onTap: _handleLike,
+              icon: Icons.star_outline,
+              label: ratingCount > 0 ? '${avgRating?.toStringAsFixed(1) ?? '0.0'} ($ratingCount)' : '',
+              color: Colors.amber,
+              onTap: _showRatingDialog,
             ),
             const SizedBox(width: 20),
             _buildActionButton(
@@ -387,17 +386,54 @@ class _CommunityFeedCardNewState extends State<CommunityFeedCardNew> {
     );
   }
 
-  void _handleLike() {
-    setState(() {
-      if (_isLiked) {
-        _isLiked = false;
-        _likeCount = _likeCount > 0 ? _likeCount - 1 : 0;
-      } else {
-        _isLiked = true;
-        _likeCount++;
-      }
-    });
-    widget.onLike?.call(widget.recipe.id);
+  void _showRatingDialog() {
+    int selectedRating = 0;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Đánh giá công thức'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Chọn số sao:'),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return GestureDetector(
+                    onTap: () {
+                      setDialogState(() {
+                        selectedRating = index + 1;
+                      });
+                    },
+                    child: Icon(
+                      index < selectedRating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 32,
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: selectedRating > 0 ? () {
+                widget.onRating?.call(widget.recipe.id, selectedRating);
+                Navigator.pop(context);
+              } : null,
+              child: const Text('Gửi'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _handleShare() {

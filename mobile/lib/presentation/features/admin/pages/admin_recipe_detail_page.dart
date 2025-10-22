@@ -108,7 +108,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
     if (isOfficialRecipe) {
       return 0.0;
     } else {
-      return (recipe as CommunityRecipe).avgRating;
+      return (recipe as CommunityRecipe).avgRating ?? 0.0;
     }
   }
 

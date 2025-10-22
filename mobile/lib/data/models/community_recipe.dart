@@ -14,7 +14,7 @@ class CommunityRecipe {
   final String? authorId;
   final int commentCount;
   final int ratingCount;
-  final double avgRating;
+  final double? avgRating;
   final List<CommunityRecipeIngredient>? ingredients;
   final List<CommunityRecipeStep>? steps;
   final List<RecipeComment>? comments;
@@ -36,7 +36,7 @@ class CommunityRecipe {
     this.authorId,
     this.commentCount = 0,
     this.ratingCount = 0,
-    this.avgRating = 0.0,
+    this.avgRating,
     this.ingredients,
     this.steps,
     this.comments,
@@ -64,7 +64,7 @@ class CommunityRecipe {
       authorId: json['author_id']?.toString(),
       commentCount: _parseInt(json['comment_count']) ?? 0,
       ratingCount: _parseInt(json['rating_count']) ?? 0,
-      avgRating: _parseDouble(json['avg_rating']) ?? 0.0,
+      avgRating: _parseDouble(json['avg_rating']),
       ingredients: json['ingredients'] != null
           ? (json['ingredients'] as List)
               .map((e) => CommunityRecipeIngredient.fromJson(e as Map<String, dynamic>))
@@ -96,8 +96,8 @@ class CommunityRecipe {
 
   static double? _parseDouble(dynamic value) {
     if (value == null) return null;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value);
     return null;
   }
