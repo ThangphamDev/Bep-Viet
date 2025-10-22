@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/suggestion_model.dart';
 import 'package:bepviet_mobile/core/constants/app_constants.dart';
@@ -74,10 +75,26 @@ class SuggestionCard extends StatelessWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
                           child: suggestion.recipeImageUrl != null
-                              ? Image.network(
-                                  suggestion.recipeImageUrl!,
+                              ? CachedNetworkImage(
+                                  imageUrl: suggestion.recipeImageUrl!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
+                                  placeholder: (context, url) => Container(
+                                    color: Colors.grey.shade200,
+                                    child: const Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                AppTheme.primaryGreen,
+                                              ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
                                       _buildPlaceholderImage(),
                                 )
                               : _buildPlaceholderImage(),
@@ -149,7 +166,7 @@ class SuggestionCard extends StatelessWidget {
                               ),
                               _buildStatChip(
                                 Icons.people,
-                                '${suggestion.servings} người',
+                                '${suggestion.servings ?? 2} người',
                               ),
                               _buildStatChip(
                                 Icons.star,

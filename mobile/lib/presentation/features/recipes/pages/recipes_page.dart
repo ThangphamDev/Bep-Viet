@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -42,13 +43,42 @@ class RecipesPageView extends StatefulWidget {
 class _RecipesPageViewState extends State<RecipesPageView> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<bool> _showSuggestButton = ValueNotifier<bool>(true);
   String _selectedRegion = '';
   int? _maxTime = 60;
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+
+    // Debounce: Only check 150ms after scroll stops
+    _debounceTimer = Timer(const Duration(milliseconds: 150), () {
+      if (!mounted) return;
+
+      // Show button only at top of page (offset <= 100)
+      final shouldShow = _scrollController.offset <= 100;
+
+      // Only update if changed
+      if (_showSuggestButton.value != shouldShow) {
+        _showSuggestButton.value = shouldShow;
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _showSuggestButton.dispose();
     super.dispose();
   }
 
@@ -495,6 +525,14 @@ class _RecipesPageViewState extends State<RecipesPageView> {
           },
         ),
       ),
+      // Floating Suggest Button - Bottom Left
+      floatingActionButton: ValueListenableBuilder<bool>(
+        valueListenable: _showSuggestButton,
+        builder: (context, isVisible, child) {
+          return _SuggestFloatingButton(isVisible: isVisible);
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 
@@ -839,6 +877,52 @@ class RecipeCardShimmer extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// Optimized Floating Button Widget - Only rebuilds this widget
+class _SuggestFloatingButton extends StatelessWidget {
+  final bool isVisible;
+
+  const _SuggestFloatingButton({required this.isVisible});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: isVisible ? 1.0 : 0.0,
+      curve: Curves.easeInOut,
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 200),
+        scale: isVisible ? 1.0 : 0.8,
+        curve: Curves.easeOutBack,
+        child: Visibility(
+          visible: isVisible,
+          maintainSize: false,
+          maintainAnimation: true,
+          maintainState: true,
+          child: FloatingActionButton.extended(
+            heroTag: 'suggest_fab',
+            onPressed: () => context.go('/suggest'),
+            backgroundColor: Colors.white,
+            foregroundColor: AppTheme.primaryGreen,
+            elevation: isVisible ? 8 : 0,
+            icon: const Icon(Icons.auto_awesome, size: 24),
+            label: const Text(
+              'Gợi ý',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: AppTheme.primaryGreen.withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
+          ),
         ),
       ),
     );
