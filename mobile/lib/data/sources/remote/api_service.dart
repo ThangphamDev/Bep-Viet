@@ -105,6 +105,49 @@ class ApiService {
     }
   }
 
+  Future<UserModel> updateProfile(
+    String token, {
+    required String name,
+    required String region,
+    required String subregion,
+  }) async {
+    try {
+      final response = await _dio.put(
+        '/api/users/profile',
+        data: {'name': name, 'region': region, 'subregion': subregion},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return UserModel.fromJson(
+            responseData['data'] as Map<String, dynamic>,
+          );
+        }
+      }
+      throw Exception('Invalid response format');
+    } catch (e) {
+      throw Exception('Failed to update profile: $e');
+    }
+  }
+
+  Future<void> changePassword(
+    String token, {
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _dio.put(
+        '/api/users/change-password',
+        data: {'currentPassword': currentPassword, 'newPassword': newPassword},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to change password: $e');
+    }
+  }
+
   // Meal Plans
   Future<Map<String, dynamic>> quickAddToToday({
     required String token,

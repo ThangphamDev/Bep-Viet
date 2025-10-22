@@ -5,14 +5,22 @@ import { Inject } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { RegisterDto, LoginDto, RefreshDto } from './dto/auth.dto';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
+
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService,
     @Inject('DATABASE_CONNECTION') private db: any,
-  ) {}
+  ) {
+    // Initialize Google OAuth2 Client
+    this.googleClient = new OAuth2Client(
+      this.configService.get('GOOGLE_CLIENT_ID'),
+    );
+  }
 
   async register(registerDto: RegisterDto) {
     try {
@@ -150,6 +158,92 @@ export class AuthService {
       };
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  async loginWithGoogle(idToken: string) {
+    try {
+      console.log('=== Google Login Started ===');
+      console.log('ID Token received:', idToken?.substring(0, 50) + '...');
+      console.log('GOOGLE_CLIENT_ID:', this.configService.get('GOOGLE_CLIENT_ID'));
+      
+      // Verify Google ID token
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: this.configService.get('GOOGLE_CLIENT_ID'),
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new UnauthorizedException('Invalid Google token');
+      }
+      
+      console.log('Google payload:', { email: payload.email, name: payload.name, sub: payload.sub });
+
+      const { email, name, sub: googleId, picture } = payload;
+
+      // Check if user exists
+      const [users] = await this.db.execute(
+        'SELECT id, email, name, role, is_active FROM users WHERE email = ?',
+        [email]
+      );
+
+      let user = (users as any[])[0];
+
+      if (user) {
+        // User exists - just login
+        if (!user.is_active) {
+          throw new UnauthorizedException('Account is disabled');
+        }
+      } else {
+        // User doesn't exist - create new account
+        const userId = randomUUID();
+        await this.db.execute(
+          `INSERT INTO users (id, email, password_hash, name, region, role, is_active)
+           VALUES (?, ?, ?, ?, 'BAC', 'USER', 1)`,
+          [userId, email, '', name || 'Google User'] // Empty password for Google users
+        );
+
+        // Create user preferences
+        await this.db.execute(
+          `INSERT INTO user_preferences (user_id, household_size, spicy_level, taste_spicy, taste_salty, taste_sweet, taste_light)
+           VALUES (?, 2, 2, 2, 2, 2, 2)`,
+          [userId]
+        );
+
+        user = {
+          id: userId,
+          email,
+          name: name || 'Google User',
+          role: 'USER',
+          is_active: 1,
+        };
+      }
+
+      // Generate tokens
+      const accessToken = this.generateAccessToken(user.id, user.email, user.role);
+      const refreshToken = this.generateRefreshToken(user.id, user.email, user.role);
+
+      console.log('Google login successful for user:', user.email);
+
+      return {
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          },
+          accessToken,
+          refreshToken,
+        },
+      };
+    } catch (error) {
+      console.error('=== Google login error ===');
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      throw new UnauthorizedException('Google authentication failed');
     }
   }
 

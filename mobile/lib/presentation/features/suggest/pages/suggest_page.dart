@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -45,11 +46,40 @@ class SuggestPageView extends StatefulWidget {
 
 class _SuggestPageViewState extends State<SuggestPageView> {
   final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<bool> _showRecipeButton = ValueNotifier<bool>(true);
   bool _showFilters = false;
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+
+    // Debounce: Only check 150ms after scroll stops
+    _debounceTimer = Timer(const Duration(milliseconds: 150), () {
+      if (!mounted) return;
+
+      // Show button only at top of page (offset <= 100)
+      final shouldShow = _scrollController.offset <= 100;
+
+      // Only update if changed (avoid unnecessary rebuilds)
+      if (_showRecipeButton.value != shouldShow) {
+        _showRecipeButton.value = shouldShow;
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _showRecipeButton.dispose();
     super.dispose();
   }
 
@@ -366,20 +396,10 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                       alignment: Alignment.topRight,
                       child: Padding(
                         padding: const EdgeInsets.only(top: 8, right: 8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildHeaderIconButton(
-                              icon: Icons.menu_book_outlined,
-                              onTap: () => context.go('/recipes'),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildHeaderIconButton(
-                              icon: Icons.camera_alt_outlined,
-                              onTap: () => context.go('/ai-suggest'),
-                              isHighlight: true,
-                            ),
-                          ],
+                        child: _buildHeaderIconButton(
+                          icon: Icons.camera_alt_outlined,
+                          onTap: () => context.go('/ai-suggest'),
+                          isHighlight: true,
                         ),
                       ),
                     ),
@@ -727,153 +747,191 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        ...state.suggestions.map((suggestion) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: SuggestionCard(
-                              suggestion: suggestion,
-                              onTap: () {
-                                // Navigate to recipe detail - use push to keep navigation stack
-                                context.push('/recipes/${suggestion.recipeId}');
-                              },
-                              onAddToMealPlan: () =>
-                                  _showMealSlotDialog(suggestion),
-                            ),
-                          );
-                        }),
-                      ] else if (!state.isSearching && !state.isLoading) ...[
-                        // Empty State - Enhanced
-                        Container(
-                          margin: const EdgeInsets.all(16),
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white,
-                                AppTheme.primaryGreen.withOpacity(0.03),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            // Suggestions List - Use SliverList for better performance
+            BlocBuilder<SuggestCubit, SuggestState>(
+              buildWhen: (previous, current) =>
+                  previous.suggestions != current.suggestions ||
+                  previous.isSearching != current.isSearching,
+              builder: (context, state) {
+                if (state.suggestions.isEmpty) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
+
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final suggestion = state.suggestions[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: RepaintBoundary(
+                        child: SuggestionCard(
+                          key: ValueKey(suggestion.recipeId),
+                          suggestion: suggestion,
+                          onTap: () {
+                            context.push('/recipes/${suggestion.recipeId}');
+                          },
+                          onAddToMealPlan: () =>
+                              _showMealSlotDialog(suggestion),
+                        ),
+                      ),
+                    );
+                  }, childCount: state.suggestions.length),
+                );
+              },
+            ),
+
+            // Empty State
+            BlocBuilder<SuggestCubit, SuggestState>(
+              buildWhen: (previous, current) =>
+                  previous.suggestions != current.suggestions ||
+                  previous.isSearching != current.isSearching ||
+                  previous.isLoading != current.isLoading,
+              builder: (context, state) {
+                if (state.suggestions.isNotEmpty ||
+                    state.isSearching ||
+                    state.isLoading) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
+
+                return SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white,
+                          AppTheme.primaryGreen.withOpacity(0.03),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 140,
+                              height: 140,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppTheme.primaryGreen.withOpacity(0.1),
+                                    AppTheme.primaryGreen.withOpacity(0.05),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(70),
                               ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Container(
-                                    width: 140,
-                                    height: 140,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          AppTheme.primaryGreen.withOpacity(
-                                            0.1,
-                                          ),
-                                          AppTheme.primaryGreen.withOpacity(
-                                            0.05,
-                                          ),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(70),
+                            ),
+                            Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.primaryGradient,
+                                borderRadius: BorderRadius.circular(50),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryGreen.withOpacity(
+                                      0.3,
                                     ),
-                                  ),
-                                  Container(
-                                    width: 100,
-                                    height: 100,
-                                    decoration: BoxDecoration(
-                                      gradient: AppTheme.primaryGradient,
-                                      borderRadius: BorderRadius.circular(50),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.primaryGreen
-                                              .withOpacity(0.3),
-                                          blurRadius: 20,
-                                          offset: const Offset(0, 8),
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Icon(
-                                      Icons.lightbulb_outline,
-                                      size: 50,
-                                      color: Colors.white,
-                                    ),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 28),
-                              Text(
-                                'Chưa có gợi ý nào',
-                                style: Theme.of(context).textTheme.headlineSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.textPrimary,
-                                    ),
+                              child: const Icon(
+                                Icons.lightbulb_outline,
+                                size: 50,
+                                color: Colors.white,
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Hãy điều chỉnh bộ lọc và nhấn "Tìm gợi ý phù hợp" để khám phá các món ăn ngon phù hợp với bạn',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  color: AppTheme.textSecondary,
-                                  height: 1.5,
-                                ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 28),
+                        Text(
+                          'Chưa có gợi ý nào',
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
                               ),
-                              const SizedBox(height: 20),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryGreen.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    Icon(
-                                      Icons.info_outline,
-                                      size: 16,
-                                      color: AppTheme.primaryGreen,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Nhấn nút bộ lọc phía trên để bắt đầu',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppTheme.primaryGreen,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Hãy điều chỉnh bộ lọc và nhấn "Tìm gợi ý phù hợp" để khám phá các món ăn ngon phù hợp với bạn',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: AppTheme.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryGreen.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 16,
+                                color: AppTheme.primaryGreen,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Nhấn nút bộ lọc phía trên để bắt đầu',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.primaryGreen,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ],
-
-                      const SizedBox(
-                        height: 100,
-                      ), // Bottom padding for navigation
-                    ],
-                  );
-                },
-              ),
+                    ),
+                  ),
+                );
+              },
             ),
+
+            // Bottom Padding
+            const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
           ],
         ),
       ),
+      // Floating Recipe Button - Bottom Left
+      floatingActionButton: ValueListenableBuilder<bool>(
+        valueListenable: _showRecipeButton,
+        builder: (context, isVisible, child) {
+          return _RecipeFloatingButton(isVisible: isVisible);
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 
@@ -939,6 +997,52 @@ class _SuggestPageViewState extends State<SuggestPageView> {
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: isSelected ? Colors.white : AppTheme.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Optimized Floating Button Widget - Only rebuilds this widget
+class _RecipeFloatingButton extends StatelessWidget {
+  final bool isVisible;
+
+  const _RecipeFloatingButton({required this.isVisible});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: isVisible ? 1.0 : 0.0,
+      curve: Curves.easeInOut,
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 200),
+        scale: isVisible ? 1.0 : 0.8,
+        curve: Curves.easeOutBack,
+        child: Visibility(
+          visible: isVisible,
+          maintainSize: false,
+          maintainAnimation: true,
+          maintainState: true,
+          child: FloatingActionButton.extended(
+            heroTag: 'recipe_fab',
+            onPressed: () => context.go('/recipes'),
+            backgroundColor: Colors.white,
+            foregroundColor: AppTheme.primaryGreen,
+            elevation: isVisible ? 8 : 0,
+            icon: const Icon(Icons.menu_book_outlined, size: 24),
+            label: const Text(
+              'Công thức',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: AppTheme.primaryGreen.withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
           ),
         ),
       ),

@@ -1,10 +1,10 @@
-import { Controller, Get, Patch, Delete, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, UseGuards, Request, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators';
 import { UsersService } from './users.service';
-import { UpdateProfileDto, UserProfileDto } from './dto/users.dto';
+import { UpdateProfileDto, UserProfileDto, ChangePasswordDto } from './dto/users.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -31,6 +31,27 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async updateProfile(@Request() req, @Body() updateProfileDto: UpdateProfileDto) {
     return this.usersService.updateProfile(req.user.id, updateProfileDto);
+  }
+
+  @Put('profile')
+  @ApiOperation({ summary: 'Update user profile (alternative endpoint)' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateProfileAlt(@Request() req, @Body() updateProfileDto: UpdateProfileDto) {
+    return this.usersService.updateProfile(req.user.id, updateProfileDto);
+  }
+
+  @Put('change-password')
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 400, description: 'Invalid current password' })
+  async changePassword(@Request() req, @Body() changePasswordDto: ChangePasswordDto) {
+    await this.usersService.changePassword(req.user.id, changePasswordDto);
+    return {
+      success: true,
+      message: 'Password changed successfully',
+    };
   }
 
   @Delete('me')

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
+import 'package:bepviet_mobile/data/models/recipe_model.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
+import 'package:bepviet_mobile/presentation/features/premium/cubit/premium_cubit.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,6 +17,153 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool _hasShownWelcome = false;
+  bool _isLoading = true;
+  List<RecipeModel> _todaysSuggestions = [];
+  List<RecipeModel> _recentRecipes = [];
+  String? _errorMessage;
+  late Dio _dio;
+
+  @override
+  void initState() {
+    super.initState();
+    _dio = Dio();
+    _dio.options.baseUrl = AppConfig.ngrokBaseUrl;
+    _dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+    _loadHomeData();
+  }
+
+  Future<void> _loadHomeData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is AuthAuthenticated) {
+        final token = context.read<AuthCubit>().authRepository.accessToken;
+        if (token != null) {
+          // Load Premium data for subscription status
+          context.read<PremiumCubit>().add(LoadPremiumData(token));
+
+          // Load suggestions and recent recipes in parallel
+          final results = await Future.wait([
+            _loadTodaysSuggestions(token),
+            _loadRecentRecipes(token),
+          ]);
+
+          setState(() {
+            _todaysSuggestions = results[0];
+            _recentRecipes = results[1];
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<List<RecipeModel>> _loadTodaysSuggestions(String token) async {
+    try {
+      // Try pantry-based suggestions first
+      final response = await _dio.get(
+        '/api/suggestions/pantry?limit=5',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] is List) {
+          final suggestions = (map['data'] as List).map((e) {
+            // Map suggestion response to RecipeModel format
+            final suggestion = e as Map<String, dynamic>;
+            return RecipeModel.fromJson({
+              'id': suggestion['recipe_id']?.toString() ?? '',
+              'name_vi': suggestion['name_vi'],
+              'name_en': suggestion['name_en'],
+              'meal_type': suggestion['meal_type'],
+              'difficulty': suggestion['difficulty'],
+              'cook_time_min': suggestion['cook_time_min'],
+              'prep_time_min': suggestion['cook_time_min'],
+              'base_region': suggestion['variant_region'],
+              'image_url': suggestion['image_url'],
+              'rating_avg': suggestion['rating_avg'],
+              'rating_count': suggestion['rating_count'],
+            });
+          }).toList();
+
+          // If we have pantry suggestions, return them
+          if (suggestions.isNotEmpty) {
+            return suggestions.take(5).toList();
+          }
+        }
+      }
+
+      // Fallback: Get top-rated recipes if no pantry suggestions
+      final fallbackResponse = await _dio.get(
+        '/api/recipes?limit=5',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (fallbackResponse.data is Map<String, dynamic>) {
+        final map = fallbackResponse.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] is List) {
+          return (map['data'] as List)
+              .map((e) => RecipeModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+
+      return [];
+    } catch (e) {
+      print('Error loading suggestions: $e');
+      // Try fallback on error
+      try {
+        final fallbackResponse = await _dio.get(
+          '/api/recipes?limit=5',
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+
+        if (fallbackResponse.data is Map<String, dynamic>) {
+          final map = fallbackResponse.data as Map<String, dynamic>;
+          if (map['success'] == true && map['data'] is List) {
+            return (map['data'] as List)
+                .map((e) => RecipeModel.fromJson(e as Map<String, dynamic>))
+                .toList();
+          }
+        }
+      } catch (fallbackError) {
+        print('Error loading fallback suggestions: $fallbackError');
+      }
+      return [];
+    }
+  }
+
+  Future<List<RecipeModel>> _loadRecentRecipes(String token) async {
+    try {
+      final response = await _dio.get(
+        '/api/recipes?limit=10',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] is List) {
+          return (map['data'] as List)
+              .map((e) => RecipeModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Error loading recent recipes: $e');
+      return [];
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -48,6 +199,13 @@ class _HomePageState extends State<HomePage> {
         });
       }
     }
+  }
+
+  String _getDifficultyText(int? difficulty) {
+    if (difficulty == null) return 'Dễ';
+    if (difficulty <= 1) return 'Dễ';
+    if (difficulty == 2) return 'Trung bình';
+    return 'Khó';
   }
 
   @override
@@ -295,36 +453,55 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 12),
                   // Second Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildQuickActionCard(
-                          context,
-                          icon: Icons.kitchen,
-                          title: 'Kiểm tra tủ lạnh',
-                          subtitle: 'Nguyên liệu',
-                          color: AppTheme.primaryGreen,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF34D399), Color(0xFF10B981)],
+                  BlocBuilder<PremiumCubit, PremiumState>(
+                    builder: (context, premiumState) {
+                      // Check if user has active Premium subscription
+                      bool hasActivePremium = false;
+                      if (premiumState is PremiumLoaded) {
+                        hasActivePremium =
+                            premiumState.subscription != null &&
+                            premiumState.subscription!.status == 'ACTIVE' &&
+                            premiumState.subscription!.plan != 'FREE';
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuickActionCard(
+                              context,
+                              icon: Icons.kitchen,
+                              title: 'Kiểm tra tủ lạnh',
+                              subtitle: 'Nguyên liệu',
+                              color: AppTheme.primaryGreen,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF34D399), Color(0xFF10B981)],
+                              ),
+                              onTap: () => context.go('/pantry'),
+                            ),
                           ),
-                          onTap: () => context.go('/pantry'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildQuickActionCard(
-                          context,
-                          icon: Icons.people,
-                          title: 'Cộng đồng',
-                          subtitle: 'Chia sẻ',
-                          color: Colors.purple,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFA78BFA), Color(0xFF8B5CF6)],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildQuickActionCard(
+                              context,
+                              icon: Icons.star,
+                              title: 'Premium',
+                              subtitle: hasActivePremium
+                                  ? 'Khám phá'
+                                  : 'Nâng cấp',
+                              color: const Color(0xFFFFD700),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFFFFD700),
+                                  Color(0xFFFFA500),
+                                  Color(0xFFFF8C00),
+                                ],
+                              ),
+                              onTap: () => context.go('/premium'),
+                            ),
                           ),
-                          onTap: () => context.go('/community'),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -356,16 +533,65 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    height: 200,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 5,
-                      itemBuilder: (context, index) {
-                        return _buildSuggestionCard(context, index);
-                      },
-                    ),
-                  ),
+                  _isLoading
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      : _errorMessage != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: AppTheme.errorColor,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Không thể tải gợi ý',
+                                  style: TextStyle(
+                                    color: AppTheme.errorColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: _loadHomeData,
+                                  child: const Text('Thử lại'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : _todaysSuggestions.isEmpty
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Text(
+                              'Chưa có gợi ý nào',
+                              style: TextStyle(color: AppTheme.textSecondary),
+                            ),
+                          ),
+                        )
+                      : SizedBox(
+                          height: 200,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _todaysSuggestions.length,
+                            itemBuilder: (context, index) {
+                              return _buildSuggestionCard(
+                                context,
+                                _todaysSuggestions[index],
+                                index,
+                              );
+                            },
+                          ),
+                        ),
                 ],
               ),
             ),
@@ -396,14 +622,63 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: 3,
-                    itemBuilder: (context, index) {
-                      return _buildRecentRecipeCard(context, index);
-                    },
-                  ),
+                  _isLoading
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      : _errorMessage != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: AppTheme.errorColor,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Không thể tải công thức',
+                                  style: TextStyle(
+                                    color: AppTheme.errorColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: _loadHomeData,
+                                  child: const Text('Thử lại'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : _recentRecipes.isEmpty
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Text(
+                              'Chưa có công thức nào',
+                              style: TextStyle(color: AppTheme.textSecondary),
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _recentRecipes.length.clamp(0, 5),
+                          itemBuilder: (context, index) {
+                            return _buildRecentRecipeCard(
+                              context,
+                              _recentRecipes[index],
+                              index,
+                            );
+                          },
+                        ),
                 ],
               ),
             ),
@@ -483,19 +758,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSuggestionCard(BuildContext context, int index) {
-    final suggestions = [
-      {'name': 'Cơm tấm sườn nướng', 'region': 'Miền Nam', 'cost': '45,000'},
-      {'name': 'Bún bò Huế', 'region': 'Miền Trung', 'cost': '38,000'},
-      {'name': 'Phở bò', 'region': 'Miền Bắc', 'cost': '42,000'},
-      {'name': 'Bánh xèo', 'region': 'Miền Nam', 'cost': '35,000'},
-      {'name': 'Chả cá Lã Vọng', 'region': 'Miền Bắc', 'cost': '55,000'},
-    ];
-
-    final suggestion = suggestions[index % suggestions.length];
-
+  Widget _buildSuggestionCard(
+    BuildContext context,
+    RecipeModel recipe,
+    int index,
+  ) {
     return InkWell(
-      onTap: () => context.go('/suggest'),
+      onTap: () => context.go('/recipes/${recipe.id}'),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 150,
@@ -530,13 +799,43 @@ class _HomePageState extends State<HomePage> {
                   top: Radius.circular(16),
                 ),
               ),
-              child: const Center(
-                child: Icon(
-                  Icons.restaurant,
-                  size: 36,
-                  color: AppTheme.primaryGreen,
-                ),
-              ),
+              child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                      child: Image.network(
+                        recipe.imageUrl!,
+                        height: 90,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Icon(
+                              Icons.restaurant,
+                              size: 36,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(
+                        Icons.restaurant,
+                        size: 36,
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.all(10),
@@ -547,7 +846,7 @@ class _HomePageState extends State<HomePage> {
                   SizedBox(
                     height: 34,
                     child: Text(
-                      suggestion['name']!,
+                      recipe.name,
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -569,7 +868,7 @@ class _HomePageState extends State<HomePage> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      suggestion['region']!,
+                      recipe.baseRegion ?? 'Việt Nam',
                       style: const TextStyle(
                         fontSize: 9,
                         color: AppTheme.primaryGreen,
@@ -581,7 +880,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '${suggestion['cost']} VNĐ',
+                    '${recipe.prepTimeMinutes ?? recipe.cookTimeMinutes ?? 30} phút',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -599,17 +898,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildRecentRecipeCard(BuildContext context, int index) {
-    final recipes = [
-      {'name': 'Cơm tấm sườn nướng', 'time': '30 phút', 'difficulty': 'Dễ'},
-      {'name': 'Bún bò Huế', 'time': '60 phút', 'difficulty': 'Trung bình'},
-      {'name': 'Phở bò', 'time': '45 phút', 'difficulty': 'Trung bình'},
-    ];
-
-    final recipe = recipes[index];
-
+  Widget _buildRecentRecipeCard(
+    BuildContext context,
+    RecipeModel recipe,
+    int index,
+  ) {
     return InkWell(
-      onTap: () => context.go('/recipes'),
+      onTap: () => context.go('/recipes/${recipe.id}'),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -641,11 +936,41 @@ class _HomePageState extends State<HomePage> {
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.restaurant,
-                color: AppTheme.primaryGreen,
-                size: 32,
-              ),
+              child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        recipe.imageUrl!,
+                        width: 64,
+                        height: 64,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.restaurant,
+                            color: AppTheme.primaryGreen,
+                            size: 32,
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppTheme.primaryGreen,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  : const Icon(
+                      Icons.restaurant,
+                      color: AppTheme.primaryGreen,
+                      size: 32,
+                    ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -654,7 +979,7 @@ class _HomePageState extends State<HomePage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    recipe['name']!,
+                    recipe.name,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -679,7 +1004,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            recipe['time']!,
+                            '${recipe.prepTimeMinutes ?? recipe.cookTimeMinutes ?? 30} phút',
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppTheme.textSecondary,
@@ -697,7 +1022,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            recipe['difficulty']!,
+                            _getDifficultyText(recipe.difficulty),
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppTheme.textSecondary,

@@ -139,6 +139,22 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  Future<void> loginWithGoogle() async {
+    emit(AuthLoading());
+    try {
+      final response = await _authRepository.loginWithGoogle();
+      if (response.success) {
+        emit(AuthAuthenticated(user: response.data.user));
+      } else {
+        emit(const AuthError(message: 'Đăng nhập Google thất bại'));
+      }
+    } catch (e) {
+      // Clean up the error message
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      emit(AuthError(message: errorMessage));
+    }
+  }
+
   Future<void> register({
     required String email,
     required String password,
@@ -208,5 +224,77 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (e) {
       throw Exception('Failed to delete account: $e');
     }
+  }
+
+  Future<void> updateProfile({
+    required String name,
+    required String region,
+    required String subregion,
+  }) async {
+    try {
+      final updatedUser = await _authRepository.updateProfile(
+        name: name,
+        region: region,
+        subregion: subregion,
+      );
+
+      // Update the current state with new user data
+      if (state is AuthAuthenticated) {
+        emit(AuthAuthenticated(user: updatedUser));
+      }
+    } catch (e) {
+      throw Exception('Failed to update profile: $e');
+    }
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _authRepository.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      throw Exception('Failed to change password: $e');
+    }
+  }
+
+  // ========== Biometric Authentication Methods ==========
+
+  Future<void> loginWithBiometric() async {
+    emit(AuthLoading());
+    try {
+      final response = await _authRepository.loginWithBiometric();
+      if (response.success) {
+        emit(AuthAuthenticated(user: response.data.user));
+      } else {
+        emit(const AuthError(message: 'Đăng nhập sinh trắc học thất bại'));
+      }
+    } catch (e) {
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      emit(AuthError(message: errorMessage));
+    }
+  }
+
+  Future<bool> isBiometricAvailable() async {
+    return await _authRepository.isBiometricAvailable();
+  }
+
+  Future<bool> isBiometricEnabled() async {
+    return await _authRepository.isBiometricEnabled();
+  }
+
+  Future<void> enableBiometric(String email) async {
+    await _authRepository.enableBiometric(email);
+  }
+
+  Future<void> disableBiometric() async {
+    await _authRepository.disableBiometric();
+  }
+
+  Future<String> getBiometricMessage() async {
+    return await _authRepository.getBiometricMessage();
   }
 }

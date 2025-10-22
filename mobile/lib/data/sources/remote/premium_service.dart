@@ -204,6 +204,50 @@ class PremiumService {
     }
   }
 
+  Future<FamilyMemberModel> updateFamilyMember(
+    String token,
+    String memberId,
+    UpdateFamilyMemberRequest request,
+  ) async {
+    try {
+      final response = await _dio.put(
+        '/api/family/members/$memberId',
+        data: request.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] is Map) {
+          return FamilyMemberModel.fromJson(
+            map['data'] as Map<String, dynamic>,
+          );
+        }
+      }
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to update family member: $e');
+    }
+  }
+
+  Future<void> deleteFamilyMember(String token, String memberId) async {
+    try {
+      final response = await _dio.delete(
+        '/api/family/members/$memberId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data as Map<String, dynamic>;
+        if (map['success'] != true) {
+          throw Exception(map['message'] ?? 'Failed to delete family member');
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to delete family member: $e');
+    }
+  }
+
   // Analytics APIs
   Future<UserAnalyticsModel> getUserAnalytics(String token) async {
     try {

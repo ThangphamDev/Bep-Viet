@@ -38,6 +38,24 @@ export class AuthController {
     return this.authService.refresh(refreshDto);
   }
 
+    @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with Google' })
+  @ApiBody({ 
+    schema: { 
+      type: 'object', 
+      properties: { 
+        idToken: { type: 'string', description: 'Google ID Token' } 
+      } 
+    } 
+  })
+  @ApiResponse({ status: 200, description: 'Google login successful', type: AuthResponseDto })
+  @ApiResponse({ status: 401, description: 'Invalid Google token' })
+  async loginWithGoogle(@Body() body: { idToken: string }) {
+    return this.authService.loginWithGoogle(body.idToken);
+  }
+
+  
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout user' })

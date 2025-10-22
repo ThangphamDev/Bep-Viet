@@ -20,4 +20,6 @@ export const validationSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid('error', 'warn', 'info', 'debug')
     .default('info'),
+  GEMINI_API_KEY: Joi.string().optional(),
+  GOOGLE_CLIENT_ID: Joi.string().optional(),
 });

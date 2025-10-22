@@ -10,6 +10,7 @@ import 'package:bepviet_mobile/data/repositories/premium_repository.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/family_member_card.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/add_member_dialog.dart';
+import 'package:bepviet_mobile/presentation/features/premium/widgets/edit_member_dialog.dart';
 
 // Legacy class for compatibility
 class FamilyMember {
@@ -851,7 +852,88 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
   }
 
   void _editMember(FamilyMember member) {
-    // TODO: Implement edit member
+    showDialog(
+      context: context,
+      builder: (context) => _buildEditMemberDialog(member),
+    );
+  }
+
+  Widget _buildEditMemberDialog(FamilyMember member) {
+    return EditMemberDialog(
+      member: member,
+      onSave: (updatedMember) async {
+        await _updateMember(member, updatedMember);
+      },
+    );
+  }
+
+  Future<void> _updateMember(
+    FamilyMember originalMember,
+    FamilyMember updatedMember,
+  ) async {
+    try {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is! AuthAuthenticated) return;
+
+      final token = context.read<AuthCubit>().authRepository.accessToken;
+      if (token == null) return;
+
+      // Convert age to age_group
+      String ageGroup = 'ADULT';
+      if (updatedMember.age < 12) {
+        ageGroup = 'CHILD';
+      } else if (updatedMember.age < 18) {
+        ageGroup = 'TEEN';
+      } else if (updatedMember.age >= 60) {
+        ageGroup = 'SENIOR';
+      }
+
+      // Create JSON for allergies and diet
+      Map<String, dynamic>? allergiesJson;
+      if (updatedMember.allergies.isNotEmpty) {
+        allergiesJson = {'items': updatedMember.allergies};
+      }
+
+      Map<String, dynamic>? dietJson;
+      if (updatedMember.dietaryRestrictions.isNotEmpty) {
+        dietJson = {'items': updatedMember.dietaryRestrictions};
+      }
+
+      final request = UpdateFamilyMemberRequest(
+        name: updatedMember.name,
+        ageGroup: ageGroup,
+        spiceTolerance: 1,
+        dietJson: dietJson,
+        allergiesJson: allergiesJson,
+        note: updatedMember.customAllergies.isNotEmpty
+            ? updatedMember.customAllergies
+            : null,
+      );
+
+      final premiumRepo = PremiumRepository(PremiumService(Dio()));
+      await premiumRepo.updateFamilyMember(token, originalMember.id, request);
+
+      // Reload data
+      await _loadFamilyData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã cập nhật thành viên thành công'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi cập nhật thành viên: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   void _deleteMember(FamilyMember member) {
@@ -859,15 +941,59 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Xóa thành viên'),
-        content: const Text('Chức năng xóa thành viên đang được phát triển.'),
+        content: Text(
+          'Bạn có chắc chắn muốn xóa ${member.name} khỏi hồ sơ gia đình?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performDeleteMember(member);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+            child: const Text('Xóa'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _performDeleteMember(FamilyMember member) async {
+    try {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is! AuthAuthenticated) return;
+
+      final token = context.read<AuthCubit>().authRepository.accessToken;
+      if (token == null) return;
+
+      final premiumRepo = PremiumRepository(PremiumService(Dio()));
+      await premiumRepo.deleteFamilyMember(token, member.id);
+
+      // Reload data
+      await _loadFamilyData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã xóa ${member.name} thành công'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi xóa thành viên: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildFamilyStat(String label, String value, Color color) {

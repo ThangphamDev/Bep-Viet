@@ -45,7 +45,8 @@ export class SuggestionsService {
         r.hardness,
         r.rating_avg,
         r.rating_count,
-        r.image_url
+        r.image_url,
+        COALESCE(r.servings, 2) as servings
       FROM recipes r
       WHERE r.is_public = 1
     `;
@@ -193,6 +194,7 @@ export class SuggestionsService {
       rating_avg: recipe.rating_avg,
       rating_count: recipe.rating_count,
       image_url: recipe.image_url,
+      servings: recipe.servings || servings || 2,
       variant_region: region,
       total_cost: Math.round(totalCost),
       season_score: Math.round(avgSeasonScore),

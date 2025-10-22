@@ -65,7 +65,7 @@ class AuthNotifier extends ChangeNotifier {
   }
 
   bool get isAuthenticated => _authCubit.state is AuthAuthenticated;
-  
+
   bool get isAdmin {
     if (_authCubit.state is AuthAuthenticated) {
       final state = _authCubit.state as AuthAuthenticated;
@@ -73,7 +73,7 @@ class AuthNotifier extends ChangeNotifier {
     }
     return false;
   }
-  
+
   UserModel? get currentUser {
     if (_authCubit.state is AuthAuthenticated) {
       final state = _authCubit.state as AuthAuthenticated;
@@ -91,7 +91,14 @@ class AppRouter {
       initialLocation: AppRoutes.login,
       refreshListenable: authNotifier,
       redirect: (context, state) {
-        final isAuthenticated = authCubit.state is AuthAuthenticated;
+        final authState = authCubit.state;
+
+        // Show splash (stay on current route) while checking auth
+        if (authState is AuthInitial) {
+          return null;
+        }
+
+        final isAuthenticated = authState is AuthAuthenticated;
         final isLoggingIn = state.matchedLocation == AppRoutes.login;
         final isRegistering = state.matchedLocation == AppRoutes.register;
         final isAdminRoute = state.matchedLocation.startsWith('/admin');
