@@ -126,26 +126,17 @@ class PremiumCubit extends Bloc<PremiumEvent, PremiumState> {
   ) async {
     emit(PremiumLoading());
     try {
-      print(
-        '🚀 PremiumCubit - Loading premium data with token: ${event.token.substring(0, 20)}...',
-      );
-
       final subscription = await _premiumRepository.getUserSubscription(
         event.token,
       );
-      print('✅ PremiumCubit - Subscription loaded');
 
       final familyProfiles = await _premiumRepository.getUserFamilyProfiles(
         event.token,
-      );
-      print(
-        '✅ PremiumCubit - Family profiles loaded: ${familyProfiles.length}',
       );
 
       final userAnalytics = await _premiumRepository.getUserAnalytics(
         event.token,
       );
-      print('✅ PremiumCubit - User analytics loaded');
 
       // System analytics might only be for admin, handle gracefully if not available
       SystemAnalyticsModel? systemAnalytics;
@@ -153,9 +144,8 @@ class PremiumCubit extends Bloc<PremiumEvent, PremiumState> {
         systemAnalytics = await _premiumRepository.getSystemAnalytics(
           event.token,
         );
-        print('✅ PremiumCubit - System analytics loaded');
       } catch (e) {
-        print('Warning: Could not load system analytics: $e');
+        // Ignore system analytics errors (non-admin users)
       }
 
       emit(
@@ -167,7 +157,6 @@ class PremiumCubit extends Bloc<PremiumEvent, PremiumState> {
         ),
       );
     } catch (e) {
-      print('❌ PremiumCubit - Error loading premium data: $e');
       emit(PremiumError(e.toString()));
     }
   }

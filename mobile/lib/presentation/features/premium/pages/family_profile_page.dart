@@ -144,7 +144,6 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading family data: $e');
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
@@ -172,7 +171,6 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
         return analytics;
       }
     } catch (e) {
-      print('Error loading analytics: $e');
       // Don't throw, analytics is optional
     }
     return null;

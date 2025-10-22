@@ -14,31 +14,6 @@ class PremiumService {
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
     _dio.options.headers['ngrok-skip-browser-warning'] = 'true';
-
-    // Add request interceptor for debugging
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          print(
-            '📤 PremiumService - Request: ${options.method} ${options.path}',
-          );
-          print('📤 PremiumService - Headers: ${options.headers}');
-          handler.next(options);
-        },
-        onResponse: (response, handler) {
-          print(
-            '📥 PremiumService - Response: ${response.statusCode} ${response.requestOptions.path}',
-          );
-          handler.next(response);
-        },
-        onError: (error, handler) {
-          print('❌ PremiumService - Error: ${error.message}');
-          print('❌ PremiumService - Status: ${error.response?.statusCode}');
-          print('❌ PremiumService - Data: ${error.response?.data}');
-          handler.next(error);
-        },
-      ),
-    );
   }
 
   // Subscription APIs
@@ -157,17 +132,10 @@ class PremiumService {
   // Family APIs
   Future<List<FamilyProfileModel>> getUserFamilyProfiles(String token) async {
     try {
-      print('🔑 PremiumService - Using token: ${token.substring(0, 20)}...');
-      print('📤 PremiumService - Making request to: /api/family/profiles');
-      print('🌐 PremiumService - Base URL: $baseUrl');
-
       final response = await _dio.get(
         '/api/family/profiles',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-
-      print('📥 PremiumService - Response status: ${response.statusCode}');
-      print('📥 PremiumService - Response data: ${response.data}');
 
       if (response.data is Map<String, dynamic>) {
         final map = response.data as Map<String, dynamic>;
@@ -181,16 +149,6 @@ class PremiumService {
       }
       return [];
     } catch (e) {
-      print('❌ PremiumService - Error in getUserFamilyProfiles: $e');
-      if (e is DioException) {
-        print(
-          '❌ PremiumService - DioException status: ${e.response?.statusCode}',
-        );
-        print('❌ PremiumService - DioException data: ${e.response?.data}');
-        print(
-          '❌ PremiumService - DioException headers: ${e.response?.headers}',
-        );
-      }
       throw Exception('Failed to get family profiles: $e');
     }
   }

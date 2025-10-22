@@ -61,7 +61,6 @@ class _WeeklyReportPageState extends State<WeeklyReportPage> {
         throw Exception('Invalid response format');
       }
     } catch (e) {
-      print('Error loading weekly report: $e');
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;

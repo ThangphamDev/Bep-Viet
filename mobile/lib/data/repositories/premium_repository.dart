@@ -36,9 +36,6 @@ class PremiumRepository {
 
   // Family methods
   Future<List<FamilyProfileModel>> getUserFamilyProfiles(String token) async {
-    print(
-      '📦 PremiumRepository - getUserFamilyProfiles called with token: ${token.substring(0, 20)}...',
-    );
     return await _premiumService.getUserFamilyProfiles(token);
   }
 
