@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/subscription_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/premium_service.dart';
@@ -500,94 +501,159 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useRootNavigator: false,
       builder: (context) => _buildSubscriptionHistorySheet(token),
     );
   }
 
   Widget _buildSubscriptionHistorySheet(String token) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Text(
-              'Lịch sử đăng ký',
-              style: Theme.of(context).textTheme.headlineSmall,
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Lịch sử đăng ký',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
             ),
-          ),
-          Expanded(
-            child: FutureBuilder<List<SubscriptionTransactionModel>>(
-              future: PremiumRepository(
-                PremiumService(Dio()),
-              ).getUserTransactions(token),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Text(
-                        'Lỗi tải dữ liệu: ${snapshot.error}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppTheme.errorColor),
+            Expanded(
+              child: FutureBuilder<List<SubscriptionTransactionModel>>(
+                future: _loadTransactions(token),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Đang tải lịch sử...'),
+                        ],
                       ),
-                    ),
-                  );
-                }
-
-                final transactions = snapshot.data ?? [];
-
-                if (transactions.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Text(
-                        'Chưa có lịch sử giao dịch',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  );
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: transactions.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final transaction = transactions[index];
-                    return SubscriptionHistoryCard(
-                      planName: transaction.planName,
-                      date: _formatDate(transaction.createdAt),
-                      amount: transaction.amount,
-                      status: _translateStatus(transaction.status),
-                      isActive: transaction.status == 'COMPLETED',
                     );
-                  },
-                );
-              },
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 48,
+                              color: AppTheme.errorColor,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Lỗi tải dữ liệu',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppTheme.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final transactions = snapshot.data;
+
+                  if (transactions == null || transactions.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.receipt_long_outlined,
+                              size: 48,
+                              color: AppTheme.textSecondary,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Chưa có lịch sử giao dịch',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    itemCount: transactions.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final transaction = transactions[index];
+                      return SubscriptionHistoryCard(
+                        planName: transaction.planName,
+                        date: _formatDate(transaction.createdAt),
+                        amount: transaction.amount,
+                        status: _translateStatus(transaction.status),
+                        isActive: transaction.status == 'COMPLETED',
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Future<List<SubscriptionTransactionModel>> _loadTransactions(
+    String token,
+  ) async {
+    try {
+      final dio = Dio();
+      dio.options.baseUrl = AppConfig.ngrokBaseUrl;
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+
+      final premiumService = PremiumService(dio);
+      final premiumRepo = PremiumRepository(premiumService);
+
+      return await premiumRepo.getUserTransactions(token);
+    } catch (e) {
+      throw Exception('Không thể tải lịch sử giao dịch: $e');
+    }
   }
 
   String _translateStatus(String status) {

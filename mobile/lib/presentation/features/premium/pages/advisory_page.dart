@@ -697,7 +697,18 @@ class _AdvisoryPageState extends State<AdvisoryPage>
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Đóng'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryGreen,
+                          side: BorderSide(
+                            color: AppTheme.primaryGreen,
+                            width: 1.5,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text(
+                          'Đóng',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -710,8 +721,12 @@ class _AdvisoryPageState extends State<AdvisoryPage>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryGreen,
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text('Xem báo cáo chi tiết'),
+                        child: const Text(
+                          'Xem chi tiết',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ),
                   ],
