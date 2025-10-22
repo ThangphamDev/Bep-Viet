@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
-import 'package:bepviet_mobile/core/services/api_service.dart';
-import 'package:bepviet_mobile/core/models/family_model.dart';
+import 'package:bepviet_mobile/data/models/family_model.dart';
+import 'package:bepviet_mobile/data/sources/remote/premium_service.dart';
+import 'package:bepviet_mobile/data/repositories/premium_repository.dart';
+import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/family_member_card.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/add_member_dialog.dart';
 
@@ -34,16 +38,54 @@ class FamilyMember {
   });
 
   factory FamilyMember.fromFamilyMemberModel(FamilyMemberModel model) {
+    // Parse allergies from JSON
+    List<String> allergiesList = [];
+    if (model.allergiesJson != null) {
+      if (model.allergiesJson!['items'] is List) {
+        allergiesList = (model.allergiesJson!['items'] as List)
+            .map((e) => e.toString())
+            .toList();
+      }
+    }
+
+    // Parse diet restrictions from JSON
+    List<String> dietList = [];
+    if (model.dietJson != null) {
+      if (model.dietJson!['items'] is List) {
+        dietList = (model.dietJson!['items'] as List)
+            .map((e) => e.toString())
+            .toList();
+      }
+    }
+
+    // Convert age_group to age number (approximate)
+    int age = 25; // default
+    if (model.ageGroup != null) {
+      switch (model.ageGroup) {
+        case 'CHILD':
+          age = 8;
+          break;
+        case 'TEEN':
+          age = 15;
+          break;
+        case 'ADULT':
+          age = 35;
+          break;
+        case 'SENIOR':
+          age = 65;
+          break;
+      }
+    }
+
     return FamilyMember(
       id: model.id,
       name: model.name,
-      age: model.age,
-      role: 'Thành viên', // Default role
-      allergies: model.allergies != null ? [model.allergies!] : [],
-      dietaryRestrictions: model.dietaryRestrictions != null
-          ? [model.dietaryRestrictions!]
-          : [],
-      healthConditions: [], // No health conditions in new model
+      age: age,
+      role: 'Thành viên',
+      allergies: allergiesList,
+      dietaryRestrictions: dietList,
+      healthConditions: [],
+      customAllergies: model.note ?? '',
     );
   }
 }
@@ -56,10 +98,10 @@ class FamilyProfilePage extends StatefulWidget {
 }
 
 class _FamilyProfilePageState extends State<FamilyProfilePage> {
-  final ApiService _apiService = ApiService();
   bool _isLoading = true;
   List<FamilyProfileModel> _familyProfiles = [];
   List<FamilyMemberModel> _familyMembers = [];
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -68,36 +110,38 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
   }
 
   Future<void> _loadFamilyData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
-      setState(() => _isLoading = true);
-
-      // Load family profiles
-      final familyData = await _apiService.getUserFamilyProfiles();
-      _familyProfiles = familyData
-          .map((json) => FamilyProfileModel.fromJson(json))
-          .toList();
-
-      // Load family members from first profile
-      if (_familyProfiles.isNotEmpty) {
-        // Note: Backend doesn't have separate endpoint for members yet
-        // For now, we'll use mock data
-        _familyMembers = [];
+      final authState = context.read<AuthCubit>().state;
+      if (authState is! AuthAuthenticated) {
+        throw Exception('Vui lòng đăng nhập');
       }
+
+      final token = context.read<AuthCubit>().authRepository.accessToken;
+      if (token == null) {
+        throw Exception('Token không hợp lệ');
+      }
+
+      // Load family profiles from API
+      final premiumRepo = PremiumRepository(PremiumService(Dio()));
+      final profiles = await premiumRepo.getUserFamilyProfiles(token);
+
+      setState(() {
+        _familyProfiles = profiles;
+        // Extract all members from all profiles
+        _familyMembers = profiles.expand((profile) => profile.members).toList();
+        _isLoading = false;
+      });
     } catch (e) {
       print('Error loading family data: $e');
-      // Fallback to mock data
-      _familyMembers = [
-        FamilyMemberModel(
-          id: '1',
-          familyId: 'family_1',
-          name: 'Nguyễn Văn A',
-          age: 35,
-          dietaryRestrictions: 'Vegetarian',
-          allergies: 'Hải sản, Đậu phộng',
-        ),
-      ];
-    } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
@@ -122,6 +166,112 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: AppTheme.errorColor.withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Không thể tải dữ liệu',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _loadFamilyData,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Thử lại'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _familyProfiles.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.family_restroom,
+                      size: 80,
+                      color: AppTheme.primaryGreen.withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Chưa có hồ sơ gia đình',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tạo hồ sơ gia đình để quản lý\nthông tin dinh dưỡng cho cả nhà!',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _showCreateFamilyDialog,
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text(
+                        'Tạo hồ sơ gia đình',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _familyMembers.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.person_add,
+                      size: 64,
+                      color: AppTheme.primaryGreen.withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Chưa có thành viên nào',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Thêm thành viên gia đình để bắt đầu!',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+            )
           : Column(
               children: [
                 // Family Overview Card
@@ -179,7 +329,7 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
                                   height: AppConfig.smallPadding / 2,
                                 ),
                                 Text(
-                                  '${_familyMembers.length} thành viên • 3 cảnh báo hoạt động • 2 báo cáo tuần',
+                                  '${_familyMembers.length} thành viên',
                                   style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
                                         color: Colors.white.withOpacity(0.9),
@@ -227,20 +377,8 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
                           ),
                           Expanded(
                             child: _buildFamilyStat(
-                              'Cảnh báo',
-                              '3',
-                              Colors.white,
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: 40,
-                            color: Colors.white.withOpacity(0.3),
-                          ),
-                          Expanded(
-                            child: _buildFamilyStat(
-                              'Điểm sức khỏe',
-                              '8.2',
+                              'Hồ sơ',
+                              '${_familyProfiles.length}',
                               Colors.white,
                             ),
                           ),
@@ -293,26 +431,190 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
     );
   }
 
-  void _showAddMemberDialog() {
+  Future<void> _showCreateFamilyDialog() async {
+    final nameController = TextEditingController(text: 'Gia đình của tôi');
+    final noteController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tạo hồ sơ gia đình'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Tên hồ sơ',
+                hintText: 'VD: Gia đình Nguyễn Văn A',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: noteController,
+              decoration: const InputDecoration(
+                labelText: 'Ghi chú (tùy chọn)',
+                hintText: 'Thêm mô tả về gia đình...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+            ),
+            child: const Text(
+              'Tạo hồ sơ',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true || !mounted) return;
+
+    // Create family profile
+    setState(() => _isLoading = true);
+
+    try {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is! AuthAuthenticated) return;
+
+      final token = context.read<AuthCubit>().authRepository.accessToken;
+      if (token == null) return;
+
+      final premiumRepo = PremiumRepository(PremiumService(Dio()));
+      await premiumRepo.createFamilyProfile(
+        token,
+        CreateFamilyProfileRequest(
+          name: nameController.text.trim(),
+          note: noteController.text.trim().isEmpty
+              ? null
+              : noteController.text.trim(),
+        ),
+      );
+
+      // Reload data to get the created profile
+      await _loadFamilyData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã tạo hồ sơ gia đình thành công!'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi tạo hồ sơ: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      nameController.dispose();
+      noteController.dispose();
+    }
+  }
+
+  Future<void> _showAddMemberDialog() async {
+    if (_familyProfiles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng tạo hồ sơ gia đình trước'),
+          backgroundColor: AppTheme.warningColor,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
     showDialog(
       context: context,
       builder: (context) => AddMemberDialog(
-        onSave: (member) {
-          // Convert FamilyMember to FamilyMemberModel
-          final familyMemberModel = FamilyMemberModel(
-            id: member.id,
-            familyId: _familyProfiles.isNotEmpty
-                ? _familyProfiles.first.id
-                : '',
-            name: member.name,
-            age: member.age,
-            dietaryRestrictions: member.dietaryRestrictions.join(', '),
-            allergies: member.allergies.join(', '),
-          );
+        onSave: (member) async {
+          try {
+            final authState = context.read<AuthCubit>().state;
+            if (authState is! AuthAuthenticated) return;
 
-          setState(() {
-            _familyMembers.add(familyMemberModel);
-          });
+            final token = context.read<AuthCubit>().authRepository.accessToken;
+            if (token == null) return;
+
+            // Convert age to age_group
+            String ageGroup = 'ADULT';
+            if (member.age < 12) {
+              ageGroup = 'CHILD';
+            } else if (member.age < 18) {
+              ageGroup = 'TEEN';
+            } else if (member.age >= 60) {
+              ageGroup = 'SENIOR';
+            }
+
+            // Create JSON for allergies and diet
+            Map<String, dynamic>? allergiesJson;
+            if (member.allergies.isNotEmpty) {
+              allergiesJson = {'items': member.allergies};
+            }
+
+            Map<String, dynamic>? dietJson;
+            if (member.dietaryRestrictions.isNotEmpty) {
+              dietJson = {'items': member.dietaryRestrictions};
+            }
+
+            final request = AddFamilyMemberRequest(
+              name: member.name,
+              ageGroup: ageGroup,
+              spiceTolerance: 1,
+              dietJson: dietJson,
+              allergiesJson: allergiesJson,
+              note: member.customAllergies.isNotEmpty
+                  ? member.customAllergies
+                  : null,
+            );
+
+            final premiumRepo = PremiumRepository(PremiumService(Dio()));
+            await premiumRepo.addFamilyMember(
+              token,
+              _familyProfiles.first.id,
+              request,
+            );
+
+            // Reload data
+            await _loadFamilyData();
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Đã thêm thành viên thành công'),
+                  backgroundColor: AppTheme.successColor,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Lỗi thêm thành viên: $e'),
+                  backgroundColor: AppTheme.errorColor,
+                ),
+              );
+            }
+          }
         },
       ),
     );
@@ -514,23 +816,11 @@ class _FamilyProfilePageState extends State<FamilyProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Xóa thành viên'),
-        content: Text('Bạn có chắc muốn xóa ${member.name}?'),
+        content: const Text('Chức năng xóa thành viên đang được phát triển.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _familyMembers.remove(member);
-              });
-              Navigator.pop(context);
-            },
-            child: const Text(
-              'Xóa',
-              style: TextStyle(color: AppTheme.errorColor),
-            ),
+            child: const Text('Đóng'),
           ),
         ],
       ),

@@ -98,10 +98,28 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
           }
 
           if (state is PremiumLoaded) {
+            // Check if user has active subscription (not FREE)
+            final hasActiveSubscription =
+                state.subscription != null &&
+                state.subscription!.status == 'ACTIVE' &&
+                state.subscription!.plan != 'FREE';
+
+            // If no active subscription or using FREE plan, redirect to subscription page
+            if (!hasActiveSubscription) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted) {
+                  context.go('/premium/subscription');
+                }
+              });
+              return const Center(child: CircularProgressIndicator());
+            }
+
             final totalMembers = state.familyProfiles.fold(
               0,
               (sum, profile) => sum + profile.members.length,
             );
+
+            final analytics = state.userAnalytics;
 
             return SingleChildScrollView(
               child: Column(
@@ -110,8 +128,8 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
                   // Health Summary Card
                   HealthSummaryCard(
                     totalMembers: totalMembers,
-                    activeWarnings: 3, // Mock data for now
-                    weeklyReports: 2, // Mock data for now
+                    activeWarnings: 0, // TODO: Implement warnings API
+                    weeklyReports: 0, // TODO: Implement reports API
                     onTap: () => context.go('/premium/family'),
                   ),
                   const SizedBox(height: AppConfig.defaultPadding + 4),
@@ -134,58 +152,59 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
                       horizontal: AppConfig.defaultPadding,
                     ),
                     child: SizedBox(
-                      height: 210, // Increased height to prevent text cutoff
+                      height: 210,
                       child: GridView.count(
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisCount: 2,
                         crossAxisSpacing: AppConfig.defaultPadding,
                         mainAxisSpacing: AppConfig.defaultPadding,
-                        childAspectRatio:
-                            1.5, // Adjusted aspect ratio for better text display
+                        childAspectRatio: 1.5,
                         children: [
                           QuickStatsCard(
-                            title: 'Cảnh báo tuần này',
-                            subtitle: 'Món ăn cần chú ý',
-                            icon: Icons.warning_amber,
-                            color: AppTheme.warningColor,
-                            value: '3',
-                            unit: 'món',
-                            onTap: () => context.go('/premium/advisory'),
+                            title: 'Kế hoạch bữa ăn',
+                            subtitle: 'Tổng số',
+                            icon: Icons.calendar_today,
+                            color: AppTheme.primaryGreen,
+                            value: analytics.mealPlansCount.toString(),
+                            unit: 'kế hoạch',
+                            onTap: () => context.go('/planner'),
                           ),
                           QuickStatsCard(
-                            title: 'Dinh dưỡng trung bình',
-                            subtitle: 'Calories/ngày',
-                            icon: Icons.local_fire_department,
-                            color: AppTheme.errorColor,
-                            value: '1,850',
-                            unit: 'kcal',
-                            onTap: () => _showNutritionDetails(),
-                          ),
-                          QuickStatsCard(
-                            title: 'Món đã nấu',
-                            subtitle: 'Tuần này',
-                            icon: Icons.restaurant,
-                            color: AppTheme.successColor,
-                            value: '12',
-                            unit: 'món',
-                            onTap: () => _showCookedDishes(),
-                          ),
-                          QuickStatsCard(
-                            title: 'Tiết kiệm',
-                            subtitle: 'So với tuần trước',
-                            icon: Icons.savings,
+                            title: 'Tủ lạnh',
+                            subtitle: 'Nguyên liệu',
+                            icon: Icons.kitchen,
                             color: AppTheme.infoColor,
-                            value: '15%',
-                            unit: 'chi phí',
-                            onTap: () => _showSavingsDetails(),
+                            value: analytics.pantryItemsCount.toString(),
+                            unit: 'món',
+                            onTap: () => context.go('/pantry'),
+                          ),
+                          QuickStatsCard(
+                            title: 'Danh sách mua',
+                            subtitle: 'Tổng số',
+                            icon: Icons.shopping_cart,
+                            color: AppTheme.warningColor,
+                            value: analytics.shoppingListsCount.toString(),
+                            unit: 'danh sách',
+                            onTap: () => context.go('/pantry'),
+                          ),
+                          QuickStatsCard(
+                            title: 'Đóng góp cộng đồng',
+                            subtitle: 'Công thức & đánh giá',
+                            icon: Icons.star,
+                            color: AppTheme.successColor,
+                            value:
+                                (analytics.communityRecipesCount +
+                                        analytics.ratingsGivenCount)
+                                    .toString(),
+                            unit: 'lượt',
+                            onTap: () => context.go('/community'),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(
-                    height: AppConfig.largePadding + 8,
-                  ), // Increased spacing
+                  const SizedBox(height: AppConfig.largePadding + 8),
+
                   // Premium Features Section
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -204,14 +223,13 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
                       horizontal: AppConfig.defaultPadding,
                     ),
                     child: SizedBox(
-                      height: 220, // Increased height to prevent text cutoff
+                      height: 220,
                       child: GridView.count(
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisCount: 2,
                         crossAxisSpacing: AppConfig.defaultPadding,
                         mainAxisSpacing: AppConfig.defaultPadding,
-                        childAspectRatio:
-                            1.5, // Increased aspect ratio for more vertical space
+                        childAspectRatio: 1.5,
                         children: [
                           FeatureBenefitCard(
                             icon: Icons.family_restroom,
@@ -308,986 +326,6 @@ class _PremiumDashboardPageState extends State<PremiumDashboardPage> {
           // Fallback for other states
           return const Center(child: CircularProgressIndicator());
         },
-      ),
-    );
-  }
-
-  // Nutrition Details
-  void _showNutritionDetails() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildNutritionDetailsSheet(),
-    );
-  }
-
-  Widget _buildNutritionDetailsSheet() {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.local_fire_department,
-                    color: AppTheme.errorColor,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Chi tiết dinh dưỡng',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Daily Nutrition Summary
-                    _buildNutritionSummaryCard(),
-                    const SizedBox(height: 20),
-
-                    // Nutrition Breakdown
-                    Text(
-                      'Phân tích dinh dưỡng',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildNutritionItem(
-                      'Calories',
-                      '1,850',
-                      'kcal',
-                      '85%',
-                      AppTheme.errorColor,
-                    ),
-                    _buildNutritionItem(
-                      'Protein',
-                      '85g',
-                      'g',
-                      '90%',
-                      AppTheme.successColor,
-                    ),
-                    _buildNutritionItem(
-                      'Carbs',
-                      '220g',
-                      'g',
-                      '75%',
-                      AppTheme.warningColor,
-                    ),
-                    _buildNutritionItem(
-                      'Fat',
-                      '65g',
-                      'g',
-                      '80%',
-                      AppTheme.infoColor,
-                    ),
-                    _buildNutritionItem(
-                      'Fiber',
-                      '25g',
-                      'g',
-                      '95%',
-                      AppTheme.successColor,
-                    ),
-                    _buildNutritionItem(
-                      'Sodium',
-                      '2,100mg',
-                      'mg',
-                      '70%',
-                      AppTheme.warningColor,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Weekly Trend
-                    Text(
-                      'Xu hướng tuần',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildWeeklyTrendChart(),
-
-                    const SizedBox(height: 24),
-
-                    // Recommendations
-                    Text(
-                      'Khuyến nghị',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildRecommendationCard(
-                      'Tăng protein',
-                      'Bổ sung thêm thịt, cá, đậu để đạt mục tiêu protein',
-                      Icons.trending_up,
-                      AppTheme.successColor,
-                    ),
-                    _buildRecommendationCard(
-                      'Giảm sodium',
-                      'Hạn chế muối và thực phẩm chế biến sẵn',
-                      Icons.trending_down,
-                      AppTheme.warningColor,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNutritionSummaryCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.errorColor.withOpacity(0.1),
-            AppTheme.errorColor.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.errorColor.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.local_fire_department,
-                color: AppTheme.errorColor,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Dinh dưỡng trung bình',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Text(
-                '1,850 kcal',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.errorColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Mức dinh dưỡng của bạn đang ở mức tốt. Hãy duy trì chế độ ăn cân bằng!',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNutritionItem(
-    String name,
-    String value,
-    String unit,
-    String percentage,
-    Color color,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(
-                  '$value $unit',
-                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            percentage,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWeeklyTrendChart() {
-    return Container(
-      height: 120,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Calories theo ngày',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _buildChartBar(60, 'T2'),
-                _buildChartBar(80, 'T3'),
-                _buildChartBar(70, 'T4'),
-                _buildChartBar(90, 'T5'),
-                _buildChartBar(85, 'T6'),
-                _buildChartBar(75, 'T7'),
-                _buildChartBar(65, 'CN'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChartBar(double height, String label) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Container(
-          width: 20,
-          height: height,
-          decoration: BoxDecoration(
-            color: AppTheme.errorColor,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 10)),
-      ],
-    );
-  }
-
-  Widget _buildRecommendationCard(
-    String title,
-    String description,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  description,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Cooked Dishes
-  void _showCookedDishes() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildCookedDishesSheet(),
-    );
-  }
-
-  Widget _buildCookedDishesSheet() {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.restaurant,
-                    color: AppTheme.successColor,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Món đã nấu',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Summary
-                    _buildCookedDishesSummary(),
-                    const SizedBox(height: 20),
-
-                    // Recent dishes
-                    Text(
-                      'Món gần đây',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildDishItem(
-                      'Cơm tấm sườn nướng',
-                      'Hôm qua',
-                      4.5,
-                      'Vietnamese',
-                    ),
-                    _buildDishItem(
-                      'Bún bò Huế',
-                      '2 ngày trước',
-                      4.8,
-                      'Vietnamese',
-                    ),
-                    _buildDishItem('Phở bò', '3 ngày trước', 4.2, 'Vietnamese'),
-                    _buildDishItem(
-                      'Gỏi cuốn',
-                      '4 ngày trước',
-                      4.6,
-                      'Vietnamese',
-                    ),
-                    _buildDishItem(
-                      'Bánh xèo',
-                      '5 ngày trước',
-                      4.3,
-                      'Vietnamese',
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Statistics
-                    Text(
-                      'Thống kê',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            '12',
-                            'Món tuần này',
-                            AppTheme.successColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatCard(
-                            '48',
-                            'Món tháng này',
-                            AppTheme.infoColor,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            '4.5',
-                            'Đánh giá TB',
-                            AppTheme.warningColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatCard(
-                            '15',
-                            'Món yêu thích',
-                            AppTheme.errorColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCookedDishesSummary() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.successColor.withOpacity(0.1),
-            AppTheme.successColor.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.successColor.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(Icons.restaurant, color: AppTheme.successColor, size: 28),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Món đã nấu tuần này',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Text(
-                '12 món',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.successColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Bạn đã nấu nhiều món ngon! Hãy tiếp tục khám phá các công thức mới.',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDishItem(
-    String name,
-    String date,
-    double rating,
-    String category,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: AppTheme.successColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(Icons.restaurant, color: AppTheme.successColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text(
-                  date,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.star, color: Colors.amber, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating.toString(),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.successColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        category,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.successColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String value, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Savings Details
-  void _showSavingsDetails() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildSavingsDetailsSheet(),
-    );
-  }
-
-  Widget _buildSavingsDetailsSheet() {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Icon(Icons.savings, color: AppTheme.infoColor, size: 24),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Chi tiết tiết kiệm',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Summary
-                    _buildSavingsSummary(),
-                    const SizedBox(height: 20),
-
-                    // Savings breakdown
-                    Text(
-                      'Phân tích tiết kiệm',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildSavingsItem(
-                      'Nấu ăn tại nhà',
-                      '850,000đ',
-                      '70%',
-                      AppTheme.successColor,
-                    ),
-                    _buildSavingsItem(
-                      'Mua nguyên liệu thông minh',
-                      '200,000đ',
-                      '20%',
-                      AppTheme.infoColor,
-                    ),
-                    _buildSavingsItem(
-                      'Tận dụng thực phẩm thừa',
-                      '100,000đ',
-                      '10%',
-                      AppTheme.warningColor,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Comparison
-                    Text(
-                      'So sánh chi phí',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildComparisonCard(
-                      'Nấu tại nhà',
-                      '1,200,000đ',
-                      AppTheme.successColor,
-                    ),
-                    _buildComparisonCard(
-                      'Ăn ngoài',
-                      '2,000,000đ',
-                      AppTheme.errorColor,
-                    ),
-                    _buildComparisonCard(
-                      'Đặt đồ ăn',
-                      '1,800,000đ',
-                      AppTheme.warningColor,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Tips
-                    Text(
-                      'Mẹo tiết kiệm',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildTipCard(
-                      'Mua nguyên liệu theo mùa',
-                      'Thực phẩm theo mùa thường rẻ hơn và tươi ngon hơn',
-                      Icons.calendar_month,
-                    ),
-                    _buildTipCard(
-                      'Lập kế hoạch bữa ăn',
-                      'Lên kế hoạch trước giúp tránh lãng phí thực phẩm',
-                      Icons.calendar_today,
-                    ),
-                    _buildTipCard(
-                      'Tận dụng thực phẩm thừa',
-                      'Biến thực phẩm thừa thành món ăn mới',
-                      Icons.recycling,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSavingsSummary() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.infoColor.withOpacity(0.1),
-            AppTheme.infoColor.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.infoColor.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(Icons.savings, color: AppTheme.infoColor, size: 28),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Tiết kiệm tuần này',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Text(
-                '15%',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.infoColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Bạn đã tiết kiệm được 800,000đ so với tuần trước! Hãy tiếp tục duy trì.',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSavingsItem(
-    String category,
-    String amount,
-    String percentage,
-    Color color,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  amount,
-                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            percentage,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildComparisonCard(String method, String cost, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.compare_arrows, color: color, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              method,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          Text(
-            cost,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTipCard(String title, String description, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.infoColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.infoColor.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppTheme.infoColor, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  description,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

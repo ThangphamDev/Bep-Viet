@@ -18,9 +18,15 @@ export class FamilyService {
       [familyId, userId, name, note ?? null]
     );
 
+    // Return the created profile with full data
     return {
       success: true,
-      data: { id: familyId },
+      data: {
+        id: familyId,
+        name: name,
+        note: note ?? null,
+        members: [],
+      },
     };
   }
 
@@ -93,9 +99,18 @@ export class FamilyService {
       ]
     );
 
+    // Return the created member with full data
     return {
       success: true,
-      data: { id: memberId },
+      data: {
+        id: memberId,
+        name: name,
+        age_group: age_group ?? null,
+        spice_tolerance: spice_tolerance ?? 1,
+        diet_json: diet_json ?? null,
+        allergies_json: allergies_json ?? null,
+        note: note ?? null,
+      },
     };
   }
 }

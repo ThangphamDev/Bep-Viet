@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/data/models/subscription_model.dart';
+import 'package:bepviet_mobile/data/sources/remote/premium_service.dart';
+import 'package:bepviet_mobile/data/repositories/premium_repository.dart';
+import 'package:bepviet_mobile/presentation/features/premium/cubit/premium_cubit.dart';
+import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/subscription_plan_card.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/subscription_history_card.dart';
 
@@ -12,54 +19,76 @@ class SubscriptionPage extends StatefulWidget {
 }
 
 class _SubscriptionPageState extends State<SubscriptionPage> {
-  String _selectedPlan = 'premium';
-  bool _isLoading = false;
+  String _selectedPlan = 'PREMIUM';
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<SubscriptionPlanModel> _apiPlans = [];
+  SubscriptionModel? _currentSubscription;
 
-  final List<SubscriptionPlan> _plans = [
-    SubscriptionPlan(
-      id: 'basic',
-      name: 'Gói Cơ bản',
-      price: 0,
-      duration: 'Miễn phí',
-      features: [
-        'Gợi ý món ăn cơ bản',
-        'Quản lý tủ lạnh',
-        'Lập kế hoạch tuần',
-        'Cộng đồng công thức',
-      ],
-      isPopular: false,
-    ),
-    SubscriptionPlan(
-      id: 'premium',
-      name: 'Gói Premium',
-      price: 99000,
-      duration: 'Tháng',
-      features: [
-        'Tất cả tính năng cơ bản',
-        'Hồ sơ gia đình chi tiết',
-        'Cảnh báo dinh dưỡng thông minh',
-        'Phân tích sức khỏe hàng tuần',
-        'Ưu tiên hỗ trợ 24/7',
-        'Gợi ý cá nhân hóa',
-      ],
-      isPopular: true,
-    ),
-    SubscriptionPlan(
-      id: 'family',
-      name: 'Gói Gia đình',
-      price: 149000,
-      duration: 'Tháng',
-      features: [
-        'Tất cả tính năng Premium',
-        'Quản lý tối đa 8 thành viên',
-        'Báo cáo sức khỏe gia đình',
-        'Cảnh báo dị ứng nâng cao',
-        'Tư vấn dinh dưỡng chuyên nghiệp',
-        'Tích hợp thiết bị y tế',
-      ],
-      isPopular: false,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is AuthAuthenticated) {
+        final token = context.read<AuthCubit>().authRepository.accessToken;
+        if (token != null) {
+          // Create PremiumRepository instance
+          final premiumService = PremiumService(Dio());
+          final premiumRepo = PremiumRepository(premiumService);
+
+          // Load plans and current subscription
+          final plans = await premiumRepo.getSubscriptionPlans(token);
+          final subscription = await premiumRepo.getUserSubscription(token);
+
+          setState(() {
+            _apiPlans = plans;
+            _currentSubscription = subscription;
+            // Set selected plan to current subscription or first paid plan
+            if (subscription != null) {
+              _selectedPlan = subscription.plan;
+            } else if (plans.isNotEmpty) {
+              // Find first paid plan
+              final paidPlan = plans.firstWhere(
+                (p) => p.price > 0,
+                orElse: () => plans.first,
+              );
+              _selectedPlan = paidPlan.id;
+            }
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Convert API plans to local SubscriptionPlan for compatibility with widgets
+  List<SubscriptionPlan> get _plans {
+    return _apiPlans.map((apiPlan) {
+      return SubscriptionPlan(
+        id: apiPlan.id,
+        name: apiPlan.name,
+        price: apiPlan.price,
+        duration: apiPlan.duration == 'month' ? 'Tháng' : 'Năm',
+        features: apiPlan.features,
+        isPopular: apiPlan.isPopular,
+      );
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,187 +109,230 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Current Subscription Status
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryGreen.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+          ? Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.white, size: 24),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Premium Active',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppTheme.errorColor,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Lỗi tải dữ liệu',
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Gói Premium • Hết hạn 15/02/2024',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.9),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      _errorMessage!,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      textAlign: TextAlign.center,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatusItem(
-                          icon: Icons.family_restroom,
-                          label: 'Hồ sơ gia đình',
-                          isActive: true,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildStatusItem(
-                          icon: Icons.health_and_safety,
-                          label: 'Cảnh báo sức khỏe',
-                          isActive: true,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildStatusItem(
-                          icon: Icons.analytics,
-                          label: 'Phân tích chi tiết',
-                          isActive: true,
-                        ),
-                      ),
-                    ],
+                  ElevatedButton(
+                    onPressed: _loadData,
+                    child: const Text('Thử lại'),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // Subscription Plans
-            Text(
-              'Chọn gói đăng ký',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 16),
-
-            // Plans List
-            ..._plans.map(
-              (plan) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: SubscriptionPlanCard(
-                  plan: plan,
-                  isSelected: _selectedPlan == plan.id,
-                  onSelect: () {
-                    setState(() {
-                      _selectedPlan = plan.id;
-                    });
-                  },
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Benefits Summary
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: AppTheme.cardDecoration,
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Current Subscription Status
+                  if (_currentSubscription != null &&
+                      _currentSubscription!.status == 'ACTIVE')
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryGreen.withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                _currentSubscription!.plan == 'PREMIUM'
+                                    ? 'Premium Active'
+                                    : '${_currentSubscription!.plan} Active',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Gói ${_currentSubscription!.plan} • Hết hạn ${_formatDate(_currentSubscription!.endedAt)}',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatusItem(
+                                  icon: Icons.family_restroom,
+                                  label: 'Hồ sơ gia đình',
+                                  isActive: true,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildStatusItem(
+                                  icon: Icons.health_and_safety,
+                                  label: 'Cảnh báo sức khỏe',
+                                  isActive: true,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildStatusItem(
+                                  icon: Icons.analytics,
+                                  label: 'Phân tích chi tiết',
+                                  isActive: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+
+                  // Subscription Plans
                   Text(
-                    'Lợi ích khi nâng cấp',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    'Chọn gói đăng ký',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Plans List
+                  ..._plans.map(
+                    (plan) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: SubscriptionPlanCard(
+                        plan: plan,
+                        isSelected: _selectedPlan == plan.id,
+                        onSelect: () {
+                          setState(() {
+                            _selectedPlan = plan.id;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Benefits Summary
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: AppTheme.cardDecoration,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Lợi ích khi nâng cấp',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildBenefitItem(
+                          icon: Icons.family_restroom,
+                          title: 'Quản lý hồ sơ gia đình',
+                          description:
+                              'Theo dõi thông tin sức khỏe của từng thành viên',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildBenefitItem(
+                          icon: Icons.health_and_safety,
+                          title: 'Cảnh báo dinh dưỡng thông minh',
+                          description:
+                              'Nhận cảnh báo về dị ứng và tình trạng sức khỏe',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildBenefitItem(
+                          icon: Icons.analytics,
+                          title: 'Phân tích sức khỏe chi tiết',
+                          description:
+                              'Báo cáo dinh dưỡng và khuyến nghị cá nhân hóa',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Subscribe Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _subscribeToPlan,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              _getSubscribeButtonText(),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildBenefitItem(
-                    icon: Icons.family_restroom,
-                    title: 'Quản lý hồ sơ gia đình',
-                    description:
-                        'Theo dõi thông tin sức khỏe của từng thành viên',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildBenefitItem(
-                    icon: Icons.health_and_safety,
-                    title: 'Cảnh báo dinh dưỡng thông minh',
-                    description:
-                        'Nhận cảnh báo về dị ứng và tình trạng sức khỏe',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildBenefitItem(
-                    icon: Icons.analytics,
-                    title: 'Phân tích sức khỏe chi tiết',
-                    description:
-                        'Báo cáo dinh dưỡng và khuyến nghị cá nhân hóa',
+
+                  // Terms and Conditions
+                  Text(
+                    'Bằng cách đăng ký, bạn đồng ý với Điều khoản sử dụng và Chính sách bảo mật của chúng tôi.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Subscribe Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _subscribeToPlan,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(
-                        _getSubscribeButtonText(),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Terms and Conditions
-            Text(
-              'Bằng cách đăng ký, bạn đồng ý với Điều khoản sử dụng và Chính sách bảo mật của chúng tôi.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -333,52 +405,106 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     }
   }
 
-  void _subscribeToPlan() {
-    if (_selectedPlan == 'basic') return;
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  Future<void> _subscribeToPlan() async {
+    // Find selected plan to get price
+    final selectedPlanData = _apiPlans.firstWhere((p) => p.id == _selectedPlan);
+
+    // If FREE plan, just continue
+    if (selectedPlanData.price == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Bạn đang sử dụng gói miễn phí'),
+          backgroundColor: AppTheme.infoColor,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate API call
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() {
-        _isLoading = false;
-      });
+    try {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is AuthAuthenticated) {
+        final token = context.read<AuthCubit>().authRepository.accessToken;
+        if (token != null) {
+          // Create subscription
+          final request = CreateSubscriptionRequest(
+            plan: _selectedPlan,
+            durationMonths: selectedPlanData.duration == 'month' ? 1 : 12,
+          );
 
-      // Show success dialog
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Đăng ký thành công!'),
-          content: Text(
-            'Bạn đã đăng ký thành công gói ${_plans.firstWhere((p) => p.id == _selectedPlan).name}. '
-            'Cảm ơn bạn đã tin tưởng Bếp Việt!',
+          context.read<PremiumCubit>().add(CreateSubscription(token, request));
+
+          // Wait a bit for the subscription to be created
+          await Future.delayed(const Duration(seconds: 1));
+
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+
+            // Show success dialog
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Đăng ký thành công!'),
+                content: Text(
+                  'Bạn đã đăng ký thành công gói ${selectedPlanData.name}. '
+                  'Cảm ơn bạn đã tin tưởng Bếp Việt!',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.go('/premium');
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi đăng ký: ${e.toString()}'),
+            backgroundColor: AppTheme.errorColor,
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.go('/premium');
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    });
+        );
+      }
+    }
   }
 
-  void _showSubscriptionHistory() {
+  Future<void> _showSubscriptionHistory() async {
+    // Load transactions
+    final authState = context.read<AuthCubit>().state;
+    if (authState is! AuthAuthenticated) return;
+
+    final token = context.read<AuthCubit>().authRepository.accessToken;
+    if (token == null) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _buildSubscriptionHistorySheet(),
+      builder: (context) => _buildSubscriptionHistorySheet(token),
     );
   }
 
-  Widget _buildSubscriptionHistorySheet() {
+  Widget _buildSubscriptionHistorySheet(String token) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
       decoration: const BoxDecoration(
@@ -404,30 +530,79 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              children: [
-                SubscriptionHistoryCard(
-                  planName: 'Premium',
-                  date: '15/01/2024',
-                  amount: 99000,
-                  status: 'Active',
-                  isActive: true,
-                ),
-                const SizedBox(height: 12),
-                SubscriptionHistoryCard(
-                  planName: 'Basic',
-                  date: '01/01/2024',
-                  amount: 0,
-                  status: 'Expired',
-                  isActive: false,
-                ),
-              ],
+            child: FutureBuilder<List<SubscriptionTransactionModel>>(
+              future: PremiumRepository(
+                PremiumService(Dio()),
+              ).getUserTransactions(token),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        'Lỗi tải dữ liệu: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppTheme.errorColor),
+                      ),
+                    ),
+                  );
+                }
+
+                final transactions = snapshot.data ?? [];
+
+                if (transactions.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text(
+                        'Chưa có lịch sử giao dịch',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: transactions.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final transaction = transactions[index];
+                    return SubscriptionHistoryCard(
+                      planName: transaction.planName,
+                      date: _formatDate(transaction.createdAt),
+                      amount: transaction.amount,
+                      status: _translateStatus(transaction.status),
+                      isActive: transaction.status == 'COMPLETED',
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _translateStatus(String status) {
+    switch (status) {
+      case 'COMPLETED':
+        return 'Hoàn thành';
+      case 'PENDING':
+        return 'Đang xử lý';
+      case 'FAILED':
+        return 'Thất bại';
+      case 'REFUNDED':
+        return 'Đã hoàn tiền';
+      default:
+        return status;
+    }
   }
 }
 

@@ -9,6 +9,10 @@ class PremiumRepository {
   PremiumRepository(this._premiumService);
 
   // Subscription methods
+  Future<List<SubscriptionPlanModel>> getSubscriptionPlans(String token) async {
+    return await _premiumService.getSubscriptionPlans(token);
+  }
+
   Future<SubscriptionModel?> getUserSubscription(String token) async {
     return await _premiumService.getUserSubscription(token);
   }
@@ -22,6 +26,12 @@ class PremiumRepository {
 
   Future<void> cancelSubscription(String token, String subscriptionId) async {
     await _premiumService.cancelSubscription(token, subscriptionId);
+  }
+
+  Future<List<SubscriptionTransactionModel>> getUserTransactions(
+    String token,
+  ) async {
+    return await _premiumService.getUserTransactions(token);
   }
 
   // Family methods

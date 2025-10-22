@@ -42,6 +42,30 @@ class PremiumService {
   }
 
   // Subscription APIs
+  Future<List<SubscriptionPlanModel>> getSubscriptionPlans(String token) async {
+    try {
+      final response = await _dio.get(
+        '/api/subscriptions/plans',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] is List) {
+          return (map['data'] as List)
+              .map(
+                (e) =>
+                    SubscriptionPlanModel.fromJson(e as Map<String, dynamic>),
+              )
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get subscription plans: $e');
+    }
+  }
+
   Future<SubscriptionModel?> getUserSubscription(String token) async {
     try {
       final response = await _dio.get(
@@ -100,6 +124,33 @@ class PremiumService {
       );
     } catch (e) {
       throw Exception('Failed to cancel subscription: $e');
+    }
+  }
+
+  Future<List<SubscriptionTransactionModel>> getUserTransactions(
+    String token,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/api/subscriptions/transactions',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] is List) {
+          return (map['data'] as List)
+              .map(
+                (e) => SubscriptionTransactionModel.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get transactions: $e');
     }
   }
 
