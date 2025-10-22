@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
@@ -188,24 +189,32 @@ class AdminRecipeDetailPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Recipe Image
-        if (imageUrl != null && imageUrl.isNotEmpty)
+        // Recipe Image - only show if imageUrl exists
+        if (imageUrl != null && imageUrl.isNotEmpty) ...[
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Image.network(
-              imageUrl,
-              width: double.infinity,
-              height: 250,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return _buildPlaceholderImage();
-              },
-            ),
-          )
-        else
-          _buildPlaceholderImage(),
-        
-        const SizedBox(height: 16),
+            child: imageUrl.startsWith('data:image')
+                ? Image.memory(
+                    base64Decode(imageUrl.split(',')[1]),
+                    width: double.infinity,
+                    height: 250,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildPlaceholderImage();
+                    },
+                  )
+                : Image.network(
+                    imageUrl,
+                    width: double.infinity,
+                    height: 250,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildPlaceholderImage();
+                    },
+                  ),
+          ),
+          const SizedBox(height: 16),
+        ],
         
         // Recipe Title and Info
         Container(
@@ -747,16 +756,16 @@ class AdminRecipeDetailPage extends StatelessWidget {
               Expanded(
                 child: _buildInfoItem(
                   icon: Icons.star,
-                  label: 'Đánh giá',
-                  value: '$ratingCount',
+                  label: 'Số sao TB',
+                  value: avgRating.toStringAsFixed(1),
                   color: Colors.amber,
                 ),
               ),
               Expanded(
                 child: _buildInfoItem(
                   icon: Icons.trending_up,
-                  label: 'Điểm TB',
-                  value: avgRating.toStringAsFixed(1),
+                  label: 'Số đánh giá',
+                  value: '$ratingCount',
                   color: AppTheme.primaryGreen,
                 ),
               ),
