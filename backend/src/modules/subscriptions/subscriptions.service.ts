@@ -45,14 +45,25 @@ export class SubscriptionsService {
     const planData = (plans as any[])[0];
     const amount = planData ? planData.price * duration_months : 0;
 
-    // Create subscription
-    const [result] = await this.db.execute(
-      `INSERT INTO subscriptions (user_id, plan, status, started_at, ended_at)
-       VALUES (?, ?, 'ACTIVE', ?, ?)`,
-      [userId, plan, startDate, endDate]
+    // Generate UUID for subscription
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const subscriptionId = (uuidResult as any[])[0].id;
+
+    // Cancel any existing active subscriptions for this user
+    await this.db.execute(
+      `UPDATE subscriptions 
+       SET status = 'CANCELLED', ended_at = NOW() 
+       WHERE user_id = ? AND status = 'ACTIVE'`,
+      [userId]
     );
 
-    const subscriptionId = (result as any).insertId;
+    // Create subscription (convert plan to uppercase for subscriptions table)
+    const planUpper = plan.toUpperCase();
+    await this.db.execute(
+      `INSERT INTO subscriptions (id, user_id, plan, status, started_at, ended_at)
+       VALUES (?, ?, ?, 'ACTIVE', ?, ?)`,
+      [subscriptionId, userId, planUpper, startDate, endDate]
+    );
 
     // Create transaction record
     await this.db.execute(
@@ -64,7 +75,13 @@ export class SubscriptionsService {
 
     return {
       success: true,
-      data: { id: subscriptionId },
+      data: { 
+        id: subscriptionId,
+        plan: planUpper,
+        status: 'ACTIVE',
+        started_at: startDate,
+        ended_at: endDate,
+      },
     };
   }
 

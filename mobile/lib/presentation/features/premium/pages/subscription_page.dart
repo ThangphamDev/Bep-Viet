@@ -435,9 +435,21 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         final token = context.read<AuthCubit>().authRepository.accessToken;
         if (token != null) {
           // Create subscription
+          // Determine duration months based on plan type
+          int durationMonths = 1; // Default to 1 month
+          if (selectedPlanData.duration.toLowerCase().contains('năm') ||
+              selectedPlanData.duration.toLowerCase().contains('year')) {
+            durationMonths = 12;
+          } else if (selectedPlanData.duration.toLowerCase().contains(
+                'tháng',
+              ) ||
+              selectedPlanData.duration.toLowerCase().contains('month')) {
+            durationMonths = 1;
+          }
+
           final request = CreateSubscriptionRequest(
             plan: _selectedPlan,
-            durationMonths: selectedPlanData.duration == 'month' ? 1 : 12,
+            durationMonths: durationMonths,
           );
 
           context.read<PremiumCubit>().add(CreateSubscription(token, request));
