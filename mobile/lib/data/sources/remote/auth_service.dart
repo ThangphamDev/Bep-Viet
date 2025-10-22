@@ -122,6 +122,22 @@ class AuthService {
     );
   }
 
+  Future<void> saveAuthData({
+    required UserModel user,
+    required String accessToken,
+    required String refreshToken,
+    bool rememberMe = false,
+  }) async {
+    await _saveAuthData(
+      AuthData(
+        user: user,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      ),
+      rememberMe: rememberMe,
+    );
+  }
+
   // Check if should auto login
   bool get shouldAutoLogin {
     // Check token expiry (regardless of remember me flag)

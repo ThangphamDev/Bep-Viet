@@ -66,53 +66,21 @@ class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _authRepository;
 
   AuthCubit(this._authRepository) : super(AuthInitial()) {
-    _checkAuthStatus();
+    // REMOVED: Auto-login check to allow biometric login
+    // User will always start at login page
+    _initializeAuthState();
   }
 
   // Getter for auth repository
   AuthRepository get authRepository => _authRepository;
 
-  Future<void> _checkAuthStatus() async {
+  Future<void> _initializeAuthState() async {
     // Show splash screen for at least 1 second
-    final splashFuture = Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 1));
 
-    if (_authRepository.isLoggedIn && _authRepository.shouldAutoLogin) {
-      // Token exists and not expired - verify with server
-      try {
-        final isValid = await _authRepository.isTokenValid();
-        if (isValid) {
-          // Token valid, get fresh user data
-          final user = await _authRepository.getUserProfile();
-
-          // Wait for splash screen minimum duration
-          await splashFuture;
-          emit(AuthAuthenticated(user: user));
-        } else {
-          // Token invalid or expired, logout
-          await _authRepository.logout();
-
-          // Wait for splash screen minimum duration
-          await splashFuture;
-          emit(AuthUnauthenticated());
-        }
-      } catch (e) {
-        // Error verifying token (network error, user deleted, etc.)
-        await _authRepository.logout();
-
-        // Wait for splash screen minimum duration
-        await splashFuture;
-        emit(AuthUnauthenticated());
-      }
-    } else {
-      // No token or token expired
-      if (_authRepository.isLoggedIn) {
-        await _authRepository.logout();
-      }
-
-      // Wait for splash screen minimum duration
-      await splashFuture;
-      emit(AuthUnauthenticated());
-    }
+    // Always emit Unauthenticated to show login page
+    // This allows users to use biometric login
+    emit(AuthUnauthenticated());
   }
 
   Future<void> login(
@@ -134,6 +102,22 @@ class AuthCubit extends Cubit<AuthState> {
       }
     } catch (e) {
       // Clean up the error message (remove "Exception: " prefix)
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      emit(AuthError(message: errorMessage));
+    }
+  }
+
+  Future<void> loginWithGoogle() async {
+    emit(AuthLoading());
+    try {
+      final response = await _authRepository.loginWithGoogle();
+      if (response.success) {
+        emit(AuthAuthenticated(user: response.data.user));
+      } else {
+        emit(const AuthError(message: 'Đăng nhập Google thất bại'));
+      }
+    } catch (e) {
+      // Clean up the error message
       final errorMessage = e.toString().replaceFirst('Exception: ', '');
       emit(AuthError(message: errorMessage));
     }
@@ -243,5 +227,42 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (e) {
       throw Exception('Failed to change password: $e');
     }
+  }
+
+  // ========== Biometric Authentication Methods ==========
+
+  Future<void> loginWithBiometric() async {
+    emit(AuthLoading());
+    try {
+      final response = await _authRepository.loginWithBiometric();
+      if (response.success) {
+        emit(AuthAuthenticated(user: response.data.user));
+      } else {
+        emit(const AuthError(message: 'Đăng nhập sinh trắc học thất bại'));
+      }
+    } catch (e) {
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      emit(AuthError(message: errorMessage));
+    }
+  }
+
+  Future<bool> isBiometricAvailable() async {
+    return await _authRepository.isBiometricAvailable();
+  }
+
+  Future<bool> isBiometricEnabled() async {
+    return await _authRepository.isBiometricEnabled();
+  }
+
+  Future<void> enableBiometric(String email) async {
+    await _authRepository.enableBiometric(email);
+  }
+
+  Future<void> disableBiometric() async {
+    await _authRepository.disableBiometric();
+  }
+
+  Future<String> getBiometricMessage() async {
+    return await _authRepository.getBiometricMessage();
   }
 }

@@ -1,6 +1,7 @@
 class RecipeModel {
   final String id;
   final String name;
+  final String? nameEn;
   final String? description;
   final String? imageUrl;
   final int? prepTimeMinutes;
@@ -9,7 +10,14 @@ class RecipeModel {
   final int? servings;
   final int? difficulty;
   final String? mealType;
+  final String? region;
   final String? baseRegion;
+  final String? authenticity;
+  final int? spiceLevel;
+  final int? saltiness;
+  final int? hardness;
+  final double? ratingAvg;
+  final int? ratingCount;
   final List<String>? tags;
   final List<RecipeIngredientModel>? ingredients;
   final List<RecipeStepModel>? steps;
@@ -21,6 +29,7 @@ class RecipeModel {
   RecipeModel({
     required this.id,
     required this.name,
+    this.nameEn,
     this.description,
     this.imageUrl,
     this.prepTimeMinutes,
@@ -29,7 +38,14 @@ class RecipeModel {
     this.servings,
     this.difficulty,
     this.mealType,
+    this.region,
     this.baseRegion,
+    this.authenticity,
+    this.spiceLevel,
+    this.saltiness,
+    this.hardness,
+    this.ratingAvg,
+    this.ratingCount,
     this.tags,
     this.ingredients,
     this.steps,
@@ -46,6 +62,7 @@ class RecipeModel {
           json['name_vi']?.toString() ??
           json['name']?.toString() ??
           'Unknown Recipe',
+      nameEn: json['name_en']?.toString(),
       description: json['description']?.toString(),
       imageUrl: json['image_url']?.toString() ?? json['imageUrl']?.toString(),
       prepTimeMinutes:
@@ -60,8 +77,15 @@ class RecipeModel {
       servings: _parseInt(json['servings']),
       difficulty: _parseInt(json['difficulty']),
       mealType: json['meal_type']?.toString() ?? json['mealType']?.toString(),
+      region: json['region']?.toString(),
       baseRegion:
           json['base_region']?.toString() ?? json['baseRegion']?.toString(),
+      authenticity: json['authenticity']?.toString(),
+      spiceLevel: _parseInt(json['spice_level']) ?? _parseInt(json['spiceLevel']),
+      saltiness: _parseInt(json['saltiness']),
+      hardness: _parseInt(json['hardness']),
+      ratingAvg: _parseDouble(json['rating_avg']) ?? _parseDouble(json['ratingAvg']),
+      ratingCount: _parseInt(json['rating_count']) ?? _parseInt(json['ratingCount']),
       tags: json['tags'] != null
           ? (json['tags'] as List)
                 .map(
@@ -92,13 +116,18 @@ class RecipeModel {
                 )
                 .toList()
           : null,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
-          : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : json['createdAt'] != null
+              ? DateTime.parse(json['createdAt'] as String)
+              : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : json['updatedAt'] != null
+              ? DateTime.parse(json['updatedAt'] as String)
+              : null,
       isFavorite: json['is_favorite'] == true || json['is_favorite'] == 1,
+
     );
   }
 
@@ -107,6 +136,14 @@ class RecipeModel {
     if (value is int) return value;
     if (value is double) return value.toInt();
     if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
     return null;
   }
 
@@ -156,6 +193,7 @@ class RecipeModel {
     return {
       'id': id,
       'name': name,
+      'nameEn': nameEn,
       'description': description,
       'imageUrl': imageUrl,
       'prepTimeMinutes': prepTimeMinutes,
@@ -164,7 +202,14 @@ class RecipeModel {
       'servings': servings,
       'difficulty': difficulty,
       'mealType': mealType,
+      'region': region,
       'baseRegion': baseRegion,
+      'authenticity': authenticity,
+      'spiceLevel': spiceLevel,
+      'saltiness': saltiness,
+      'hardness': hardness,
+      'ratingAvg': ratingAvg,
+      'ratingCount': ratingCount,
       'tags': tags,
       'ingredients': ingredients?.map((e) => e.toJson()).toList(),
       'steps': steps?.map((e) => e.toJson()).toList(),

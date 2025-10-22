@@ -20,6 +20,10 @@ import 'package:bepviet_mobile/presentation/features/premium/pages/ai_advisor_pa
 import 'package:bepviet_mobile/presentation/widgets/main_navigation.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/pages/ai_suggest_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
+import 'package:bepviet_mobile/data/models/user_model.dart';
+
+// Admin imports
+import 'package:bepviet_mobile/presentation/features/admin/pages/admin_main_page.dart';
 
 class AppRoutes {
   // Main routes
@@ -29,6 +33,9 @@ class AppRoutes {
   static const String planner = '/planner';
   static const String pantry = '/pantry';
   static const String community = '/community';
+
+  // Admin routes
+  static const String admin = '/admin';
 
   // Auth routes
   static const String login = '/login';
@@ -58,6 +65,22 @@ class AuthNotifier extends ChangeNotifier {
   }
 
   bool get isAuthenticated => _authCubit.state is AuthAuthenticated;
+
+  bool get isAdmin {
+    if (_authCubit.state is AuthAuthenticated) {
+      final state = _authCubit.state as AuthAuthenticated;
+      return state.user.role == 'ADMIN';
+    }
+    return false;
+  }
+
+  UserModel? get currentUser {
+    if (_authCubit.state is AuthAuthenticated) {
+      final state = _authCubit.state as AuthAuthenticated;
+      return state.user;
+    }
+    return null;
+  }
 }
 
 class AppRouter {
@@ -68,17 +91,28 @@ class AppRouter {
       initialLocation: AppRoutes.login,
       refreshListenable: authNotifier,
       redirect: (context, state) {
-        final isAuthenticated = authCubit.state is AuthAuthenticated;
+        final authState = authCubit.state;
+
+        // Show splash (stay on current route) while checking auth
+        if (authState is AuthInitial) {
+          return null;
+        }
+
+        final isAuthenticated = authState is AuthAuthenticated;
         final isLoggingIn = state.matchedLocation == AppRoutes.login;
         final isRegistering = state.matchedLocation == AppRoutes.register;
+        final isAdminRoute = state.matchedLocation.startsWith('/admin');
 
         // If not authenticated and not on auth pages, redirect to login
         if (!isAuthenticated && !isLoggingIn && !isRegistering) {
           return AppRoutes.login;
         }
 
-        // If authenticated and on auth pages, redirect to home
-        if (isAuthenticated && (isLoggingIn || isRegistering)) {
+        // REMOVED: Auto-redirect when authenticated on login page
+        // Now users can stay on login page to use biometric authentication
+
+        // If trying to access admin routes but not admin, redirect to home
+        if (isAuthenticated && isAdminRoute && !authNotifier.isAdmin) {
           return AppRoutes.home;
         }
 
@@ -182,6 +216,13 @@ class AppRouter {
               builder: (context, state) => const AiSuggestPage(),
             ),
           ],
+        ),
+
+        // Admin route
+        GoRoute(
+          path: AppRoutes.admin,
+          name: 'admin',
+          builder: (context, state) => const AdminMainPage(),
         ),
 
         // Auth routes (without bottom navigation)

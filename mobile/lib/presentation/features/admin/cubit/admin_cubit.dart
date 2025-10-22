@@ -1,0 +1,159 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:bepviet_mobile/data/models/community_recipe.dart';
+import 'package:bepviet_mobile/data/models/recipe_model.dart';
+import 'package:bepviet_mobile/data/repositories/admin_repository.dart';
+
+part 'admin_cubit.freezed.dart';
+
+@freezed
+class AdminState with _$AdminState {
+  const factory AdminState.initial() = _Initial;
+  const factory AdminState.loading() = _Loading;
+  const factory AdminState.loaded({
+    required List<dynamic> recipes, // Changed to dynamic to handle both types
+    @Default(false) bool hasMore,
+  }) = _Loaded;
+  const factory AdminState.error(String message) = _Error;
+}
+
+class AdminCubit extends Cubit<AdminState> {
+  final AdminRepository _adminRepository;
+
+  AdminCubit(this._adminRepository) : super(const AdminState.initial());
+
+  Future<void> loadCommunityRecipes({bool refresh = false}) async {
+    if (refresh) {
+      emit(const AdminState.loading());
+    } else if (state is _Loaded) {
+      // Don't show loading if we're loading more
+    } else {
+      emit(const AdminState.loading());
+    }
+
+    try {
+      final recipes = await _adminRepository.getAllCommunityRecipesForAdmin();
+      emit(AdminState.loaded(
+        recipes: recipes,
+        hasMore: recipes.length >= 50, // Assuming 50 is the limit
+      ));
+    } catch (e) {
+      emit(AdminState.error(e.toString()));
+    }
+  }
+
+  Future<void> loadMoreRecipes() async {
+    final currentState = state;
+    if (currentState is! _Loaded || !currentState.hasMore) return;
+
+    try {
+      final currentRecipes = currentState.recipes;
+      final moreRecipes = await _adminRepository.getAllCommunityRecipesForAdmin(
+        offset: currentRecipes.length,
+      );
+
+      if (moreRecipes.isEmpty) {
+        emit(currentState.copyWith(hasMore: false));
+      } else {
+        emit(currentState.copyWith(
+          recipes: [...currentRecipes, ...moreRecipes],
+          hasMore: moreRecipes.length >= 50,
+        ));
+      }
+    } catch (e) {
+      emit(AdminState.error(e.toString()));
+    }
+  }
+
+  Future<void> promoteRecipe(String recipeId) async {
+    try {
+      final success = await _adminRepository.promoteRecipe(recipeId);
+      if (success) {
+        // Reload recipes to reflect changes
+        await loadCommunityRecipes(refresh: true);
+      }
+    } catch (e) {
+      emit(AdminState.error('Failed to promote recipe: $e'));
+    }
+  }
+
+  Future<void> deleteRecipe(String recipeId) async {
+    try {
+      final success = await _adminRepository.deleteCommunityRecipe(recipeId);
+      if (success) {
+        // Remove recipe from current list
+        final currentState = state;
+        if (currentState is _Loaded) {
+          final updatedRecipes = currentState.recipes
+              .where((recipe) => recipe.id != recipeId)
+              .toList();
+          emit(currentState.copyWith(recipes: updatedRecipes));
+        }
+      }
+    } catch (e) {
+      emit(AdminState.error('Failed to delete recipe: $e'));
+    }
+  }
+
+  // Official Recipes Methods
+  Future<void> loadOfficialRecipes({bool refresh = false}) async {
+    if (refresh) {
+      emit(const AdminState.loading());
+    } else if (state is _Loaded) {
+      // Don't show loading if we're loading more
+    } else {
+      emit(const AdminState.loading());
+    }
+
+    try {
+      final recipes = await _adminRepository.getAllOfficialRecipes();
+      emit(AdminState.loaded(
+        recipes: recipes,
+        hasMore: recipes.length >= 50, // Assuming 50 is the limit
+      ));
+    } catch (e) {
+      emit(AdminState.error(e.toString()));
+    }
+  }
+
+  Future<void> loadMoreOfficialRecipes() async {
+    final currentState = state;
+    if (currentState is! _Loaded || !currentState.hasMore) return;
+
+    try {
+      final currentRecipes = currentState.recipes;
+      final moreRecipes = await _adminRepository.getAllOfficialRecipes(
+        offset: currentRecipes.length,
+      );
+
+      if (moreRecipes.isEmpty) {
+        emit(currentState.copyWith(hasMore: false));
+      } else {
+        emit(currentState.copyWith(
+          recipes: [...currentRecipes, ...moreRecipes],
+          hasMore: moreRecipes.length >= 50,
+        ));
+      }
+    } catch (e) {
+      emit(AdminState.error(e.toString()));
+    }
+  }
+
+  Future<void> deleteOfficialRecipe(String recipeId) async {
+    try {
+      final success = await _adminRepository.deleteOfficialRecipe(recipeId);
+      if (success) {
+        // Remove recipe from current list
+        final currentState = state;
+        if (currentState is _Loaded) {
+          final updatedRecipes = currentState.recipes
+              .where((recipe) => recipe.id != recipeId)
+              .toList();
+          emit(currentState.copyWith(recipes: updatedRecipes));
+        }
+      }
+    } catch (e) {
+      emit(AdminState.error('Failed to delete official recipe: $e'));
+    }
+  }
+}

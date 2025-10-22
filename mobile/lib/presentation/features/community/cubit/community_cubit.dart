@@ -1,0 +1,181 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import '../../../../data/models/community_recipe.dart';
+import '../../../../data/sources/remote/community_service.dart';
+
+part 'community_cubit.freezed.dart';
+
+@freezed
+class CommunityState with _$CommunityState {
+  const factory CommunityState.initial() = _Initial;
+  const factory CommunityState.loading() = _Loading;
+  const factory CommunityState.loaded({
+    required List<CommunityRecipe> recipes,
+    @Default(false) bool hasReachedMax,
+  }) = _Loaded;
+  const factory CommunityState.error(String message) = _Error;
+}
+
+@freezed
+class CommunityDetailState with _$CommunityDetailState {
+  const factory CommunityDetailState.initial() = _DetailInitial;
+  const factory CommunityDetailState.loading() = _DetailLoading;
+  const factory CommunityDetailState.loaded(CommunityRecipe recipe) = _DetailLoaded;
+  const factory CommunityDetailState.error(String message) = _DetailError;
+}
+
+class CommunityCubit extends Cubit<CommunityState> {
+  final CommunityService _communityService;
+
+  CommunityCubit(this._communityService) : super(const CommunityState.initial());
+
+  List<CommunityRecipe> _allRecipes = [];
+  int _currentPage = 1;
+  static const int _pageSize = 20;
+  CommunityFilters? _currentFilters;
+
+  Future<void> loadRecipes({
+    String? region,
+    String? difficulty,
+    int? maxTime,
+    String? search,
+    bool refresh = false,
+  }) async {
+    if (refresh) {
+      _allRecipes.clear();
+      _currentPage = 1;
+      emit(const CommunityState.loading());
+    } else if (state is _Loaded) {
+      emit(CommunityState.loaded(recipes: _allRecipes, hasReachedMax: false));
+    } else {
+      emit(const CommunityState.loading());
+    }
+
+    try {
+      _currentFilters = CommunityFilters(
+        region: region,
+        difficulty: difficulty,
+        maxTime: maxTime,
+        search: search,
+        limit: _pageSize,
+      );
+
+      final recipes = await _communityService.getAllCommunityRecipes(
+        region: region,
+        difficulty: difficulty,
+        maxTime: maxTime,
+        search: search,
+        limit: _pageSize,
+      );
+
+      if (refresh) {
+        _allRecipes = recipes;
+      } else {
+        _allRecipes.addAll(recipes);
+      }
+
+      final hasReachedMax = recipes.length < _pageSize;
+
+      emit(CommunityState.loaded(
+        recipes: List.from(_allRecipes),
+        hasReachedMax: hasReachedMax,
+      ));
+
+      _currentPage++;
+    } catch (e) {
+      emit(CommunityState.error(e.toString()));
+    }
+  }
+
+  Future<void> loadMoreRecipes() async {
+    if (state is! _Loaded) return;
+    
+    final currentState = state as _Loaded;
+    if (currentState.hasReachedMax) return;
+
+    try {
+      final recipes = await _communityService.getAllCommunityRecipes(
+        region: _currentFilters?.region,
+        difficulty: _currentFilters?.difficulty,
+        maxTime: _currentFilters?.maxTime,
+        search: _currentFilters?.search,
+        limit: _pageSize,
+      );
+
+      _allRecipes.addAll(recipes);
+      final hasReachedMax = recipes.length < _pageSize;
+
+      emit(CommunityState.loaded(
+        recipes: List.from(_allRecipes),
+        hasReachedMax: hasReachedMax,
+      ));
+
+      _currentPage++;
+    } catch (e) {
+      // Don't emit error for load more, just keep current state
+    }
+  }
+
+  Future<void> loadFeaturedRecipes() async {
+    emit(const CommunityState.loading());
+
+    try {
+      final recipes = await _communityService.getFeaturedRecipes(limit: 10);
+      _allRecipes = recipes;
+      
+      emit(CommunityState.loaded(
+        recipes: List.from(_allRecipes),
+        hasReachedMax: true,
+      ));
+    } catch (e) {
+      emit(CommunityState.error(e.toString()));
+    }
+  }
+
+  Future<void> refreshRecipes() async {
+    await loadRecipes(
+      region: _currentFilters?.region,
+      difficulty: _currentFilters?.difficulty,
+      maxTime: _currentFilters?.maxTime,
+      search: _currentFilters?.search,
+      refresh: true,
+    );
+  }
+}
+
+class CommunityDetailCubit extends Cubit<CommunityDetailState> {
+  final CommunityService _communityService;
+
+  CommunityDetailCubit(this._communityService) : super(const CommunityDetailState.initial());
+
+  Future<void> loadRecipe(String recipeId) async {
+    emit(const CommunityDetailState.loading());
+
+    try {
+      final recipe = await _communityService.getCommunityRecipeById(recipeId);
+      emit(CommunityDetailState.loaded(recipe));
+    } catch (e) {
+      emit(CommunityDetailState.error(e.toString()));
+    }
+  }
+
+  Future<void> addComment(String recipeId, String content) async {
+    try {
+      await _communityService.addComment(recipeId, content);
+      // Reload recipe to get updated comments
+      await loadRecipe(recipeId);
+    } catch (e) {
+      emit(CommunityDetailState.error(e.toString()));
+    }
+  }
+
+  Future<void> addRating(String recipeId, int stars) async {
+    try {
+      await _communityService.addRating(recipeId, stars);
+      // Reload recipe to get updated ratings
+      await loadRecipe(recipeId);
+    } catch (e) {
+      emit(CommunityDetailState.error(e.toString()));
+    }
+  }
+}
