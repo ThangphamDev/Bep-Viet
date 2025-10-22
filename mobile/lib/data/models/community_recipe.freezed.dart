@@ -31,6 +31,8 @@ mixin _$CommunityRecipe {
   @JsonKey(name: 'cost_hint')
   int? get costHint => throw _privateConstructorUsedError;
   String? get status => throw _privateConstructorUsedError;
+  @JsonKey(name: 'image_url')
+  String? get imageUrl => throw _privateConstructorUsedError;
   @JsonKey(name: 'created_at')
   DateTime? get createdAt => throw _privateConstructorUsedError;
   @JsonKey(name: 'updated_at')
@@ -72,6 +74,7 @@ abstract class $CommunityRecipeCopyWith<$Res> {
       @JsonKey(name: 'time_min') int? timeMin,
       @JsonKey(name: 'cost_hint') int? costHint,
       String? status,
+      @JsonKey(name: 'image_url') String? imageUrl,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
       @JsonKey(name: 'author_name') String? authorName,
@@ -108,6 +111,7 @@ class _$CommunityRecipeCopyWithImpl<$Res, $Val extends CommunityRecipe>
     Object? timeMin = freezed,
     Object? costHint = freezed,
     Object? status = freezed,
+    Object? imageUrl = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
     Object? authorName = freezed,
@@ -152,6 +156,10 @@ class _$CommunityRecipeCopyWithImpl<$Res, $Val extends CommunityRecipe>
       status: freezed == status
           ? _value.status
           : status // ignore: cast_nullable_to_non_nullable
+              as String?,
+      imageUrl: freezed == imageUrl
+          ? _value.imageUrl
+          : imageUrl // ignore: cast_nullable_to_non_nullable
               as String?,
       createdAt: freezed == createdAt
           ? _value.createdAt
@@ -230,6 +238,7 @@ abstract class _$$CommunityRecipeImplCopyWith<$Res>
       @JsonKey(name: 'time_min') int? timeMin,
       @JsonKey(name: 'cost_hint') int? costHint,
       String? status,
+      @JsonKey(name: 'image_url') String? imageUrl,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
       @JsonKey(name: 'author_name') String? authorName,
@@ -265,6 +274,7 @@ class __$$CommunityRecipeImplCopyWithImpl<$Res>
     Object? timeMin = freezed,
     Object? costHint = freezed,
     Object? status = freezed,
+    Object? imageUrl = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
     Object? authorName = freezed,
@@ -309,6 +319,10 @@ class __$$CommunityRecipeImplCopyWithImpl<$Res>
       status: freezed == status
           ? _value.status
           : status // ignore: cast_nullable_to_non_nullable
+              as String?,
+      imageUrl: freezed == imageUrl
+          ? _value.imageUrl
+          : imageUrl // ignore: cast_nullable_to_non_nullable
               as String?,
       createdAt: freezed == createdAt
           ? _value.createdAt
@@ -370,6 +384,7 @@ class _$CommunityRecipeImpl implements _CommunityRecipe {
       @JsonKey(name: 'time_min') this.timeMin,
       @JsonKey(name: 'cost_hint') this.costHint,
       this.status,
+      @JsonKey(name: 'image_url') this.imageUrl,
       @JsonKey(name: 'created_at') this.createdAt,
       @JsonKey(name: 'updated_at') this.updatedAt,
       @JsonKey(name: 'author_name') this.authorName,
@@ -407,6 +422,9 @@ class _$CommunityRecipeImpl implements _CommunityRecipe {
   final int? costHint;
   @override
   final String? status;
+  @override
+  @JsonKey(name: 'image_url')
+  final String? imageUrl;
   @override
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
@@ -463,7 +481,7 @@ class _$CommunityRecipeImpl implements _CommunityRecipe {
 
   @override
   String toString() {
-    return 'CommunityRecipe(id: $id, title: $title, region: $region, descriptionMd: $descriptionMd, difficulty: $difficulty, timeMin: $timeMin, costHint: $costHint, status: $status, createdAt: $createdAt, updatedAt: $updatedAt, authorName: $authorName, authorId: $authorId, commentCount: $commentCount, ratingCount: $ratingCount, avgRating: $avgRating, ingredients: $ingredients, steps: $steps, comments: $comments, ratings: $ratings)';
+    return 'CommunityRecipe(id: $id, title: $title, region: $region, descriptionMd: $descriptionMd, difficulty: $difficulty, timeMin: $timeMin, costHint: $costHint, status: $status, imageUrl: $imageUrl, createdAt: $createdAt, updatedAt: $updatedAt, authorName: $authorName, authorId: $authorId, commentCount: $commentCount, ratingCount: $ratingCount, avgRating: $avgRating, ingredients: $ingredients, steps: $steps, comments: $comments, ratings: $ratings)';
   }
 
   @override
@@ -482,6 +500,8 @@ class _$CommunityRecipeImpl implements _CommunityRecipe {
             (identical(other.costHint, costHint) ||
                 other.costHint == costHint) &&
             (identical(other.status, status) || other.status == status) &&
+            (identical(other.imageUrl, imageUrl) ||
+                other.imageUrl == imageUrl) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -515,6 +535,7 @@ class _$CommunityRecipeImpl implements _CommunityRecipe {
         timeMin,
         costHint,
         status,
+        imageUrl,
         createdAt,
         updatedAt,
         authorName,
@@ -553,6 +574,7 @@ abstract class _CommunityRecipe implements CommunityRecipe {
       @JsonKey(name: 'time_min') final int? timeMin,
       @JsonKey(name: 'cost_hint') final int? costHint,
       final String? status,
+      @JsonKey(name: 'image_url') final String? imageUrl,
       @JsonKey(name: 'created_at') final DateTime? createdAt,
       @JsonKey(name: 'updated_at') final DateTime? updatedAt,
       @JsonKey(name: 'author_name') final String? authorName,
@@ -588,6 +610,9 @@ abstract class _CommunityRecipe implements CommunityRecipe {
   int? get costHint;
   @override
   String? get status;
+  @override
+  @JsonKey(name: 'image_url')
+  String? get imageUrl;
   @override
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;

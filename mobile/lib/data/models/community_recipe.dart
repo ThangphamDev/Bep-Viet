@@ -14,6 +14,7 @@ class CommunityRecipe with _$CommunityRecipe {
     @JsonKey(name: 'time_min') int? timeMin,
     @JsonKey(name: 'cost_hint') int? costHint,
     String? status,
+    @JsonKey(name: 'image_url') String? imageUrl,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
     @JsonKey(name: 'author_name') String? authorName,

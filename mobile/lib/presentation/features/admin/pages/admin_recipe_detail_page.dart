@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
-import 'package:bepviet_mobile/presentation/features/admin/cubit/admin_cubit.dart';
 
 class AdminRecipeDetailPage extends StatelessWidget {
   final dynamic recipe; // Can be CommunityRecipe or RecipeModel
@@ -34,7 +32,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
 
   int? get recipeTimeMin {
     if (isOfficialRecipe) {
-      return (recipe as RecipeModel).totalTimeMinutes;
+      final rec = recipe as RecipeModel;
+      return rec.cookTimeMinutes ?? rec.totalTimeMinutes ?? rec.prepTimeMinutes;
     } else {
       return (recipe as CommunityRecipe).timeMin;
     }
@@ -131,46 +130,17 @@ class AdminRecipeDetailPage extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'promote':
-                  if (!isOfficialRecipe) _showPromoteDialog(context);
-                  break;
-                case 'delete':
-                  _showDeleteDialog(context);
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              if (!isOfficialRecipe)
-                const PopupMenuItem(
-                  value: 'promote',
-                  child: Row(
-                    children: [
-                      Icon(Icons.arrow_upward, color: AppTheme.primaryGreen),
-                      SizedBox(width: 8),
-                      Text('Promote'),
-                    ],
-                  ),
-                ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Xóa'),
-                  ],
-                ),
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () => _showDeleteDialog(context),
+            tooltip: 'Xóa công thức',
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Recipe Header
@@ -200,72 +170,140 @@ class AdminRecipeDetailPage extends StatelessWidget {
 
             // Comments & Ratings
             _buildCommentsAndRatings(),
-            const SizedBox(height: 24),
-
-            // Action Buttons
-            _buildActionButtons(context),
           ],
         ),
       ),
+    ),
     );
   }
 
   Widget _buildRecipeHeader() {
+    final recipe = this.recipe;
+    final imageUrl = isOfficialRecipe && recipe is RecipeModel 
+        ? recipe.imageUrl 
+        : recipe is CommunityRecipe 
+            ? recipe.imageUrl 
+            : null;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Recipe Image
+        if (imageUrl != null && imageUrl.isNotEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(
+              imageUrl,
+              width: double.infinity,
+              height: 250,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildPlaceholderImage();
+              },
+            ),
+          )
+        else
+          _buildPlaceholderImage(),
+        
+        const SizedBox(height: 16),
+        
+        // Recipe Title and Info
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppTheme.borderColor,
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                recipeTitle,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.person,
+                    size: 16,
+                    color: AppTheme.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    recipeAuthorName ?? 'Bếp Việt',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: AppTheme.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${recipeTimeMin ?? 0} phút',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaceholderImage() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      height: 250,
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
           colors: [
-            AppTheme.primaryGreen.withOpacity(0.1),
-            AppTheme.secondaryGreen.withOpacity(0.1),
+            AppTheme.primaryGreen.withOpacity(0.8),
+            AppTheme.primaryGreen,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.borderColor,
-          width: 1,
-        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            recipeTitle,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.restaurant_menu,
+              size: 60,
+              color: Colors.white,
             ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                Icons.person,
-                size: 16,
-                color: AppTheme.textSecondary,
+            const SizedBox(height: 12),
+            Text(
+              recipeTitle,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
-              const SizedBox(width: 4),
-              Text(
-                recipeAuthorName ?? 'Người dùng',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                '${recipeTimeMin ?? 0} phút',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ],
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -358,6 +396,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   Widget _buildRecipeInfo() {
+    final recipe = this.recipe;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -384,13 +423,15 @@ class AdminRecipeDetailPage extends StatelessWidget {
                   icon: Icons.access_time,
                   label: 'Thời gian',
                   value: '${recipeTimeMin ?? 0} phút',
+                  color: AppTheme.primaryGreen,
                 ),
               ),
               Expanded(
                 child: _buildInfoItem(
-                  icon: Icons.attach_money,
-                  label: 'Chi phí',
-                  value: '${recipeCostHint ?? 0} VNĐ',
+                  icon: Icons.restaurant_menu,
+                  label: 'Loại bữa ăn',
+                  value: _getMealTypeText(recipe is RecipeModel ? recipe.mealType : null),
+                  color: AppTheme.primaryGreen,
                 ),
               ),
             ],
@@ -402,18 +443,75 @@ class AdminRecipeDetailPage extends StatelessWidget {
                 child: _buildInfoItem(
                   icon: Icons.star,
                   label: 'Đánh giá',
-                  value: recipeAvgRating.toString(),
+                  value: isOfficialRecipe && recipe is RecipeModel
+                      ? '${recipe.ratingAvg?.toStringAsFixed(1) ?? '0.0'}'
+                      : recipeAvgRating.toStringAsFixed(1),
+                  color: Colors.amber,
                 ),
               ),
               Expanded(
                 child: _buildInfoItem(
                   icon: Icons.comment,
                   label: 'Bình luận',
-                  value: '${recipeCommentCount}',
+                  value: isOfficialRecipe && recipe is RecipeModel
+                      ? '${recipe.ratingCount ?? 0}'
+                      : '${recipeCommentCount}',
+                  color: AppTheme.primaryGreen,
                 ),
               ),
             ],
           ),
+          if (isOfficialRecipe && recipe is RecipeModel) ...[
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            const Text(
+              'Chi tiết Công thức',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDetailItem(
+                    icon: Icons.local_fire_department,
+                    label: 'Độ cay',
+                    value: _getLevel(recipe.spiceLevel),
+                  ),
+                ),
+                Expanded(
+                  child: _buildDetailItem(
+                    icon: Icons.water_drop,
+                    label: 'Độ mặn',
+                    value: _getLevel(recipe.saltiness),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDetailItem(
+                    icon: Icons.restaurant,
+                    label: 'Độ cứng',
+                    value: _getLevel(recipe.hardness),
+                  ),
+                ),
+                Expanded(
+                  child: _buildDetailItem(
+                    icon: Icons.verified,
+                    label: 'Tính xác thực',
+                    value: _getAuthenticityText(recipe.authenticity),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -423,10 +521,11 @@ class AdminRecipeDetailPage extends StatelessWidget {
     required IconData icon,
     required String label,
     required String value,
+    Color color = AppTheme.primaryGreen,
   }) {
     return Column(
       children: [
-        Icon(icon, color: AppTheme.primaryGreen, size: 24),
+        Icon(icon, color: color, size: 24),
         const SizedBox(height: 4),
         Text(
           label,
@@ -434,6 +533,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
             fontSize: 12,
             color: AppTheme.textSecondary,
           ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 2),
         Text(
@@ -443,6 +543,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
             fontWeight: FontWeight.w600,
             color: AppTheme.textPrimary,
           ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -603,6 +704,17 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   Widget _buildCommentsAndRatings() {
+    final recipe = this.recipe;
+    final commentCount = isOfficialRecipe && recipe is RecipeModel 
+        ? recipe.ratingCount ?? 0 
+        : recipeCommentCount;
+    final ratingCount = isOfficialRecipe && recipe is RecipeModel 
+        ? recipe.ratingCount ?? 0 
+        : recipeRatingCount;
+    final avgRating = isOfficialRecipe && recipe is RecipeModel 
+        ? recipe.ratingAvg ?? 0.0 
+        : recipeAvgRating;
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -628,79 +740,27 @@ class AdminRecipeDetailPage extends StatelessWidget {
                 child: _buildInfoItem(
                   icon: Icons.comment,
                   label: 'Bình luận',
-                  value: '${recipeCommentCount}',
+                  value: '$commentCount',
+                  color: AppTheme.primaryGreen,
                 ),
               ),
               Expanded(
                 child: _buildInfoItem(
                   icon: Icons.star,
                   label: 'Đánh giá',
-                  value: '${recipeRatingCount}',
+                  value: '$ratingCount',
+                  color: Colors.amber,
                 ),
               ),
               Expanded(
                 child: _buildInfoItem(
                   icon: Icons.trending_up,
                   label: 'Điểm TB',
-                  value: recipeAvgRating.toString(),
+                  value: avgRating.toStringAsFixed(1),
+                  color: AppTheme.primaryGreen,
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () => _showPromoteDialog(context),
-            icon: const Icon(Icons.arrow_upward),
-            label: const Text('Promote'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryGreen,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => _showDeleteDialog(context),
-            icon: const Icon(Icons.delete),
-            label: const Text('Xóa'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red,
-              side: const BorderSide(color: Colors.red),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showPromoteDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-  title: const Text('Promote Recipe'),
-  content: Text('Bạn có chắc muốn promote công thức "${recipeTitle}" thành công thức chính thức?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implement promote functionality
-            },
-            child: const Text('Promote'),
           ),
         ],
       ),
@@ -796,6 +856,81 @@ class AdminRecipeDetailPage extends StatelessWidget {
         return 'Miền Nam';
       default:
         return region;
+    }
+  }
+
+  Widget _buildDetailItem({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: AppTheme.primaryGreen, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getMealTypeText(String? mealType) {
+    if (mealType == null) return 'N/A';
+    switch (mealType.toUpperCase()) {
+      case 'BREAKFAST':
+        return 'Bữa sáng';
+      case 'LUNCH':
+        return 'Bữa trưa';
+      case 'DINNER':
+        return 'Bữa tối';
+      case 'SNACK':
+        return 'Ăn vặt';
+      default:
+        return mealType;
+    }
+  }
+
+  String _getLevel(int? level) {
+    if (level == null) return 'N/A';
+    if (level == 0) return 'Không';
+    if (level == 1) return 'Ít';
+    if (level == 2) return 'Vừa';
+    if (level == 3) return 'Nhiều';
+    if (level >= 4) return 'Rất nhiều';
+    return level.toString();
+  }
+
+  String _getAuthenticityText(String? authenticity) {
+    if (authenticity == null) return 'N/A';
+    switch (authenticity.toUpperCase()) {
+      case 'TRUYEN_THONG':
+        return 'Truyền thống';
+      case 'HIEN_DAI':
+        return 'Hiện đại';
+      case 'FUSION':
+        return 'Fusion';
+      default:
+        return authenticity;
     }
   }
 }

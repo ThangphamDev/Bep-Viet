@@ -17,6 +17,7 @@ _$CommunityRecipeImpl _$$CommunityRecipeImplFromJson(
       timeMin: (json['time_min'] as num?)?.toInt(),
       costHint: (json['cost_hint'] as num?)?.toInt(),
       status: json['status'] as String?,
+      imageUrl: json['image_url'] as String?,
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
@@ -55,6 +56,7 @@ Map<String, dynamic> _$$CommunityRecipeImplToJson(
       'time_min': instance.timeMin,
       'cost_hint': instance.costHint,
       'status': instance.status,
+      'image_url': instance.imageUrl,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
       'author_name': instance.authorName,
