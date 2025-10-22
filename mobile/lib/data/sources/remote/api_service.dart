@@ -198,6 +198,20 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getRecipeIngredientsRaw(String recipeId) async {
+    try {
+      final response = await _dio.get('/api/recipes/$recipeId/ingredients');
+      
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to fetch recipe ingredients: $e');
+    }
+  }
+
   Future<List<RecipeIngredientModel>> getRecipeIngredients(String id) async {
     try {
       final response = await _dio.get('/api/recipes/$id/ingredients');
@@ -848,9 +862,46 @@ class ApiService {
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
         if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
-          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
+          final data = responseData['data'] as Map<String, dynamic>;
+          
+          // Backend returns groups, need to flatten to items
+          final List<dynamic> allItems = [];
+          if (data['groups'] is List) {
+            for (final group in data['groups']) {
+              if (group['items'] is List) {
+                allItems.addAll(group['items']);
+              }
+            }
+          }
+          
+          // Transform to format expected by ShoppingListModel
+          final transformedData = {
+            'id': data['id'],
+            'user_id': listId, // Not provided by backend, use listId as placeholder
+            'name': data['title'] ?? 'Danh sách mua sắm',
+            'description': null,
+            'items': allItems.map((item) => {
+              'id': item['id']?.toString() ?? '',
+              'shopping_list_id': listId,
+              'ingredient_id': item['ingredient_id']?.toString() ?? '',
+              'ingredient_name': item['ingredient_name']?.toString() ?? 'Nguyên liệu',
+              'quantity': double.tryParse(item['quantity']?.toString() ?? '0') ?? 0.0,
+              'unit': item['unit']?.toString() ?? 'g',
+              'is_checked': item['is_checked'] ?? false,
+              'notes': item['note']?.toString(),
+              'store_section_id': item['store_section']?.toString(),
+              'store_section_name': item['section_name']?.toString(),
+              'estimated_price': double.tryParse(item['price_per_unit']?.toString() ?? '0') ?? 0.0,
+              'priority': 0,
+            }).toList(),
+            'is_shared': data['is_shared'] ?? false,
+            'shared_with': [],
+            'created_at': data['created_at'],
+            'updated_at': data['updated_at'],
+          };
+          
+          return ShoppingListModel.fromJson(transformedData);
         }
-        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
       }
       
       throw Exception('Invalid API response format');
@@ -859,7 +910,7 @@ class ApiService {
     }
   }
 
-  Future<ShoppingListModel> createShoppingList(String token, CreateShoppingListDto dto) async {
+  Future<String> createShoppingList(String token, CreateShoppingListDto dto) async {
     try {
       final response = await _dio.post(
         '/api/shopping/lists',
@@ -870,9 +921,9 @@ class ApiService {
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
         if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
-          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
+          // Backend returns {success, data: {id}}, return the list ID
+          return responseData['data']['id'].toString();
         }
-        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
       }
       
       throw Exception('Invalid API response format');
@@ -881,7 +932,7 @@ class ApiService {
     }
   }
 
-  Future<ShoppingListModel> generateShoppingListFromMealPlan(
+  Future<Map<String, dynamic>> generateShoppingListFromMealPlan(
     String token, 
     String mealPlanId,
   ) async {
@@ -895,9 +946,9 @@ class ApiService {
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
         if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
-          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
+          // Backend returns {list_id, total_items, message}
+          return responseData['data'] as Map<String, dynamic>;
         }
-        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
       }
       
       throw Exception('Invalid API response format');
@@ -906,14 +957,14 @@ class ApiService {
     }
   }
 
-  Future<ShoppingListModel> addItemToShoppingList(
+  Future<Map<String, dynamic>> addItemToShoppingList(
     String token,
     String listId,
     AddShoppingItemDto dto,
   ) async {
     try {
       final response = await _dio.post(
-        '/api/shopping/$listId/items',
+        '/api/shopping/lists/$listId/items',
         data: dto.toJson(),
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -921,9 +972,9 @@ class ApiService {
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
         if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
-          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
+          // Backend returns {success, data: {id}}, not shopping list
+          return responseData['data'] as Map<String, dynamic>;
         }
-        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
       }
       
       throw Exception('Invalid API response format');
@@ -932,28 +983,19 @@ class ApiService {
     }
   }
 
-  Future<ShoppingListModel> updateShoppingItem(
+  Future<void> updateShoppingItem(
     String token,
     String listId,
     String itemId,
     UpdateShoppingItemDto dto,
   ) async {
     try {
-      final response = await _dio.put(
-        '/api/shopping/$listId/items/$itemId',
+      await _dio.put(
+        '/api/shopping/lists/$listId/items/$itemId/check',
         data: dto.toJson(),
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-
-      if (response.data is Map<String, dynamic>) {
-        final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
-          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
-        }
-        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
-      }
-      
-      throw Exception('Invalid API response format');
+      // Backend returns {success, message} only, no data to return
     } catch (e) {
       throw Exception('Failed to update shopping item: $e');
     }
@@ -962,7 +1004,7 @@ class ApiService {
   Future<void> deleteShoppingList(String token, String listId) async {
     try {
       await _dio.delete(
-        '/api/shopping/$listId',
+        '/api/shopping/lists/$listId',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
     } catch (e) {
@@ -973,7 +1015,7 @@ class ApiService {
   Future<void> removeItemFromShoppingList(String token, String listId, String itemId) async {
     try {
       await _dio.delete(
-        '/api/shopping/$listId/items/$itemId',
+        '/api/shopping/lists/$listId/items/$itemId',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
     } catch (e) {
@@ -984,7 +1026,7 @@ class ApiService {
   Future<void> shareShoppingList(String token, String listId, String email) async {
     try {
       await _dio.post(
-        '/api/shopping/$listId/share',
+        '/api/shopping/lists/$listId/share',
         data: {'email': email},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );

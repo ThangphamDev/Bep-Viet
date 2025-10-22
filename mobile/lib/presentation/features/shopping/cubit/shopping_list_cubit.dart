@@ -94,7 +94,7 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
     }
   }
 
-  Future<void> createShoppingList(CreateShoppingListDto dto) async {
+  Future<String> createShoppingList(CreateShoppingListDto dto) async {
     emit(state.copyWith(isLoading: true, error: null));
     
     try {
@@ -104,22 +104,24 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
           isLoading: false,
           error: 'Bạn cần đăng nhập để tạo danh sách mua sắm',
         ));
-        return;
+        throw Exception('Not logged in');
       }
 
-      final shoppingList = await _apiService.createShoppingList(token, dto);
-      final updatedLists = [...state.shoppingLists, shoppingList];
+      // Create list (backend returns list ID only)
+      final listId = await _apiService.createShoppingList(token, dto);
       
-      emit(state.copyWith(
-        isLoading: false,
-        shoppingLists: updatedLists,
-        selectedList: shoppingList,
-      ));
+      // Reload lists to get the new one
+      await loadShoppingLists();
+      
+      emit(state.copyWith(isLoading: false));
+      
+      return listId;
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
         error: 'Không thể tạo danh sách mua sắm: ${e.toString()}',
       ));
+      rethrow;
     }
   }
 
@@ -136,13 +138,20 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
         return;
       }
 
-      final shoppingList = await _apiService.generateShoppingListFromMealPlan(token, mealPlanId);
-      final updatedLists = [...state.shoppingLists, shoppingList];
+      // Generate the shopping list (backend returns {list_id, total_items, message})
+      final result = await _apiService.generateShoppingListFromMealPlan(token, mealPlanId);
+      final newListId = result['list_id'] as String;
+      
+      // Load the newly created shopping list with full details
+      final newList = await _apiService.getShoppingListById(token, newListId);
+      
+      // Add to the list of shopping lists
+      final updatedLists = [...state.shoppingLists, newList];
       
       emit(state.copyWith(
         isGenerating: false,
         shoppingLists: updatedLists,
-        selectedList: shoppingList,
+        selectedList: newList,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -153,28 +162,20 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
   }
 
   Future<void> addItemToShoppingList(String listId, AddShoppingItemDto dto) async {
-    emit(state.copyWith(isLoading: true, error: null));
-    
     try {
       final token = _authService.accessToken;
       if (token == null) {
         emit(state.copyWith(
-          isLoading: false,
           error: 'Bạn cần đăng nhập để thêm món hàng',
         ));
         return;
       }
 
-      final updatedList = await _apiService.addItemToShoppingList(token, listId, dto);
-      final updatedLists = state.shoppingLists
-          .map((list) => list.id == listId ? updatedList : list)
-          .toList();
+      // Add item (backend returns {id} only)
+      await _apiService.addItemToShoppingList(token, listId, dto);
       
-      emit(state.copyWith(
-        isLoading: false,
-        shoppingLists: updatedLists,
-        selectedList: state.selectedList?.id == listId ? updatedList : state.selectedList,
-      ));
+      // Reload the shopping list to get updated data
+      await loadShoppingListById(listId);
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
@@ -196,16 +197,11 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
         return;
       }
 
-      final updatedList = await _apiService.updateShoppingItem(token, listId, itemId, dto);
-      final updatedLists = state.shoppingLists
-          .map((list) => list.id == listId ? updatedList : list)
-          .toList();
+      // Call update API (backend returns {success, message} only)
+      await _apiService.updateShoppingItem(token, listId, itemId, dto);
       
-      emit(state.copyWith(
-        isLoading: false,
-        shoppingLists: updatedLists,
-        selectedList: state.selectedList?.id == listId ? updatedList : state.selectedList,
-      ));
+      // Reload the shopping list to get updated data
+      await loadShoppingListById(listId);
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
@@ -215,11 +211,65 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
   }
 
   Future<void> toggleItemChecked(String listId, String itemId, bool isChecked) async {
-    await updateShoppingItem(
-      listId, 
-      itemId, 
-      UpdateShoppingItemDto(isPurchased: isChecked),
-    );
+    // Optimistic update - update UI immediately
+    if (state.selectedList != null && state.selectedList!.id == listId) {
+      final updatedItems = state.selectedList!.items.map((item) {
+        if (item.id == itemId) {
+          return ShoppingItem(
+            id: item.id,
+            shoppingListId: item.shoppingListId,
+            ingredientId: item.ingredientId,
+            ingredientName: item.ingredientName,
+            quantity: item.quantity,
+            unit: item.unit,
+            isChecked: isChecked,
+            notes: item.notes,
+            storeSectionId: item.storeSectionId,
+            storeSectionName: item.storeSectionName,
+            estimatedPrice: item.estimatedPrice,
+            priority: item.priority,
+          );
+        }
+        return item;
+      }).toList();
+      
+      final updatedList = ShoppingListModel(
+        id: state.selectedList!.id,
+        userId: state.selectedList!.userId,
+        name: state.selectedList!.name,
+        description: state.selectedList!.description,
+        items: updatedItems,
+        isShared: state.selectedList!.isShared,
+        sharedWith: state.selectedList!.sharedWith,
+        createdAt: state.selectedList!.createdAt,
+        updatedAt: state.selectedList!.updatedAt,
+      );
+      
+      final updatedLists = state.shoppingLists
+          .map((list) => list.id == listId ? updatedList : list)
+          .toList();
+      
+      emit(state.copyWith(
+        shoppingLists: updatedLists,
+        selectedList: updatedList,
+      ));
+    }
+    
+    // Call API in background without waiting
+    try {
+      final token = _authService.accessToken;
+      if (token != null) {
+        _apiService.updateShoppingItem(
+          token, 
+          listId, 
+          itemId, 
+          UpdateShoppingItemDto(isPurchased: isChecked),
+        );
+      }
+    } catch (e) {
+      // Silently fail or show a subtle error
+      print('Failed to sync check state: $e');
+    }
   }
 
   Future<void> deleteShoppingList(String listId) async {
@@ -307,7 +357,15 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
   }
 
   void selectShoppingList(ShoppingListModel shoppingList) {
-    emit(state.copyWith(selectedList: shoppingList));
+    // Also ensure the list is in shoppingLists if not already
+    final lists = state.shoppingLists.any((l) => l.id == shoppingList.id)
+        ? state.shoppingLists
+        : [...state.shoppingLists, shoppingList];
+    
+    emit(state.copyWith(
+      shoppingLists: lists,
+      selectedList: shoppingList,
+    ));
   }
 
   void clearError() {

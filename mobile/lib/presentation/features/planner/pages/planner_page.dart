@@ -1283,7 +1283,7 @@ class _PlannerPageState extends State<PlannerPage>
         return;
       }
 
-      final shoppingList = await apiService.generateShoppingListFromMealPlan(
+      final result = await apiService.generateShoppingListFromMealPlan(
         authRepo.accessToken!,
         currentMealPlan.id,
       );
@@ -1298,7 +1298,7 @@ class _PlannerPageState extends State<PlannerPage>
       if (mounted && !_disposed) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Đã tạo danh sách mua sắm với ${shoppingList.items.length} món'),
+            content: Text('Đã tạo danh sách mua sắm với ${result['total_items']} món'),
             backgroundColor: Colors.green,
           ),
         );

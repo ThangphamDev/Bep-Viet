@@ -206,8 +206,8 @@ class CreateShoppingListDto {
 
   Map<String, dynamic> toJson() {
     return {
-      'name': name,
-      if (description != null) 'description': description,
+      'title': name, // Backend expects 'title', not 'name'
+      if (description != null) 'week_range': description, // Backend uses 'week_range' for description
     };
   }
 }
@@ -234,12 +234,10 @@ class AddShoppingItemDto {
   Map<String, dynamic> toJson() {
     return {
       'ingredient_id': ingredientId,
-      'ingredient_name': ingredientName,
-      'quantity': quantity,
+      'quantity': quantity.toInt(), // Backend expects int, not double
       'unit': unit,
-      if (notes != null) 'notes': notes,
-      if (section != null) 'section': section,
-      if (estimatedPrice != null) 'estimated_price': estimatedPrice,
+      if (notes != null) 'note': notes, // Backend uses 'note' (singular), not 'notes'
+      if (section != null) 'store_section': section, // Backend uses 'store_section'
     };
   }
 }
@@ -271,7 +269,7 @@ class UpdateShoppingItemDto {
     if (section != null) json['section'] = section;
     if (estimatedPrice != null) json['estimated_price'] = estimatedPrice;
     if (actualPrice != null) json['actual_price'] = actualPrice;
-    if (isPurchased != null) json['is_purchased'] = isPurchased;
+    if (isPurchased != null) json['checked'] = isPurchased; // Backend expects 'checked', not 'is_purchased'
     return json;
   }
 }

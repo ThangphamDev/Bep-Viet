@@ -38,28 +38,31 @@ class PantryItemModel {
   });
 
   factory PantryItemModel.fromJson(Map<String, dynamic> json) {
+    // Backend returns: quantity (not current_quantity), expire_date (not expiry_date), batch_code (not notes)
+    final quantity = double.tryParse(json['quantity']?.toString() ?? json['current_quantity']?.toString() ?? '0') ?? 0.0;
+    
     return PantryItemModel(
-      id: json['id'],
-      userId: json['user_id'],
-      ingredientId: json['ingredient_id'],
-      ingredientName: json['ingredient_name'],
-      ingredientImage: json['ingredient_image'],
-      currentQuantity: double.parse(json['current_quantity'].toString()),
-      originalQuantity: double.parse(json['original_quantity'].toString()),
-      unit: json['unit'],
-      expiryDate: json['expiry_date'] != null 
-          ? DateTime.parse(json['expiry_date']) 
+      id: json['id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      ingredientId: json['ingredient_id']?.toString() ?? '',
+      ingredientName: json['ingredient_name']?.toString() ?? 'Nguyên liệu',
+      ingredientImage: json['ingredient_image']?.toString(),
+      currentQuantity: quantity,
+      originalQuantity: double.tryParse(json['original_quantity']?.toString() ?? '') ?? quantity,
+      unit: json['unit']?.toString() ?? json['default_unit']?.toString() ?? 'g',
+      expiryDate: json['expire_date'] != null || json['expiry_date'] != null
+          ? DateTime.tryParse(json['expire_date']?.toString() ?? json['expiry_date']?.toString() ?? '')
           : null,
       purchaseDate: json['purchase_date'] != null 
-          ? DateTime.parse(json['purchase_date']) 
+          ? DateTime.tryParse(json['purchase_date']?.toString() ?? '')
           : null,
-      location: json['location'],
-      notes: json['notes'],
-      isLowStock: json['is_low_stock'] ?? false,
-      isExpired: json['is_expired'] ?? false,
-      daysUntilExpiry: json['days_until_expiry'] ?? 0,
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      location: json['location']?.toString() ?? 'fridge',
+      notes: json['batch_code']?.toString() ?? json['notes']?.toString(),
+      isLowStock: json['is_low_stock'] == true || (json['status']?.toString() == 'low'),
+      isExpired: json['is_expired'] == true || (json['status']?.toString() == 'expired'),
+      daysUntilExpiry: int.tryParse(json['days_until_expiry']?.toString() ?? '') ?? 0,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 
@@ -192,15 +195,23 @@ class AddPantryItemDto {
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final map = {
       'ingredient_id': ingredientId,
-      'quantity': quantity,
+      'quantity': quantity.toInt(), // Backend expects integer, not double
       'unit': unit,
-      'expiry_date': expiryDate?.toIso8601String(),
-      'purchase_date': purchaseDate?.toIso8601String(),
       'location': location,
-      'notes': notes,
     };
+    
+    // Only add optional fields if they have values
+    if (expiryDate != null) {
+      map['expire_date'] = expiryDate!.toIso8601String().split('T')[0];
+    }
+    final noteValue = notes;
+    if (noteValue != null && noteValue.isNotEmpty) {
+      map['batch_code'] = noteValue;
+    }
+    
+    return map;
   }
 }
 
@@ -223,12 +234,12 @@ class UpdatePantryItemDto {
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> json = {};
-    if (quantity != null) json['quantity'] = quantity;
+    if (quantity != null) json['quantity'] = quantity!.toInt(); // Backend expects integer
     if (unit != null) json['unit'] = unit;
-    if (expiryDate != null) json['expiry_date'] = expiryDate!.toIso8601String();
-    if (purchaseDate != null) json['purchase_date'] = purchaseDate!.toIso8601String();
+    if (expiryDate != null) json['expire_date'] = expiryDate!.toIso8601String().split('T')[0];
     if (location != null) json['location'] = location;
-    if (notes != null) json['notes'] = notes;
+    final noteValue = notes;
+    if (noteValue != null && noteValue.isNotEmpty) json['batch_code'] = noteValue;
     return json;
   }
 }
@@ -245,7 +256,7 @@ class ConsumePantryItemDto {
   Map<String, dynamic> toJson() {
     return {
       'ingredient_id': ingredientId,
-      'quantity': quantity,
+      'quantity': quantity.toInt(), // Backend expects integer
     };
   }
 }

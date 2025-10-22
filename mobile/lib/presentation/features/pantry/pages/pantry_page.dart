@@ -44,7 +44,7 @@ class _PantryPageState extends State<PantryPage>
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text(
-          'Quản lý tủ kho',
+          'Tủ lạnh',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppTheme.primaryGreen,
@@ -141,9 +141,6 @@ class _PantryPageState extends State<PantryPage>
           ),
         ),
 
-        // Location filter chips
-        _buildLocationFilters(state),
-
         // Items list
         Expanded(
           child: RefreshIndicator(
@@ -152,59 +149,6 @@ class _PantryPageState extends State<PantryPage>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildLocationFilters(PantryState state) {
-    final locations = [
-      {'value': 'all', 'label': 'Tất cả', 'icon': Icons.all_inclusive},
-      {'value': 'fridge', 'label': 'Tủ lạnh', 'icon': Icons.kitchen},
-      {'value': 'freezer', 'label': 'Tủ đông', 'icon': Icons.ac_unit},
-      {'value': 'pantry', 'label': 'Tủ kho', 'icon': Icons.inventory_2},
-      {'value': 'cabinet', 'label': 'Tủ bếp', 'icon': Icons.kitchen},
-    ];
-
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: locations.length,
-        itemBuilder: (context, index) {
-          final location = locations[index];
-          final isSelected = state.selectedLocation == location['value'];
-          
-          return Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              selected: isSelected,
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    location['icon'] as IconData,
-                    size: 16,
-                    color: isSelected ? Colors.white : AppTheme.primaryGreen,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(location['label'] as String),
-                ],
-              ),
-              selectedColor: AppTheme.primaryGreen,
-              checkmarkColor: Colors.white,
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : AppTheme.primaryGreen,
-                fontWeight: FontWeight.w500,
-              ),
-              onSelected: (selected) {
-                context.read<PantryCubit>().setLocationFilter(
-                  location['value'] as String,
-                );
-              },
-            ),
-          );
-        },
-      ),
     );
   }
 
@@ -227,42 +171,12 @@ class _PantryPageState extends State<PantryPage>
       return _buildEmptyState();
     }
 
-    // Group filtered items by location
-    final Map<String, List<PantryItemModel>> groupedItems = {};
-    for (final item in filteredItems) {
-      final location = PantryLocation.values
-          .firstWhere((loc) => loc.value == item.location, orElse: () => PantryLocation.pantry)
-          .displayName;
-      
-      if (!groupedItems.containsKey(location)) {
-        groupedItems[location] = [];
-      }
-      groupedItems[location]!.add(item);
-    }
-
+    // Display all items in a single list (không group theo location nữa)
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: groupedItems.keys.length,
-      itemBuilder: (context, sectionIndex) {
-        final location = groupedItems.keys.elementAt(sectionIndex);
-        final items = groupedItems[location]!;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (sectionIndex > 0) const SizedBox(height: 16),
-            Text(
-              location,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...items.map((item) => _buildPantryItemCard(item)),
-          ],
-        );
+      itemCount: filteredItems.length,
+      itemBuilder: (context, index) {
+        return _buildPantryItemCard(filteredItems[index]);
       },
     );
   }
@@ -272,6 +186,18 @@ class _PantryPageState extends State<PantryPage>
     final isExpired = item.isExpired;
     final isExpiringSoon = item.isExpiringSoon;
     final isLowStock = item.isLowStock;
+
+    // Extract real name from notes if it's a manual entry
+    String displayName = item.ingredientName;
+    String? displayNotes = item.notes;
+    
+    if (item.ingredientName == 'Khác' && item.notes != null) {
+      final match = RegExp(r'^Tên:\s*(.+?)(?:\.\s*(.*))?$').firstMatch(item.notes!);
+      if (match != null) {
+        displayName = match.group(1)!.trim();
+        displayNotes = match.group(2)?.trim();
+      }
+    }
 
     Color statusColor = AppTheme.textSecondary;
     String statusText = 'Tốt';
@@ -320,7 +246,7 @@ class _PantryPageState extends State<PantryPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.ingredientName,
+                      displayName,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -604,31 +530,6 @@ class _PantryPageState extends State<PantryPage>
             ),
           ),
         ),
-        const SizedBox(height: 16),
-
-        // Location breakdown
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Phân bố theo vị trí',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...PantryLocation.values.map((location) {
-                  final count = stats.itemsByLocation[location.value] ?? 0;
-                  return _buildLocationStat(location, count, stats.totalItems);
-                }),
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -696,29 +597,6 @@ class _PantryPageState extends State<PantryPage>
     );
   }
 
-  Widget _buildLocationStat(PantryLocation location, int count, int total) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(
-            _getLocationIcon(location.value),
-            size: 20,
-            color: AppTheme.primaryGreen,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(location.displayName),
-          ),
-          Text(
-            '$count',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -731,7 +609,7 @@ class _PantryPageState extends State<PantryPage>
           ),
           const SizedBox(height: 16),
           const Text(
-            'Tủ kho của bạn đang trống',
+            'Tủ lạnh của bạn đang trống',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -909,46 +787,78 @@ class _AddItemDialogState extends State<_AddItemDialog> {
       
       try {
         String ingredientId;
-        String actualIngredientName;
+        String actualIngredientName = ingredientName;
+        String? additionalNotes;
+        
+        // Common ingredient IDs as fallback (in case search fails)
+        const Map<String, String> commonIngredients = {
+          'cà chua': 'dc03d9f1c0917264ffa0665ba9ebc5d604fa4425',
+          'thịt gà': 'a1234567890abcdef1234567890abcdef1234567', // Will be replaced with actual search
+          'khác': '21edf513abbc3a5a90be6ae55935d8794a13c261',
+        };
+        
+        const String defaultIngredientId = '21edf513abbc3a5a90be6ae55935d8794a13c261'; // "Khác"
         
         // Check if user selected from autocomplete suggestions
-        if (_selectedIngredientId != null) {
+        if (_selectedIngredientId != null && _selectedIngredientId!.isNotEmpty) {
           ingredientId = _selectedIngredientId!;
-          actualIngredientName = ingredientName;
           print('Using selected ingredient: $actualIngredientName with ID: $ingredientId');
         } else {
-          // Search for existing ingredient
-          final apiService = context.read<ApiService>();
-          final searchResults = await apiService.searchIngredients(ingredientName);
-          
-          if (searchResults.isNotEmpty) {
-            // Try to find exact match first
-            Map<String, dynamic>? exactMatch;
-            try {
-              exactMatch = searchResults.firstWhere(
-                (ingredient) => ingredient['name'].toString().toLowerCase() == ingredientName.toLowerCase(),
-              );
-            } catch (e) {
-              // No exact match found, use first result
-              exactMatch = searchResults.first;
-            }
+          // Try to search for existing ingredient
+          try {
+            final apiService = context.read<ApiService>();
+            final searchResults = await apiService.searchIngredients(ingredientName);
             
-            ingredientId = exactMatch['id'].toString();
-            actualIngredientName = exactMatch['name'].toString();
-            print('Found existing ingredient: $actualIngredientName with ID: $ingredientId');
-          } else {
-            // No ingredients found, show error message
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Không tìm thấy nguyên liệu "$ingredientName" trong hệ thống.\nVui lòng thử tìm kiếm với tên khác hoặc liên hệ quản trị viên để thêm nguyên liệu mới.'),
-                  backgroundColor: Colors.orange,
-                  duration: const Duration(seconds: 4),
-                ),
-              );
+            if (searchResults.isNotEmpty) {
+              // Try to find exact match first
+              Map<String, dynamic>? exactMatch;
+              try {
+                exactMatch = searchResults.firstWhere(
+                  (ingredient) => ingredient['name'].toString().toLowerCase() == ingredientName.toLowerCase(),
+                );
+              } catch (e) {
+                // No exact match found, use first result
+                exactMatch = searchResults.first;
+              }
+              
+              ingredientId = exactMatch['id'].toString();
+              actualIngredientName = exactMatch['name'].toString();
+              print('Found existing ingredient: $actualIngredientName with ID: $ingredientId');
+            } else {
+              // No ingredients found, try common ingredients map first
+              final lowerName = ingredientName.toLowerCase();
+              if (commonIngredients.containsKey(lowerName)) {
+                ingredientId = commonIngredients[lowerName]!;
+                print('Using common ingredient ID for: $ingredientName');
+              } else {
+                // Use default "Khác" ID and save real name in notes
+                ingredientId = defaultIngredientId;
+                additionalNotes = 'Tên: $ingredientName';
+                print('No ingredient found, using default ID for: $ingredientName');
+              }
             }
-            return;
+          } catch (searchError) {
+            // Search API failed, try common ingredients map first
+            print('Search failed: $searchError, trying common ingredients');
+            final lowerName = ingredientName.toLowerCase();
+            if (commonIngredients.containsKey(lowerName)) {
+              ingredientId = commonIngredients[lowerName]!;
+              print('Using common ingredient ID for: $ingredientName');
+            } else {
+              // Use default "Khác" ID and save real name in notes
+              ingredientId = defaultIngredientId;
+              additionalNotes = 'Tên: $ingredientName';
+              print('Using default ID after search failed for: $ingredientName');
+            }
           }
+        }
+        
+        // Combine user notes with ingredient name if needed
+        String finalNotes = _notesController.text.trim();
+        if (additionalNotes != null) {
+          finalNotes = finalNotes.isNotEmpty 
+              ? '$additionalNotes. $finalNotes' 
+              : additionalNotes;
         }
         
         final dto = AddPantryItemDto(
@@ -958,7 +868,7 @@ class _AddItemDialogState extends State<_AddItemDialog> {
           expiryDate: _expiryDate,
           purchaseDate: _purchaseDate ?? DateTime.now(),
           location: _selectedLocation.value,
-          notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+          notes: finalNotes.isNotEmpty ? finalNotes : null,
         );
 
         print('DTO to send: ${dto.toJson()}');
@@ -978,8 +888,9 @@ class _AddItemDialogState extends State<_AddItemDialog> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Lỗi: $e'),
+              content: Text('Lỗi khi thêm nguyên liệu: ${e.toString()}'),
               backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -1098,26 +1009,6 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                       ),
                     ),
                   ],
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Location selection
-                DropdownButtonFormField<PantryLocation>(
-                  value: _selectedLocation,
-                  decoration: const InputDecoration(
-                    labelText: 'Vị trí lưu trữ',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: PantryLocation.values.map((location) {
-                    return DropdownMenuItem(
-                      value: location,
-                      child: Text(location.displayName),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedLocation = value!);
-                  },
                 ),
                 
                 const SizedBox(height: 16),
@@ -1289,10 +1180,20 @@ class _EditItemDialogState extends State<_EditItemDialog> {
     }
   }
 
+  String get _displayName {
+    if (widget.item.ingredientName == 'Khác' && widget.item.notes != null) {
+      final match = RegExp(r'^Tên:\s*(.+?)(?:\.\s*(.*))?$').firstMatch(widget.item.notes!);
+      if (match != null) {
+        return match.group(1)!.trim();
+      }
+    }
+    return widget.item.ingredientName;
+  }
+  
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Chỉnh sửa: ${widget.item.ingredientName}'),
+      title: Text('Chỉnh sửa: $_displayName'),
       content: SizedBox(
         width: double.maxFinite,
         child: Form(
@@ -1350,26 +1251,6 @@ class _EditItemDialogState extends State<_EditItemDialog> {
                       ),
                     ),
                   ],
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Location selection
-                DropdownButtonFormField<PantryLocation>(
-                  value: _selectedLocation,
-                  decoration: const InputDecoration(
-                    labelText: 'Vị trí lưu trữ',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: PantryLocation.values.map((location) {
-                    return DropdownMenuItem(
-                      value: location,
-                      child: Text(location.displayName),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedLocation = value!);
-                  },
                 ),
                 
                 const SizedBox(height: 16),
@@ -1471,18 +1352,29 @@ class _ItemDetailsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Extract real name from notes if it's a manual entry
+    String displayName = item.ingredientName;
+    String? displayNotes = item.notes;
+    
+    if (item.ingredientName == 'Khác' && item.notes != null) {
+      final match = RegExp(r'^Tên:\s*(.+?)(?:\.\s*(.*))?$').firstMatch(item.notes!);
+      if (match != null) {
+        displayName = match.group(1)!.trim();
+        displayNotes = match.group(2)?.trim();
+      }
+    }
+    
     return AlertDialog(
-      title: Text(item.ingredientName),
+      title: Text(displayName),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Số lượng: ${item.currentQuantity} ${item.unit}'),
-          Text('Vị trí: ${PantryLocation.values.firstWhere((loc) => loc.value == item.location).displayName}'),
           if (item.expiryDate != null)
             Text('Hạn sử dụng: ${DateFormat('dd/MM/yyyy').format(item.expiryDate!)}'),
-          if (item.notes != null)
-            Text('Ghi chú: ${item.notes}'),
+          if (displayNotes != null && displayNotes.isNotEmpty)
+            Text('Ghi chú: $displayNotes'),
         ],
       ),
       actions: [
@@ -1513,6 +1405,16 @@ class _ConsumeItemDialogState extends State<_ConsumeItemDialog> {
     _quantityController.dispose();
     super.dispose();
   }
+  
+  String get _displayName {
+    if (widget.item.ingredientName == 'Khác' && widget.item.notes != null) {
+      final match = RegExp(r'^Tên:\s*(.+?)(?:\.\s*(.*))?$').firstMatch(widget.item.notes!);
+      if (match != null) {
+        return match.group(1)!.trim();
+      }
+    }
+    return widget.item.ingredientName;
+  }
 
   Future<void> _consumeItem() async {
     if (_formKey.currentState!.validate()) {
@@ -1524,7 +1426,7 @@ class _ConsumeItemDialogState extends State<_ConsumeItemDialog> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Đã sử dụng $quantity ${widget.item.unit} ${widget.item.ingredientName}'),
+              content: Text('Đã sử dụng $quantity ${widget.item.unit} $_displayName'),
               backgroundColor: Colors.green,
             ),
           );
@@ -1545,7 +1447,7 @@ class _ConsumeItemDialogState extends State<_ConsumeItemDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Sử dụng: ${widget.item.ingredientName}'),
+      title: Text('Sử dụng: $_displayName'),
       content: Form(
         key: _formKey,
         child: Column(
