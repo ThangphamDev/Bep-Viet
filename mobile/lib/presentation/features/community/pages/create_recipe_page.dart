@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
@@ -77,7 +76,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
       for (var ingredient in recipe.ingredients!) {
         _ingredients.add(CreateIngredientRequest(
           name: ingredient.ingredientName,
-          quantity: ingredient.quantity,
+          quantity: ingredient.quantity ?? '1 phần', // Default if null
           note: ingredient.note,
         ));
         
@@ -380,7 +379,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                             Expanded(
                               flex: 2,
                               child: TextFormField(
-                                initialValue: ingredient.name,
+                                controller: _ingredientNameControllers[index],
                                 decoration: InputDecoration(
                                   labelText: 'Tên nguyên liệu',
                                   border: OutlineInputBorder(
@@ -388,19 +387,12 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 ),
-                                onChanged: (value) {
-                                  _ingredients[index] = CreateIngredientRequest(
-                                    name: value,
-                                    quantity: ingredient.quantity,
-                                    note: ingredient.note,
-                                  );
-                                },
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
-                                initialValue: ingredient.quantity,
+                                controller: _ingredientQuantityControllers[index],
                                 decoration: InputDecoration(
                                   labelText: 'Số lượng',
                                   border: OutlineInputBorder(
@@ -408,13 +400,6 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 ),
-                                onChanged: (value) {
-                                  _ingredients[index] = CreateIngredientRequest(
-                                    name: ingredient.name,
-                                    quantity: value,
-                                    note: ingredient.note,
-                                  );
-                                },
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -648,55 +633,103 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
       return;
     }
 
-    // Force update all form data before saving
-    // We need to manually collect data from TextFields since onChanged might not be triggered
-    print('=== BEFORE SAVE DEBUG ===');
-    print('Ingredients list length: ${_ingredients.length}');
-    print('Steps list length: ${_steps.length}');
-    for (int i = 0; i < _ingredients.length; i++) {
-      print('Ingredient $i: ${_ingredients[i].name} - ${_ingredients[i].quantity}');
+    // Validate required fields
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập tên món ăn'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
-    for (int i = 0; i < _steps.length; i++) {
-      print('Step $i: ${_steps[i].contentMd}');
+
+    if (_descriptionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập mô tả món ăn'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
-    print('========================');
-    
-    // Force update ingredients from TextFields
-    for (int i = 0; i < _ingredients.length; i++) {
-      if (i < _ingredientNameControllers.length && i < _ingredientQuantityControllers.length) {
-        _ingredients[i] = CreateIngredientRequest(
-          name: _ingredientNameControllers[i].text.trim(),
-          quantity: _ingredientQuantityControllers[i].text.trim(),
+
+    if (_selectedRegion == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn miền'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedDifficulty == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn độ khó'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_timeController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập thời gian nấu'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Collect data from TextFields
+    final ingredients = <CreateIngredientRequest>[];
+    for (int i = 0; i < _ingredientNameControllers.length; i++) {
+      final name = _ingredientNameControllers[i].text.trim();
+      final quantity = _ingredientQuantityControllers[i].text.trim();
+      
+      if (name.isNotEmpty) {
+        ingredients.add(CreateIngredientRequest(
+          name: name,
+          quantity: quantity.isNotEmpty ? quantity : '1 phần',
           note: '',
-        );
+        ));
       }
     }
     
-    // Force update steps from TextFields
-    for (int i = 0; i < _steps.length; i++) {
-      if (i < _stepControllers.length) {
-        _steps[i] = CreateStepRequest(
+    final steps = <CreateStepRequest>[];
+    for (int i = 0; i < _stepControllers.length; i++) {
+      final content = _stepControllers[i].text.trim();
+      
+      if (content.isNotEmpty) {
+        steps.add(CreateStepRequest(
           orderNo: i + 1,
-          contentMd: _stepControllers[i].text.trim(),
-        );
+          contentMd: content,
+        ));
       }
     }
 
-    if (_ingredients.isEmpty) {
-      // Add a default ingredient for testing
-      _ingredients.add(CreateIngredientRequest(
-        name: 'Test Ingredient',
-        quantity: '1 cup',
-        note: '',
-      ));
+    // Validate ingredients and steps
+    if (ingredients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng thêm ít nhất một nguyên liệu'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
 
-    if (_steps.isEmpty) {
-      // Add a default step for testing
-      _steps.add(CreateStepRequest(
-        orderNo: 1,
-        contentMd: 'Test step content',
-      ));
+    if (steps.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng thêm ít nhất một bước làm'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
 
     setState(() {
@@ -727,33 +760,49 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
       // Set authorization header
       dio.options.headers['Authorization'] = 'Bearer $token';
 
-      // Convert image to base64 if selected
-      String? imageBase64;
+      // Upload image first if selected, or keep existing image for updates
+      String? imageUrl;
       if (_selectedImage != null) {
-        final bytes = await _selectedImage!.readAsBytes();
-        imageBase64 = base64Encode(bytes);
-        print('Image size: ${bytes.length} bytes');
+        try {
+          final bytes = await _selectedImage!.readAsBytes();
+          print('Uploading image, size: ${bytes.length} bytes');
+          
+          // Upload image using the upload endpoint
+          imageUrl = await communityService.uploadImage(bytes, 'image/jpeg');
+          print('Image uploaded successfully: $imageUrl');
+        } catch (e) {
+          print('Failed to upload image: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Lỗi khi tải ảnh lên: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          // Continue without image
+        }
+      } else if (widget.editingRecipe != null) {
+        // Keep existing image when updating
+        imageUrl = widget.editingRecipe!.imageUrl;
+        print('Keeping existing image: $imageUrl');
       } else {
         print('No image selected');
       }
 
-      // Create a simple test request first
+      // Create request with uploaded image URL
       final request = CreateCommunityRecipeRequest(
-        title: _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : 'Test Recipe',
-        region: _selectedRegion ?? 'BAC',
-        descriptionMd: _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : 'Test description',
-        difficulty: _selectedDifficulty ?? 'DE',
-        timeMin: _timeController.text.trim().isNotEmpty ? int.tryParse(_timeController.text.trim()) ?? 30 : 30,
+        title: _titleController.text.trim(),
+        region: _selectedRegion!,
+        descriptionMd: _descriptionController.text.trim(),
+        difficulty: _selectedDifficulty!,
+        timeMin: int.parse(_timeController.text.trim()),
         costHint: _costController.text.trim().isNotEmpty 
             ? int.tryParse(_costController.text.trim()) 
-            : 50000,
-        imageBase64: null, // Skip image for now to test
-        ingredients: _ingredients.isNotEmpty 
-            ? _ingredients.where((i) => i.name.isNotEmpty).toList()
-            : [CreateIngredientRequest(name: 'Test Ingredient', quantity: '1 cup', note: '')],
-        steps: _steps.isNotEmpty 
-            ? _steps.where((s) => s.contentMd.isNotEmpty).toList()
-            : [CreateStepRequest(orderNo: 1, contentMd: 'Test step')],
+            : null,
+        imageUrl: imageUrl,
+        ingredients: ingredients,
+        steps: steps,
       );
 
       // Debug: Log request data
@@ -766,7 +815,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
       print('Cost: ${request.costHint}');
       print('Ingredients count: ${request.ingredients.length}');
       print('Steps count: ${request.steps.length}');
-      print('Has image: ${imageBase64 != null}');
+      print('Has image: ${imageUrl != null}');
       print('Token: ${token.substring(0, 20)}...');
       print('=============================');
 

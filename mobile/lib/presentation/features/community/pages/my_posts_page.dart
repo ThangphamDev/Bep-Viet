@@ -81,22 +81,26 @@ class _MyPostsPageState extends State<MyPostsPage> {
                 value: _communityCubit!,
                 child: BlocBuilder<CommunityCubit, CommunityState>(
                   builder: (context, state) {
-                    return state.when(
-                      initial: () => const _MyEmptyState(),
-                      loading: () => const _MyLoadingState(),
-                      loaded: (recipes, hasReachedMax) => _MyFeedView(
-                        recipes: recipes,
-                        hasReachedMax: hasReachedMax,
+                    if (state is CommunityInitial) {
+                      return const _MyEmptyState();
+                    } else if (state is CommunityLoading) {
+                      return const _MyLoadingState();
+                    } else if (state is CommunityLoaded) {
+                      return _MyFeedView(
+                        recipes: state.recipes,
+                        hasReachedMax: state.hasReachedMax,
                         onLoadMore: _loadMyRecipes,
                         onRecipeTap: (recipe) => _navigateToDetail(recipe),
                         onEditRecipe: (recipe) => _navigateToEdit(recipe),
                         onDeleteRecipe: (recipe) => _showDeleteDialog(recipe),
-                      ),
-                      error: (message) => _MyErrorState(
-                        message: message,
+                      );
+                    } else if (state is CommunityError) {
+                      return _MyErrorState(
+                        message: state.message,
                         onRetry: _loadMyRecipes,
-                      ),
-                    );
+                      );
+                    }
+                    return const _MyEmptyState();
                   },
                 ),
               ),

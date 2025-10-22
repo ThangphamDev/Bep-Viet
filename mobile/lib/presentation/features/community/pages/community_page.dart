@@ -109,23 +109,27 @@ class _CommunityPageState extends State<CommunityPage>
                 value: _communityCubit!,
                 child: BlocBuilder<CommunityCubit, CommunityState>(
                   builder: (context, state) {
-                    return state.when(
-                      initial: () => _EmptyState(showMyRecipes: _showMyRecipes),
-                      loading: () => const _LoadingState(),
-                      loaded: (recipes, hasReachedMax) => _FeedView(
-                        recipes: recipes,
-                        hasReachedMax: hasReachedMax,
+                    if (state is CommunityInitial) {
+                      return _EmptyState(showMyRecipes: _showMyRecipes);
+                    } else if (state is CommunityLoading) {
+                      return const _LoadingState();
+                    } else if (state is CommunityLoaded) {
+                      return _FeedView(
+                        recipes: state.recipes,
+                        hasReachedMax: state.hasReachedMax,
                         showMyRecipes: _showMyRecipes,
                         onLoadMore: () => _loadRecipes(refresh: false),
                         onRecipeTap: (recipe) => _navigateToDetail(recipe),
                         onEditRecipe: _showMyRecipes ? (recipe) => _navigateToEdit(recipe) : null,
                         onDeleteRecipe: _showMyRecipes ? (recipe) => _showDeleteDialog(recipe) : null,
-                      ),
-                      error: (message) => _ErrorState(
-                        message: message,
+                      );
+                    } else if (state is CommunityError) {
+                      return _ErrorState(
+                        message: state.message,
                         onRetry: () => _loadRecipes(),
-                      ),
-                    );
+                      );
+                    }
+                    return _EmptyState(showMyRecipes: _showMyRecipes);
                   },
                 ),
               ),
@@ -400,6 +404,7 @@ class _CommunityPageState extends State<CommunityPage>
     }
   }
 
+
   // Legacy search dialog removed (unused)
 
   // Legacy filter bottom sheet removed (unused)
@@ -450,6 +455,9 @@ class _FeedView extends StatelessWidget {
                           onEdit: showMyRecipes ? () => onEditRecipe?.call(recipes[index]) : null,
                           onDelete: showMyRecipes ? () => onDeleteRecipe?.call(recipes[index]) : null,
                           showEditOptions: showMyRecipes,
+                          onLike: _handleLike,
+                          onComment: _handleComment,
+                          onShare: _handleShare,
                         )
                         .animate()
                         .fadeIn(duration: 300.ms, delay: (index * 50).ms)
@@ -476,6 +484,24 @@ class _FeedView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _handleLike(String recipeId) {
+    // Handle like functionality
+    print('Liked recipe: $recipeId');
+    // You can implement API call to like/unlike recipe here
+  }
+
+  void _handleComment(String recipeId, String comment) {
+    // Handle comment functionality
+    print('Comment on recipe $recipeId: $comment');
+    // You can implement API call to add comment here
+  }
+
+  void _handleShare(String recipeId) {
+    // Handle share functionality
+    print('Shared recipe: $recipeId');
+    // Share functionality is already handled in the widget
   }
 }
 

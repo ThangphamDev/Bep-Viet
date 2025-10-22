@@ -29,6 +29,11 @@ export class CreateCommunityRecipeDto {
   @IsInt()
   cost_hint?: number;
 
+  @ApiProperty({ example: 'https://example.com/image.jpg', required: false })
+  @IsOptional()
+  @IsString()
+  image_url?: string;
+
   @ApiProperty({ 
     example: [
       { name: 'Bánh phở', quantity: '200g', note: 'Loại tươi' },

@@ -143,6 +143,17 @@ class CommunityService {
     }
   }
 
+  Future<String> uploadImage(List<int> imageBytes, String mimeType) async {
+    try {
+      final response = await _apiService.uploadImage(imageBytes, mimeType);
+      return response['data']['imageUrl'] as String;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Failed to upload image: $e');
+    }
+  }
+
   Exception _handleDioError(DioException e) {
     switch (e.type) {
       case DioExceptionType.connectionTimeout:

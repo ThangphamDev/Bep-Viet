@@ -15,6 +15,7 @@ export class CommunityService {
         cr.difficulty,
         cr.time_min,
         cr.cost_hint,
+        cr.image_url,
         cr.status,
         cr.created_at,
         cr.updated_at,
@@ -51,7 +52,7 @@ export class CommunityService {
       params.push(`%${filters.search}%`, `%${filters.search}%`);
     }
 
-    query += ' GROUP BY cr.id, cr.title, cr.region, cr.description_md, cr.difficulty, cr.time_min, cr.cost_hint, cr.status, cr.created_at, cr.updated_at, u.name ORDER BY cr.created_at DESC';
+    query += ' GROUP BY cr.id, cr.title, cr.region, cr.description_md, cr.difficulty, cr.time_min, cr.cost_hint, cr.image_url, cr.status, cr.created_at, cr.updated_at, u.name ORDER BY cr.created_at DESC';
 
     if (filters.limit) {
       query += ' LIMIT ?';
@@ -76,6 +77,7 @@ export class CommunityService {
         cr.difficulty,
         cr.time_min,
         cr.cost_hint,
+        cr.image_url,
         cr.status,
         cr.created_at,
         cr.updated_at,
@@ -173,6 +175,7 @@ export class CommunityService {
       difficulty,
       time_min,
       cost_hint,
+      image_url,
       ingredients,
       steps
     } = recipeData;
@@ -184,10 +187,9 @@ export class CommunityService {
     // Create community recipe
     await this.db.execute(
       `INSERT INTO community_recipes 
-       (id, author_user_id, title, region, description_md, difficulty, time_min, cost_hint, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')`,
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')`,
-      [recipeId, userId, title, region ?? null, description_md, difficulty, time_min, cost_hint]
+       (id, author_user_id, title, region, description_md, difficulty, time_min, cost_hint, image_url, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')`,
+      [recipeId, userId, title, region ?? null, description_md, difficulty, time_min, cost_hint, image_url ?? null]
     );
 
     // Add ingredients
@@ -219,7 +221,92 @@ export class CommunityService {
     return {
       success: true,
       data: { id: recipeId },
-      message: 'Community recipe created successfully and is now visible'
+      message: 'Community recipe created successfully'
+    };
+  }
+
+  async updateCommunityRecipe(recipeId: string, userId: string, recipeData: any) {
+    console.log('=== UPDATE RECIPE DEBUG ===');
+    console.log('Recipe ID:', recipeId);
+    console.log('User ID:', userId);
+    console.log('Recipe Data:', JSON.stringify(recipeData, null, 2));
+    console.log('==========================');
+    
+    const {
+      title,
+      region,
+      description_md,
+      difficulty,
+      time_min,
+      cost_hint,
+      image_url,
+      ingredients,
+      steps
+    } = recipeData;
+
+    // Check if recipe exists and belongs to user
+    const [recipes] = await this.db.execute(
+      'SELECT id, author_user_id FROM community_recipes WHERE id = ?',
+      [recipeId]
+    );
+
+    const recipe = (recipes as any[])[0];
+    if (!recipe) {
+      throw new NotFoundException('Community recipe not found');
+    }
+
+    if (recipe.author_user_id !== userId) {
+      throw new Error('You are not authorized to update this recipe');
+    }
+
+    // Update community recipe
+    await this.db.execute(
+      `UPDATE community_recipes 
+       SET title = ?, region = ?, description_md = ?, difficulty = ?, time_min = ?, cost_hint = ?, image_url = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [title, region ?? null, description_md, difficulty, time_min, cost_hint, image_url ?? null, recipeId]
+    );
+
+    // Delete existing ingredients and steps
+    await this.db.execute(
+      'DELETE FROM community_recipe_ingredients WHERE community_recipe_id = ?',
+      [recipeId]
+    );
+    await this.db.execute(
+      'DELETE FROM community_recipe_steps WHERE community_recipe_id = ?',
+      [recipeId]
+    );
+
+    // Add new ingredients
+    for (const ingredient of ingredients) {
+      const [ingredientUuidResult] = await this.db.execute('SELECT UUID() as id');
+      const ingredientId = (ingredientUuidResult as any[])[0].id;
+      
+      await this.db.execute(
+        `INSERT INTO community_recipe_ingredients 
+         (id, community_recipe_id, ingredient_name, quantity, note)
+         VALUES (?, ?, ?, ?, ?)`,
+        [ingredientId, recipeId, ingredient.name, ingredient.quantity ?? null, ingredient.note ?? null]
+      );
+    }
+
+    // Add new steps
+    for (const step of steps) {
+      const [stepUuidResult] = await this.db.execute('SELECT UUID() as id');
+      const stepId = (stepUuidResult as any[])[0].id;
+      
+      await this.db.execute(
+        `INSERT INTO community_recipe_steps 
+         (id, community_recipe_id, order_no, content_md)
+         VALUES (?, ?, ?, ?)`,
+        [stepId, recipeId, step.order_no, step.content_md]
+      );
+    }
+
+    return {
+      success: true,
+      data: { id: recipeId },
+      message: 'Community recipe updated successfully'
     };
   }
 
@@ -261,6 +348,7 @@ export class CommunityService {
         cr.difficulty,
         cr.time_min,
         cr.cost_hint,
+        cr.image_url,
         cr.status,
         cr.created_at,
         u.name as author_name
@@ -322,6 +410,7 @@ export class CommunityService {
         cr.id,
         cr.title,
         cr.region,
+        cr.image_url,
         cr.status,
         cr.created_at,
         cr.updated_at,
@@ -332,7 +421,7 @@ export class CommunityService {
       LEFT JOIN recipe_comments rc ON cr.id = rc.recipe_id AND rc.recipe_type = 'COMMUNITY'
       LEFT JOIN recipe_ratings rr ON cr.id = rr.recipe_id AND rr.recipe_type = 'COMMUNITY'
       WHERE cr.author_user_id = ?
-      GROUP BY cr.id, cr.title, cr.region, cr.status, cr.created_at, cr.updated_at
+      GROUP BY cr.id, cr.title, cr.region, cr.image_url, cr.status, cr.created_at, cr.updated_at
       ORDER BY cr.created_at DESC`,
       [userId]
     );
@@ -353,6 +442,7 @@ export class CommunityService {
         cr.difficulty,
         cr.time_min,
         cr.cost_hint,
+        cr.image_url,
         cr.created_at,
         u.name as author_name,
         (SELECT COUNT(*) FROM recipe_comments WHERE recipe_id = cr.id AND recipe_type = 'COMMUNITY') as comment_count,
@@ -368,6 +458,34 @@ export class CommunityService {
     return {
       success: true,
       data: recipes,
+    };
+  }
+
+  async deleteCommunityRecipe(recipeId: string, userId: string) {
+    // Check if recipe exists and belongs to user
+    const [recipes] = await this.db.execute(
+      'SELECT id, author_user_id FROM community_recipes WHERE id = ?',
+      [recipeId]
+    );
+
+    const recipe = (recipes as any[])[0];
+    if (!recipe) {
+      throw new NotFoundException('Community recipe not found');
+    }
+
+    if (recipe.author_user_id !== userId) {
+      throw new Error('You are not authorized to delete this recipe');
+    }
+
+    // Delete recipe (CASCADE will delete ingredients, steps, comments, ratings)
+    await this.db.execute(
+      'DELETE FROM community_recipes WHERE id = ?',
+      [recipeId]
+    );
+
+    return {
+      success: true,
+      message: 'Community recipe deleted successfully'
     };
   }
 }

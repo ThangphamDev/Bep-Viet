@@ -5,7 +5,9 @@ import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_api_service.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
+import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 import '../cubit/community_cubit.dart';
+import 'create_recipe_page.dart';
 
 class CommunityDetailPage extends StatefulWidget {
   final CommunityRecipe recipe;
@@ -54,6 +56,62 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         title: const Text('Chi tiết công thức'),
         backgroundColor: AppTheme.surfaceColor,
         elevation: 0,
+        actions: [
+          BlocBuilder<AuthCubit, AuthState>(
+            builder: (context, state) {
+              if (state is AuthAuthenticated && 
+                  state.user.id == widget.recipe.authorId) {
+                return PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'edit':
+                        _navigateToEdit(context);
+                        break;
+                      case 'delete':
+                        _showDeleteDialog(context);
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, size: 20, color: AppTheme.textPrimary),
+                          SizedBox(width: 8),
+                          Text('Sửa bài viết'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, size: 20, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Xóa bài viết', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      Icons.more_horiz,
+                      color: Colors.grey.shade600,
+                      size: 20,
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
       ),
       body: BlocProvider.value(
         value: _detailCubit,
@@ -86,6 +144,161 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
       setState(() {
         _selectedRating = 0;
       });
+    }
+  }
+
+  void _navigateToEdit(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateRecipePage(editingRecipe: widget.recipe),
+      ),
+    ).then((_) {
+      // Refresh the recipe data after editing
+      Navigator.pop(context, true);
+    });
+  }
+
+  void _showDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.red.shade600,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Xóa bài viết',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Bạn có chắc chắn muốn xóa bài viết này không?',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppTheme.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.red.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '"${widget.recipe.title}"',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red.shade700,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Hành động này không thể hoàn tác.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.red.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _deleteRecipe(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Xóa',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteRecipe(BuildContext context) async {
+    try {
+      final dio = Dio();
+      final communityApiService = CommunityApiService(dio);
+      final communityService = CommunityService(communityApiService);
+      
+      await communityService.deleteCommunityRecipe(widget.recipe.id);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bài viết đã được xóa'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }
@@ -136,6 +349,92 @@ class _RecipeDetailContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Recipe image
+                if (recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.grey.shade100,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: recipe.imageUrl!.startsWith('data:image')
+                          ? Image.memory(
+                              Uri.parse(recipe.imageUrl!).data!.contentAsBytes(),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey.shade100,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.image_not_supported,
+                                        size: 48,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Không thể tải ảnh',
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            )
+                          : Image.network(
+                              recipe.imageUrl!,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  color: Colors.grey.shade100,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              loadingProgress.expectedTotalBytes!
+                                          : null,
+                                      color: AppTheme.primaryGreen,
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey.shade100,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.image_not_supported,
+                                        size: 48,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Không thể tải ảnh',
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                
                 // Title and region
                 Row(
                   children: [

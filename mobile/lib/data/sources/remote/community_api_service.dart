@@ -69,4 +69,16 @@ class CommunityApiService {
     final response = await _dio.delete('/api/community/recipes/$recipeId');
     return response.data;
   }
+
+  Future<Map<String, dynamic>> uploadImage(List<int> imageBytes, String mimeType) async {
+    final formData = FormData.fromMap({
+      'image': MultipartFile.fromBytes(
+        imageBytes,
+        filename: 'image.${mimeType.split('/').last}',
+      ),
+    });
+    
+    final response = await _dio.post('/api/community/upload-image', data: formData);
+    return response.data;
+  }
 }

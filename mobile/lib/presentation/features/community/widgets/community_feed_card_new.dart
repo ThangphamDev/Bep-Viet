@@ -5,28 +5,55 @@ import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 
-class CommunityFeedCardNew extends StatelessWidget {
+class CommunityFeedCardNew extends StatefulWidget {
   final CommunityRecipe recipe;
   final VoidCallback? onTap;
-  final bool isLiked;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final bool showEditOptions;
+  final Function(String recipeId)? onLike;
+  final Function(String recipeId, String comment)? onComment;
+  final Function(String recipeId)? onShare;
 
   const CommunityFeedCardNew({
     super.key,
     required this.recipe,
     this.onTap,
-    this.isLiked = false,
     this.onEdit,
     this.onDelete,
     this.showEditOptions = false,
+    this.onLike,
+    this.onComment,
+    this.onShare,
   });
+
+  @override
+  State<CommunityFeedCardNew> createState() => _CommunityFeedCardNewState();
+}
+
+class _CommunityFeedCardNewState extends State<CommunityFeedCardNew> {
+  bool _isLiked = false;
+  int _likeCount = 0;
+  int _shareCount = 0;
+  final TextEditingController _commentController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _likeCount = widget.recipe.ratingCount; // Using rating as like count
+    _shareCount = 0; // Initialize share count
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -44,8 +71,11 @@ class CommunityFeedCardNew extends StatelessWidget {
             _buildHeader(),
             const SizedBox(height: 12),
             _buildContent(),
-            const SizedBox(height: 12),
-            _buildImage(context),
+            // Only add spacing if there's an image
+            if (widget.recipe.imageUrl != null && widget.recipe.imageUrl!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildImage(context),
+            ],
             const SizedBox(height: 12),
             _buildMetadata(),
             const SizedBox(height: 12),
@@ -62,8 +92,8 @@ class CommunityFeedCardNew extends StatelessWidget {
         String displayName = 'Người dùng';
         
         // Try to get name from recipe first, then from current user
-        if (recipe.authorName != null && recipe.authorName!.isNotEmpty) {
-          displayName = recipe.authorName!;
+        if (widget.recipe.authorName != null && widget.recipe.authorName!.isNotEmpty) {
+          displayName = widget.recipe.authorName!;
         } else if (state is AuthAuthenticated && state.user.name.isNotEmpty) {
           displayName = state.user.name;
         }
@@ -108,7 +138,7 @@ class CommunityFeedCardNew extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      if (recipe.status == 'APPROVED')
+                      if (widget.recipe.status == 'APPROVED')
                         Icon(
                           Icons.verified,
                           size: 16,
@@ -117,7 +147,7 @@ class CommunityFeedCardNew extends StatelessWidget {
                     ],
                   ),
                   Text(
-                    _formatTimeAgo(recipe.createdAt),
+                    _formatTimeAgo(widget.recipe.createdAt),
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey.shade600,
@@ -127,15 +157,15 @@ class CommunityFeedCardNew extends StatelessWidget {
               ),
             ),
             // More options
-            if (showEditOptions)
+            if (widget.showEditOptions)
               PopupMenuButton<String>(
                 onSelected: (value) {
                   switch (value) {
                     case 'edit':
-                      onEdit?.call();
+                      widget.onEdit?.call();
                       break;
                     case 'delete':
-                      onDelete?.call();
+                      widget.onDelete?.call();
                       break;
                   }
                 },
@@ -200,7 +230,7 @@ class CommunityFeedCardNew extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          recipe.title,
+          widget.recipe.title,
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -208,10 +238,10 @@ class CommunityFeedCardNew extends StatelessWidget {
             height: 1.4,
           ),
         ),
-        if (recipe.descriptionMd != null && recipe.descriptionMd!.isNotEmpty) ...[
+        if (widget.recipe.descriptionMd != null && widget.recipe.descriptionMd!.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
-            recipe.descriptionMd!,
+            widget.recipe.descriptionMd!,
             style: TextStyle(
               fontSize: 15,
               color: Colors.grey.shade800,
@@ -226,36 +256,52 @@ class CommunityFeedCardNew extends StatelessWidget {
   }
 
   Widget _buildImage(BuildContext context) {
+    // Only show image if available
+    if (widget.recipe.imageUrl == null || widget.recipe.imageUrl!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Container(
         height: 300,
         width: double.infinity,
         color: Colors.grey.shade200,
-        child: Image.network(
-          'https://picsum.photos/400/300?random=${recipe.id}',
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey.shade200,
-              child: Icon(Icons.restaurant, size: 60, color: Colors.grey.shade400),
-            );
-          },
-        ),
+        child: widget.recipe.imageUrl!.startsWith('data:image')
+            ? Image.memory(
+                Uri.parse(widget.recipe.imageUrl!).data!.contentAsBytes(),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey.shade200,
+                    child: Icon(Icons.restaurant, size: 60, color: Colors.grey.shade400),
+                  );
+                },
+              )
+            : Image.network(
+                widget.recipe.imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey.shade200,
+                    child: Icon(Icons.restaurant, size: 60, color: Colors.grey.shade400),
+                  );
+                },
+              ),
       ),
     );
   }
 
   Widget _buildMetadata() {
     // Always render three chips for a consistent layout across tabs
-    final timeLabel = (recipe.timeMin != null && recipe.timeMin! > 0)
-        ? '${recipe.timeMin} phút'
+    final timeLabel = (widget.recipe.timeMin != null && widget.recipe.timeMin! > 0)
+        ? '${widget.recipe.timeMin} phút'
         : '—';
-    final regionLabel = (recipe.region != null && recipe.region!.isNotEmpty)
-        ? _getRegionName(recipe.region!)
+    final regionLabel = (widget.recipe.region != null && widget.recipe.region!.isNotEmpty)
+        ? _getRegionName(widget.recipe.region!)
         : '—';
-    final difficultyLabel = (recipe.difficulty != null && recipe.difficulty!.isNotEmpty)
-        ? _getDifficultyName(recipe.difficulty!)
+    final difficultyLabel = (widget.recipe.difficulty != null && widget.recipe.difficulty!.isNotEmpty)
+        ? _getDifficultyName(widget.recipe.difficulty!)
         : '—';
 
     return Wrap(
@@ -307,39 +353,91 @@ class CommunityFeedCardNew extends StatelessWidget {
   }
 
   Widget _buildActions() {
-    // Simple action counts
-    final likeCount = 0; // TODO: Get from recipe.ratings
-    final commentCount = 0; // TODO: Get from recipe.comments
+    final commentCount = widget.recipe.commentCount;
 
-    return Row(
+    return Column(
       children: [
-        _buildActionButton(
-          icon: isLiked ? Icons.favorite : Icons.favorite_border,
-          label: likeCount > 0 ? '$likeCount' : '',
-          color: isLiked ? Colors.red : Colors.grey.shade700,
-        ),
-        const SizedBox(width: 20),
-        _buildActionButton(
-          icon: Icons.mode_comment_outlined,
-          label: commentCount > 0 ? '$commentCount' : '',
-          color: Colors.grey.shade700,
-        ),
-        const SizedBox(width: 20),
-        _buildActionButton(
-          icon: Icons.share_outlined,
-          label: '',
-          color: Colors.grey.shade700,
-          onTap: () {
-            Share.share('Xem công thức: ${recipe.title}');
-          },
-        ),
-        const Spacer(),
-        _buildActionButton(
-          icon: Icons.bookmark_border,
-          label: '',
-          color: Colors.grey.shade700,
+        // Main action buttons
+        Row(
+          children: [
+            _buildActionButton(
+              icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+              label: _likeCount > 0 ? '$_likeCount' : '',
+              color: _isLiked ? Colors.red : Colors.grey.shade700,
+              onTap: _handleLike,
+            ),
+            const SizedBox(width: 20),
+            _buildActionButton(
+              icon: Icons.mode_comment_outlined,
+              label: commentCount > 0 ? '$commentCount' : '',
+              color: Colors.grey.shade700,
+              onTap: _showCommentDialog,
+            ),
+            const SizedBox(width: 20),
+            _buildActionButton(
+              icon: Icons.share_outlined,
+              label: _shareCount > 0 ? '$_shareCount' : '',
+              color: Colors.grey.shade700,
+              onTap: _handleShare,
+            ),
+            const Spacer(),
+          ],
         ),
       ],
+    );
+  }
+
+  void _handleLike() {
+    setState(() {
+      if (_isLiked) {
+        _isLiked = false;
+        _likeCount = _likeCount > 0 ? _likeCount - 1 : 0;
+      } else {
+        _isLiked = true;
+        _likeCount++;
+      }
+    });
+    widget.onLike?.call(widget.recipe.id);
+  }
+
+  void _handleShare() {
+    setState(() {
+      _shareCount++;
+    });
+    Share.share('Xem công thức: ${widget.recipe.title}');
+    widget.onShare?.call(widget.recipe.id);
+  }
+
+  void _showCommentDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Thêm bình luận'),
+        content: TextField(
+          controller: _commentController,
+          decoration: const InputDecoration(
+            hintText: 'Viết bình luận của bạn...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_commentController.text.trim().isNotEmpty) {
+                widget.onComment?.call(widget.recipe.id, _commentController.text.trim());
+                _commentController.clear();
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Gửi'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -398,10 +496,13 @@ class CommunityFeedCardNew extends StatelessWidget {
 
   String _getRegionName(String region) {
     switch (region.toUpperCase()) {
+      case 'BAC':
       case 'NORTH':
         return 'Miền Bắc';
+      case 'TRUNG':
       case 'CENTRAL':
         return 'Miền Trung';
+      case 'NAM':
       case 'SOUTH':
         return 'Miền Nam';
       default:
@@ -411,10 +512,13 @@ class CommunityFeedCardNew extends StatelessWidget {
 
   String _getDifficultyName(String difficulty) {
     switch (difficulty.toUpperCase()) {
+      case 'DE':
       case 'EASY':
         return 'Dễ';
+      case 'TRUNG_BINH':
       case 'MEDIUM':
         return 'Trung bình';
+      case 'KHO':
       case 'HARD':
         return 'Khó';
       default:
