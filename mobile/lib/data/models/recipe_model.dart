@@ -24,6 +24,7 @@ class RecipeModel {
   final List<RecipeVariantModel>? variants;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool isFavorite;
 
   RecipeModel({
     required this.id,
@@ -51,6 +52,7 @@ class RecipeModel {
     this.variants,
     this.createdAt,
     this.updatedAt,
+    this.isFavorite = false,
   });
 
   factory RecipeModel.fromJson(Map<String, dynamic> json) {
@@ -124,6 +126,8 @@ class RecipeModel {
           : json['updatedAt'] != null
               ? DateTime.parse(json['updatedAt'] as String)
               : null,
+      isFavorite: json['is_favorite'] == true || json['is_favorite'] == 1,
+
     );
   }
 
@@ -135,12 +139,54 @@ class RecipeModel {
     return null;
   }
 
-  static double? _parseDouble(dynamic value) {
-    if (value == null) return null;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value);
-    return null;
+
+  // static double? _parseDouble(dynamic value) {
+  //   if (value == null) return null;
+  //   if (value is double) return value;
+  //   if (value is int) return value.toDouble();
+  //   if (value is String) return double.tryParse(value);
+  //   return null;
+
+  RecipeModel copyWith({
+    String? id,
+    String? name,
+    String? description,
+    String? imageUrl,
+    int? prepTimeMinutes,
+    int? cookTimeMinutes,
+    int? totalTimeMinutes,
+    int? servings,
+    int? difficulty,
+    String? mealType,
+    String? baseRegion,
+    List<String>? tags,
+    List<RecipeIngredientModel>? ingredients,
+    List<RecipeStepModel>? steps,
+    List<RecipeVariantModel>? variants,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isFavorite,
+  }) {
+    return RecipeModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      prepTimeMinutes: prepTimeMinutes ?? this.prepTimeMinutes,
+      cookTimeMinutes: cookTimeMinutes ?? this.cookTimeMinutes,
+      totalTimeMinutes: totalTimeMinutes ?? this.totalTimeMinutes,
+      servings: servings ?? this.servings,
+      difficulty: difficulty ?? this.difficulty,
+      mealType: mealType ?? this.mealType,
+      baseRegion: baseRegion ?? this.baseRegion,
+      tags: tags ?? this.tags,
+      ingredients: ingredients ?? this.ingredients,
+      steps: steps ?? this.steps,
+      variants: variants ?? this.variants,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isFavorite: isFavorite ?? this.isFavorite,
+    );
   }
 
   Map<String, dynamic> toJson() {

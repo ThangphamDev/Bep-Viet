@@ -54,18 +54,16 @@ export class RecipesService {
         params.push(filters.max_time);
       }
 
-      if (filters.search) {
-        query += ' AND (LOWER(r.name_vi) LIKE LOWER(?) OR LOWER(r.name_en) LIKE LOWER(?))';
-        params.push(`%${filters.search}%`, `%${filters.search}%`);
-      }
+    if (filters.search) {
+      query += ' AND (LOWER(r.name_vi) LIKE LOWER(?) OR LOWER(r.name_en) LIKE LOWER(?))';
+      params.push(`%${filters.search}%`, `%${filters.search}%`);
+    }
 
       query += ' ORDER BY r.rating_avg DESC, r.created_at DESC';
 
-      if (filters.limit) {
-        query += ` LIMIT ${parseInt(filters.limit.toString())}`;
-      } else {
-        query += ' LIMIT 50'; // Default limit
-      }
+    if (filters.limit) {
+      query += ` LIMIT ${parseInt(filters.limit.toString())}`;
+    }
 
       const [recipes] = await this.db.execute(query, params);
 
@@ -83,7 +81,7 @@ export class RecipesService {
     }
   }
 
-  async getRecipeById(id: string) {
+  async getRecipeById(id: string, userId?: string) {
     const [recipes] = await this.db.execute(
       `SELECT 
         r.id,
@@ -113,6 +111,17 @@ export class RecipesService {
     const recipe = (recipes as any[])[0];
     if (!recipe) {
       throw new NotFoundException('Recipe not found');
+    }
+
+    // Check if recipe is in user's favorites
+    if (userId) {
+      const [favoriteCheck] = await this.db.execute(
+        'SELECT 1 FROM favorites WHERE user_id = ? AND recipe_id = ?',
+        [userId, id]
+      );
+      recipe.is_favorite = (favoriteCheck as any[]).length > 0;
+    } else {
+      recipe.is_favorite = false;
     }
 
     // Get ingredients
@@ -348,6 +357,70 @@ export class RecipesService {
     return {
       success: true,
       message: 'Tag removed from recipe',
+    };
+  }
+
+  // Favorites
+  async getFavorites(userId: string) {
+    const [recipes] = await this.db.execute(
+      `SELECT 
+        r.id,
+        r.name_vi as name,
+        r.name_en,
+        r.meal_type,
+        r.difficulty,
+        r.cook_time_min as cookTimeMinutes,
+        r.region,
+        r.base_region as baseRegion,
+        r.image_url as imageUrl,
+        r.rating_avg,
+        r.rating_count,
+        f.created_at as favorited_at
+      FROM favorites f
+      JOIN recipes r ON f.recipe_id = r.id
+      WHERE f.user_id = ?
+      ORDER BY f.created_at DESC`,
+      [userId]
+    );
+
+    return {
+      success: true,
+      data: recipes,
+    };
+  }
+
+  async addFavorite(userId: string, recipeId: string) {
+    try {
+      await this.db.execute(
+        'INSERT INTO favorites (user_id, recipe_id) VALUES (?, ?)',
+        [userId, recipeId]
+      );
+
+      return {
+        success: true,
+        message: 'Added to favorites',
+      };
+    } catch (error: any) {
+      // If already exists (duplicate key error)
+      if (error.code === 'ER_DUP_ENTRY') {
+        return {
+          success: true,
+          message: 'Already in favorites',
+        };
+      }
+      throw error;
+    }
+  }
+
+  async removeFavorite(userId: string, recipeId: string) {
+    await this.db.execute(
+      'DELETE FROM favorites WHERE user_id = ? AND recipe_id = ?',
+      [userId, recipeId]
+    );
+
+    return {
+      success: true,
+      message: 'Removed from favorites',
     };
   }
 }

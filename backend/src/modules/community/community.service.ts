@@ -186,6 +186,7 @@ export class CommunityService {
       `INSERT INTO community_recipes 
        (id, author_user_id, title, region, description_md, difficulty, time_min, cost_hint, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')`,
       [recipeId, userId, title, region ?? null, description_md, difficulty, time_min, cost_hint]
     );
 

@@ -29,8 +29,21 @@ class ApiService {
         return AuthResponse.fromJson(response.data as Map<String, dynamic>);
       }
       throw Exception('Invalid API response format');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('Email hoặc mật khẩu không đúng');
+      } else if (e.response?.statusCode == 404) {
+        throw Exception('Tài khoản không tồn tại');
+      } else if (e.response?.data != null && e.response?.data is Map) {
+        final errorMessage =
+            e.response?.data['message'] ?? 'Đăng nhập thất bại';
+        throw Exception(errorMessage);
+      } else {
+        throw Exception('Không thể kết nối đến server');
+      }
     } catch (e) {
-      throw Exception('Login failed: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Đăng nhập thất bại');
     }
   }
 
@@ -44,8 +57,22 @@ class ApiService {
         return AuthResponse.fromJson(response.data as Map<String, dynamic>);
       }
       throw Exception('Invalid API response format');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 409) {
+        throw Exception('Email đã được sử dụng');
+      } else if (e.response?.statusCode == 400) {
+        final errorMessage =
+            e.response?.data['message'] ?? 'Thông tin không hợp lệ';
+        throw Exception(errorMessage);
+      } else if (e.response?.data != null && e.response?.data is Map) {
+        final errorMessage = e.response?.data['message'] ?? 'Đăng ký thất bại';
+        throw Exception(errorMessage);
+      } else {
+        throw Exception('Không thể kết nối đến server');
+      }
     } catch (e) {
-      throw Exception('Registration failed: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Đăng ký thất bại');
     }
   }
 
@@ -144,9 +171,13 @@ class ApiService {
     }
   }
 
-  Future<RecipeModel> getRecipeById(String id) async {
+  Future<RecipeModel> getRecipeById(String id, {String? userId}) async {
     try {
-      final response = await _dio.get('/api/recipes/$id');
+      final queryParams = userId != null ? {'userId': userId} : null;
+      final response = await _dio.get(
+        '/api/recipes/$id',
+        queryParameters: queryParams,
+      );
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
@@ -216,6 +247,57 @@ class ApiService {
       return [];
     } catch (e) {
       throw Exception('Failed to fetch recipe variants: $e');
+    }
+  }
+
+  // Favorites
+  Future<List<RecipeModel>> getFavorites(String token) async {
+    try {
+      final response = await _dio.get(
+        '/api/recipes/favorites',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is List) {
+          return (responseData['data'] as List)
+              .map((e) => RecipeModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) => RecipeModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      throw Exception('Failed to get favorites: $e');
+    }
+  }
+
+  Future<void> addFavorite(String token, String recipeId) async {
+    try {
+      await _dio.post(
+        '/api/recipes/$recipeId/favorite',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to add favorite: $e');
+    }
+  }
+
+  Future<void> removeFavorite(String token, String recipeId) async {
+    try {
+      await _dio.delete(
+        '/api/recipes/$recipeId/favorite',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to remove favorite: $e');
     }
   }
 

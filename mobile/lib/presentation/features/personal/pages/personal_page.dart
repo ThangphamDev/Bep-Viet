@@ -260,6 +260,17 @@ class ProfilePage extends StatelessWidget {
                                     },
                                   ),
                                   const Divider(height: 1),
+                                  _buildPremiumSettingsItem(
+                                    context: context,
+                                    icon: Icons.star,
+                                    title: 'Premium',
+                                    subtitle: 'Nâng cấp tài khoản Premium',
+                                    onTap: () {
+                                      // Navigate to Premium Dashboard
+                                      context.go('/premium');
+                                    },
+                                  ),
+                                  const Divider(height: 1),
                                   _buildSettingsItem(
                                     icon: Icons.help,
                                     title: 'Trợ giúp',
@@ -433,6 +444,68 @@ class ProfilePage extends StatelessWidget {
         color: AppTheme.textSecondary,
       ),
       onTap: onTap,
+    );
+  }
+
+  Widget _buildPremiumSettingsItem({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13),
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Icon(
+            Icons.arrow_forward_ios,
+            size: 14,
+            color: Colors.white,
+          ),
+        ),
+        onTap: onTap,
+      ),
     );
   }
 

@@ -19,6 +19,15 @@ export class AnalyticsController {
     return this.analyticsService.getUserAnalytics(req.user.id);
   }
 
+  @Get('weekly-report')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get weekly health report' })
+  @ApiResponse({ status: 200, description: 'Weekly health report' })
+  async getWeeklyReport(@Request() req, @Query('week') weekStart?: string) {
+    return this.analyticsService.getWeeklyReport(req.user.id, weekStart);
+  }
+
   @Get('system')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')

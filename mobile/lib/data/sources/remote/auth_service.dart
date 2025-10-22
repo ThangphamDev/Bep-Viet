@@ -14,7 +14,13 @@ class AuthService {
   bool get isLoggedIn => _prefs.getString(AppConfig.tokenKey) != null;
 
   // Get current access token
-  String? get accessToken => _prefs.getString(AppConfig.tokenKey);
+  String? get accessToken {
+    final token = _prefs.getString(AppConfig.tokenKey);
+    print(
+      '🔑 AuthService - Access token: ${token != null ? '${token.substring(0, 20)}...' : 'null'}',
+    );
+    return token;
+  }
 
   // Get current refresh token
   String? get refreshToken => _prefs.getString(AppConfig.refreshTokenKey);
@@ -48,7 +54,8 @@ class AuthService {
 
       return response;
     } catch (e) {
-      throw Exception('Login failed: $e');
+      // Re-throw the exception as-is (already formatted from api_service)
+      rethrow;
     }
   }
 
@@ -77,7 +84,8 @@ class AuthService {
 
       return response;
     } catch (e) {
-      throw Exception('Registration failed: $e');
+      // Re-throw the exception as-is (already formatted from api_service)
+      rethrow;
     }
   }
 
@@ -86,6 +94,7 @@ class AuthService {
     await _prefs.remove(AppConfig.tokenKey);
     await _prefs.remove(AppConfig.refreshTokenKey);
     await _prefs.remove(AppConfig.userKey);
+    await _prefs.remove(AppConfig.userIdKey);
     await _prefs.remove(AppConfig.rememberMeKey);
     await _prefs.remove(AppConfig.tokenExpiryKey);
   }
@@ -101,6 +110,7 @@ class AuthService {
       AppConfig.userKey,
       jsonEncode(authData.user.toJson()),
     );
+    await _prefs.setString(AppConfig.userIdKey, authData.user.id);
     await _prefs.setBool(AppConfig.rememberMeKey, rememberMe);
 
     // Save token expiry time (7 days from now if remember me, 1 day otherwise)

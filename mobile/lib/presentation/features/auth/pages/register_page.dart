@@ -79,10 +79,9 @@ class _RegisterPageState extends State<RegisterPage>
             listener: (context, state) {
               if (state is AuthError) {
                 _showErrorSnackBar(state.message);
-              } else if (state is AuthAuthenticated) {
-                _showSuccessSnackBar('Đăng ký thành công!');
-                // Navigate to home after successful registration
-                context.go(AppRoutes.home);
+              } else if (state is AuthRegistered) {
+                // Registration successful, navigate to login
+                context.go('${AppRoutes.login}?message=register_success');
               }
             },
             child: SingleChildScrollView(
@@ -600,23 +599,6 @@ class _RegisterPageState extends State<RegisterPage>
           ],
         ),
         backgroundColor: AppTheme.errorColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: AppTheme.successColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

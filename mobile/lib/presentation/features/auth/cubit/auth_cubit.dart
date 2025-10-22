@@ -51,6 +51,10 @@ class AuthAuthenticated extends AuthState {
 
 class AuthUnauthenticated extends AuthState {}
 
+class AuthRegistered extends AuthState {
+  const AuthRegistered();
+}
+
 class AuthError extends AuthState {
   final String message;
 
@@ -64,6 +68,9 @@ class AuthCubit extends Cubit<AuthState> {
   AuthCubit(this._authRepository) : super(AuthInitial()) {
     _checkAuthStatus();
   }
+
+  // Getter for auth repository
+  AuthRepository get authRepository => _authRepository;
 
   Future<void> _checkAuthStatus() async {
     // Show splash screen for at least 1 second
@@ -123,10 +130,12 @@ class AuthCubit extends Cubit<AuthState> {
       if (response.success) {
         emit(AuthAuthenticated(user: response.data.user));
       } else {
-        emit(const AuthError(message: 'Login failed'));
+        emit(const AuthError(message: 'Đăng nhập thất bại'));
       }
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      // Clean up the error message (remove "Exception: " prefix)
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      emit(AuthError(message: errorMessage));
     }
   }
 
@@ -149,12 +158,17 @@ class AuthCubit extends Cubit<AuthState> {
         rememberMe: rememberMe,
       );
       if (response.success) {
-        emit(AuthAuthenticated(user: response.data.user));
+        // Logout immediately after registration to clear token
+        await _authRepository.logout();
+        // Emit registered state (not authenticated)
+        emit(const AuthRegistered());
       } else {
-        emit(const AuthError(message: 'Registration failed'));
+        emit(const AuthError(message: 'Đăng ký thất bại'));
       }
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      // Clean up the error message (remove "Exception: " prefix)
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      emit(AuthError(message: errorMessage));
     }
   }
 
