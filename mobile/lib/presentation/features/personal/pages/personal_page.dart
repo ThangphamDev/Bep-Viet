@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
+import 'package:bepviet_mobile/core/utils/app_exit_handler.dart';
 import 'package:bepviet_mobile/data/models/user_model.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 import 'package:bepviet_mobile/presentation/routes/app_router.dart';
@@ -711,11 +712,11 @@ class _ProfilePageState extends State<ProfilePage> {
         Navigator.of(context).pop();
       }
 
-      // Wait a bit for navigation to complete
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Wait a bit to ensure all operations complete
+      await Future.delayed(const Duration(milliseconds: 300));
 
-      // Exit app completely - user will see login page on restart
-      SystemNavigator.pop();
+      // Kill app process completely - user must reopen app manually
+      await AppExitHandler.exitApp();
     } catch (e) {
       if (context.mounted) {
         // Close loading dialog
