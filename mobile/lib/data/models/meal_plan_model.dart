@@ -22,7 +22,7 @@ class MealPlanModel {
   factory MealPlanModel.fromJson(Map<String, dynamic> json) {
     // Handle both backend formats
     List<MealSlot> meals = [];
-    
+
     if (json['items'] != null) {
       // Backend format with 'items'
       meals = (json['items'] as List<dynamic>)
@@ -39,13 +39,16 @@ class MealPlanModel {
       id: json['id']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? '',
       weekStartDate: json['week_start_date']?.toString() ?? '',
-      name: json['name']?.toString() ?? json['note']?.toString() ?? 'Kế hoạch bữa ăn',
+      name:
+          json['name']?.toString() ??
+          json['note']?.toString() ??
+          'Kế hoạch bữa ăn',
       description: json['description']?.toString() ?? json['note']?.toString(),
       meals: meals,
-      createdAt: json['created_at'] != null 
+      createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
           : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
+      updatedAt: json['updated_at'] != null
           ? DateTime.tryParse(json['updated_at']) ?? DateTime.now()
           : DateTime.now(),
     );
@@ -90,7 +93,10 @@ class MealSlot {
 
   factory MealSlot.fromJson(Map<String, dynamic> json) {
     // Parse meal type properly
-    String mealSlotString = (json['meal_slot'] ?? json['meal_type'] ?? 'breakfast').toString().toLowerCase();
+    String mealSlotString =
+        (json['meal_slot'] ?? json['meal_type'] ?? 'breakfast')
+            .toString()
+            .toLowerCase();
     MealType mealType;
     switch (mealSlotString) {
       case 'breakfast':
@@ -102,24 +108,25 @@ class MealSlot {
       case 'dinner':
         mealType = MealType.dinner;
         break;
-      case 'snack':
-        mealType = MealType.snack;
-        break;
       default:
         mealType = MealType.breakfast;
     }
-    
+
     return MealSlot(
       id: json['id']?.toString() ?? '',
       mealPlanId: json['meal_plan_id']?.toString() ?? '',
       date: json['date']?.toString() ?? '',
       mealType: mealType,
       recipeId: json['recipe_id']?.toString(),
-      recipeName: json['recipe_name']?.toString() ?? json['name_vi']?.toString() ?? json['name_en']?.toString(),
-      recipeImage: json['recipe_image']?.toString() ?? json['image_url']?.toString(),
+      recipeName:
+          json['recipe_name']?.toString() ??
+          json['name_vi']?.toString() ??
+          json['name_en']?.toString(),
+      recipeImage:
+          json['recipe_image']?.toString() ?? json['image_url']?.toString(),
       servings: int.tryParse(json['servings']?.toString() ?? '1') ?? 1,
-      plannedTime: json['planned_time'] != null 
-          ? DateTime.tryParse(json['planned_time']) 
+      plannedTime: json['planned_time'] != null
+          ? DateTime.tryParse(json['planned_time'])
           : null,
     );
   }
@@ -139,28 +146,17 @@ class MealSlot {
   }
 }
 
-enum MealType {
-  breakfast,
-  lunch,
-  dinner,
-  snack
-}
+enum MealType { breakfast, lunch, dinner }
 
 // Request DTOs
 class CreateMealPlanDto {
   final String weekStartDate;
   final String? note;
 
-  CreateMealPlanDto({
-    required this.weekStartDate,
-    this.note,
-  });
+  CreateMealPlanDto({required this.weekStartDate, this.note});
 
   Map<String, dynamic> toJson() {
-    return {
-      'week_start_date': weekStartDate,
-      'note': note,
-    };
+    return {'week_start_date': weekStartDate, 'note': note};
   }
 }
 

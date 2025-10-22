@@ -19,7 +19,7 @@ class ShoppingListPage extends StatefulWidget {
 
 class _ShoppingListPageState extends State<ShoppingListPage> {
   bool _disposed = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -33,7 +33,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
     // Also load pantry items to show availability info
     context.read<PantryCubit>().loadPantryItems();
   }
-  
+
   @override
   void dispose() {
     _disposed = true;
@@ -78,9 +78,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
         builder: (context, state) {
           if (state.isLoading) {
             return const Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.primaryGreen,
-              ),
+              child: CircularProgressIndicator(color: AppTheme.primaryGreen),
             );
           }
 
@@ -89,9 +87,12 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
           }
 
           // Show the selected list or the newest one
-          final selectedList = state.selectedList ?? 
-              (state.shoppingLists.isNotEmpty 
-                  ? (state.shoppingLists..sort((a, b) => b.createdAt.compareTo(a.createdAt))).first
+          final selectedList =
+              state.selectedList ??
+              (state.shoppingLists.isNotEmpty
+                  ? (state.shoppingLists
+                          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)))
+                        .first
                   : null);
 
           if (selectedList == null) {
@@ -103,16 +104,17 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       ),
       floatingActionButton: BlocBuilder<MealPlanCubit, MealPlanState>(
         builder: (context, mealPlanState) {
-          final hasMealPlan = mealPlanState.currentPlan != null && 
-                              mealPlanState.currentPlan!.meals.isNotEmpty;
-          
+          final hasMealPlan =
+              mealPlanState.currentPlan != null &&
+              mealPlanState.currentPlan!.meals.isNotEmpty;
+
           return FloatingActionButton.extended(
             onPressed: hasMealPlan
-                ? () => _generateShoppingListFromMealPlan(mealPlanState.currentPlan!)
+                ? () => _generateShoppingListFromMealPlan(
+                    mealPlanState.currentPlan!,
+                  )
                 : null,
-            backgroundColor: hasMealPlan
-                ? AppTheme.primaryGreen 
-                : Colors.grey,
+            backgroundColor: hasMealPlan ? AppTheme.primaryGreen : Colors.grey,
             foregroundColor: Colors.white,
             icon: const Icon(Icons.restaurant_menu),
             label: const Text('Từ kế hoạch'),
@@ -130,11 +132,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.shopping_cart_outlined,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'Chưa có danh sách mua sắm nào',
@@ -147,10 +145,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
           const SizedBox(height: 8),
           Text(
             'Tạo danh sách đầu tiên của bạn',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -168,16 +163,19 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
     );
   }
 
-  Widget _buildListSelectorDropdown(ShoppingListModel selectedList, List<ShoppingListModel> allLists) {
+  Widget _buildListSelectorDropdown(
+    ShoppingListModel selectedList,
+    List<ShoppingListModel> allLists,
+  ) {
     // Sort lists by creation date (newest first)
     final sortedLists = [...allLists]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
+
     if (sortedLists.length <= 1) {
       // Don't show dropdown if only one list
       return const SizedBox.shrink();
     }
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -195,11 +193,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.list_alt,
-            color: AppTheme.primaryGreen,
-            size: 20,
-          ),
+          Icon(Icons.list_alt, color: AppTheme.primaryGreen, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonHideUnderline(
@@ -214,8 +208,12 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
                 ),
                 onChanged: (String? newValue) {
                   if (newValue != null) {
-                    final newList = sortedLists.firstWhere((list) => list.id == newValue);
-                    context.read<ShoppingListCubit>().selectShoppingList(newList);
+                    final newList = sortedLists.firstWhere(
+                      (list) => list.id == newValue,
+                    );
+                    context.read<ShoppingListCubit>().selectShoppingList(
+                      newList,
+                    );
                   }
                 },
                 items: sortedLists.map<DropdownMenuItem<String>>((list) {
@@ -261,7 +259,10 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
     );
   }
 
-  Widget _buildShoppingListView(ShoppingListModel selectedList, List<ShoppingListModel> allLists) {
+  Widget _buildShoppingListView(
+    ShoppingListModel selectedList,
+    List<ShoppingListModel> allLists,
+  ) {
     // Group items by store section
     final Map<String, List<ShoppingItem>> itemsBySection = {};
     for (final item in selectedList.items) {
@@ -271,7 +272,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       }
       itemsBySection[section]!.add(item);
     }
-    
+
     // Define section order for better shopping experience
     final sectionOrder = [
       'Rau củ quả',
@@ -283,7 +284,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       'Đồ đông lạnh',
       'Khác',
     ];
-    
+
     // Sort sections by predefined order
     final sortedSections = itemsBySection.entries.toList()
       ..sort((a, b) {
@@ -301,24 +302,34 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
         const SizedBox(height: 16),
         _buildListHeader(selectedList),
         const SizedBox(height: 16),
-        
+
         // Build sections
         ...sortedSections.map((entry) {
           final sectionName = entry.key;
           final sectionItems = entry.value;
-          final uncheckedItems = sectionItems.where((item) => !item.isChecked).toList();
-          final checkedItems = sectionItems.where((item) => item.isChecked).toList();
-          
+          final uncheckedItems = sectionItems
+              .where((item) => !item.isChecked)
+              .toList();
+          final checkedItems = sectionItems
+              .where((item) => item.isChecked)
+              .toList();
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (uncheckedItems.isNotEmpty || checkedItems.isNotEmpty) ...[
-                _buildStoreSectionHeader(sectionName, uncheckedItems.length, checkedItems.length),
+                _buildStoreSectionHeader(
+                  sectionName,
+                  uncheckedItems.length,
+                  checkedItems.length,
+                ),
                 const SizedBox(height: 8),
-                
+
                 // Unchecked items
-                ...uncheckedItems.map((item) => _buildShoppingItemWithPantryInfo(item, false)),
-                
+                ...uncheckedItems.map(
+                  (item) => _buildShoppingItemWithPantryInfo(item, false),
+                ),
+
                 // Checked items (collapsed by default)
                 if (checkedItems.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -332,7 +343,12 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
                       ),
                     ),
                     initiallyExpanded: false,
-                    children: checkedItems.map((item) => _buildShoppingItemWithPantryInfo(item, true)).toList(),
+                    children: checkedItems
+                        .map(
+                          (item) =>
+                              _buildShoppingItemWithPantryInfo(item, true),
+                        )
+                        .toList(),
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -383,10 +399,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
                     if (list.description != null)
                       Text(
                         list.description!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                   ],
                 ),
@@ -417,8 +430,8 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
                       value: completionPercentage / 100,
                       backgroundColor: Colors.grey[300],
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        completionPercentage == 100 
-                            ? AppTheme.successColor 
+                        completionPercentage == 100
+                            ? AppTheme.successColor
                             : AppTheme.primaryGreen,
                       ),
                     ),
@@ -459,10 +472,16 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
     );
   }
 
-  Widget _buildStoreSectionHeader(String sectionName, int uncheckedCount, int checkedCount) {
+  Widget _buildStoreSectionHeader(
+    String sectionName,
+    int uncheckedCount,
+    int checkedCount,
+  ) {
     final totalCount = uncheckedCount + checkedCount;
-    final completionPercentage = totalCount > 0 ? ((checkedCount / totalCount) * 100).round() : 0;
-    
+    final completionPercentage = totalCount > 0
+        ? ((checkedCount / totalCount) * 100).round()
+        : 0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8, top: 4),
       padding: const EdgeInsets.all(12),
@@ -476,7 +495,10 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
           ],
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.4), width: 1.5),
+        border: Border.all(
+          color: AppTheme.primaryGreen.withOpacity(0.4),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.primaryGreen.withOpacity(0.1),
@@ -536,13 +558,13 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: completionPercentage == 100 
-                  ? Colors.green.withOpacity(0.2) 
+              color: completionPercentage == 100
+                  ? Colors.green.withOpacity(0.2)
                   : Colors.orange.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: completionPercentage == 100 
-                    ? Colors.green 
+                color: completionPercentage == 100
+                    ? Colors.green
                     : Colors.orange,
                 width: 1.5,
               ),
@@ -551,7 +573,9 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
               '$completionPercentage%',
               style: TextStyle(
                 fontSize: 13,
-                color: completionPercentage == 100 ? Colors.green[700] : Colors.orange[700],
+                color: completionPercentage == 100
+                    ? Colors.green[700]
+                    : Colors.orange[700],
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -563,10 +587,14 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
 
   IconData _getSectionIcon(String sectionName) {
     final lowerName = sectionName.toLowerCase();
-    
-    if (lowerName.contains('rau') || lowerName.contains('củ') || lowerName.contains('quả')) {
+
+    if (lowerName.contains('rau') ||
+        lowerName.contains('củ') ||
+        lowerName.contains('quả')) {
       return Icons.eco;
-    } else if (lowerName.contains('thịt') || lowerName.contains('cá') || lowerName.contains('hải sản')) {
+    } else if (lowerName.contains('thịt') ||
+        lowerName.contains('cá') ||
+        lowerName.contains('hải sản')) {
       return Icons.set_meal;
     } else if (lowerName.contains('trứng') || lowerName.contains('sữa')) {
       return Icons.egg;
@@ -588,16 +616,22 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       builder: (context, pantryState) {
         // Find pantry item with same ingredient
         final pantryItem = pantryState.pantryItems
-            .where((p) => p.ingredientName.toLowerCase() == item.ingredientName.toLowerCase())
+            .where(
+              (p) =>
+                  p.ingredientName.toLowerCase() ==
+                  item.ingredientName.toLowerCase(),
+            )
             .firstOrNull;
-        
+
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: isChecked ? Colors.green.withOpacity(0.3) : Colors.grey.withOpacity(0.2),
+              color: isChecked
+                  ? Colors.green.withOpacity(0.3)
+                  : Colors.grey.withOpacity(0.2),
             ),
           ),
           child: ListTile(
@@ -627,7 +661,10 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
                 ),
                 if (pantryItem != null) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
@@ -732,7 +769,9 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc chắn muốn xóa "${item.ingredientName}" khỏi danh sách?'),
+        content: Text(
+          'Bạn có chắc chắn muốn xóa "${item.ingredientName}" khỏi danh sách?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -795,8 +834,8 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
                 context.read<ShoppingListCubit>().createShoppingList(
                   CreateShoppingListDto(
                     name: nameController.text.trim(),
-                    description: descController.text.trim().isNotEmpty 
-                        ? descController.text.trim() 
+                    description: descController.text.trim().isNotEmpty
+                        ? descController.text.trim()
                         : null,
                   ),
                 );
@@ -835,7 +874,10 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Xóa danh sách', style: TextStyle(color: Colors.red)),
+              title: const Text(
+                'Xóa danh sách',
+                style: TextStyle(color: Colors.red),
+              ),
               onTap: () {
                 Navigator.of(context).pop();
                 _confirmDeleteList(list.id);
@@ -885,7 +927,9 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
                           labelText: 'Số lượng *',
                           prefixIcon: Icon(Icons.numbers),
                         ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -959,18 +1003,21 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
 
                 // Create DTO and add item
                 final dto = AddShoppingItemDto(
-                  ingredientId: selectedIngredientId.isEmpty 
-                      ? 'manual-${DateTime.now().millisecondsSinceEpoch}' 
+                  ingredientId: selectedIngredientId.isEmpty
+                      ? 'manual-${DateTime.now().millisecondsSinceEpoch}'
                       : selectedIngredientId,
                   ingredientName: ingredientName,
                   quantity: quantity,
                   unit: unit,
-                  notes: notesController.text.trim().isNotEmpty 
-                      ? notesController.text.trim() 
+                  notes: notesController.text.trim().isNotEmpty
+                      ? notesController.text.trim()
                       : null,
                 );
 
-                context.read<ShoppingListCubit>().addItemToShoppingList(listId, dto);
+                context.read<ShoppingListCubit>().addItemToShoppingList(
+                  listId,
+                  dto,
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryGreen,
@@ -1047,18 +1094,19 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
 
   void _generateShoppingListFromMealPlan(MealPlanModel mealPlan) async {
     if (_disposed || !mounted) return;
-    
+
     // Show date selection dialog
     final selectedDates = await showDialog<List<String>>(
       context: context,
       builder: (context) => _SelectDatesDialog(mealPlan: mealPlan),
     );
-    
-    if (selectedDates == null || selectedDates.isEmpty || !mounted || _disposed) return;
-    
+
+    if (selectedDates == null || selectedDates.isEmpty || !mounted || _disposed)
+      return;
+
     // Use a different approach - overlay loading instead of dialog
     OverlayEntry? overlayEntry;
-    
+
     try {
       // Show loading overlay
       if (mounted && !_disposed) {
@@ -1069,16 +1117,11 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(
-                    color: AppTheme.primaryGreen,
-                  ),
+                  CircularProgressIndicator(color: AppTheme.primaryGreen),
                   SizedBox(height: 16),
                   Text(
                     'Đang tạo danh sách mua sắm...',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ],
               ),
@@ -1090,23 +1133,28 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
 
       // Get meals from selected dates
       final selectedMeals = mealPlan.meals
-          .where((meal) => selectedDates.contains(meal.date) && meal.recipeId != null)
+          .where(
+            (meal) =>
+                selectedDates.contains(meal.date) && meal.recipeId != null,
+          )
           .toList();
-      
+
       // Generate shopping list from selected meals
       await _generateShoppingListFromMeals(selectedMeals, selectedDates);
-      
+
       // Remove loading overlay
       if (mounted && !_disposed && overlayEntry != null) {
         overlayEntry.remove();
         overlayEntry = null;
       }
-      
+
       // Show success message
       if (mounted && !_disposed) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Đã tạo danh sách mua sắm từ kế hoạch bữa ăn thành công!'),
+            content: Text(
+              'Đã tạo danh sách mua sắm từ kế hoạch bữa ăn thành công!',
+            ),
             backgroundColor: AppTheme.primaryGreen,
             duration: Duration(seconds: 3),
           ),
@@ -1118,7 +1166,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
         overlayEntry.remove();
         overlayEntry = null;
       }
-      
+
       // Show error message
       if (mounted && !_disposed) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1134,7 +1182,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
 
   void _addCheckedItemsToPantry(ShoppingListModel list) async {
     final checkedItems = list.items.where((item) => item.isChecked).toList();
-    
+
     if (checkedItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1144,7 +1192,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       );
       return;
     }
-    
+
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1170,14 +1218,14 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
         ],
       ),
     );
-    
+
     if (confirmed != true) return;
-    
+
     // Show loading
     OverlayEntry? overlayEntry;
     int successCount = 0;
     int errorCount = 0;
-    
+
     try {
       overlayEntry = OverlayEntry(
         builder: (context) => Container(
@@ -1207,7 +1255,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
         ),
       );
       Overlay.of(context).insert(overlayEntry);
-      
+
       // Add each item to pantry
       for (final item in checkedItems) {
         try {
@@ -1220,7 +1268,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
             location: PantryLocation.fridge.value,
             notes: null, // Don't set notes to allow merging duplicate items
           );
-          
+
           await context.read<PantryCubit>().addPantryItem(dto);
           successCount++;
         } catch (e) {
@@ -1228,12 +1276,12 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
           errorCount++;
         }
       }
-      
+
       // Remove overlay
       if (mounted && overlayEntry != null) {
         overlayEntry.remove();
       }
-      
+
       // Show result
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1243,7 +1291,9 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
                   ? 'Đã lưu $successCount món vào tủ lạnh${errorCount > 0 ? ' ($errorCount món lỗi)' : ''}'
                   : 'Không thể lưu món nào vào tủ lạnh',
             ),
-            backgroundColor: successCount > 0 ? AppTheme.successColor : Colors.red,
+            backgroundColor: successCount > 0
+                ? AppTheme.successColor
+                : Colors.red,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -1252,7 +1302,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       if (mounted && overlayEntry != null) {
         overlayEntry.remove();
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1264,31 +1314,37 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
     }
   }
 
-  Future<void> _generateShoppingListFromMeals(List<MealSlot> meals, List<String> selectedDates) async {
+  Future<void> _generateShoppingListFromMeals(
+    List<MealSlot> meals,
+    List<String> selectedDates,
+  ) async {
     try {
       final apiService = context.read<ApiService>();
       final authService = context.read<AuthService>();
       final token = authService.accessToken;
-      
+
       if (token == null) {
         throw Exception('Bạn cần đăng nhập để tạo danh sách mua sắm');
       }
 
       // Aggregate ingredients from all selected meals
       final Map<String, Map<String, dynamic>> ingredientsMap = {};
-      
+
       for (final meal in meals) {
         if (meal.recipeId == null) continue;
-        
+
         // Fetch recipe ingredients
-        final response = await apiService.getRecipeIngredientsRaw(meal.recipeId!);
+        final response = await apiService.getRecipeIngredientsRaw(
+          meal.recipeId!,
+        );
         final ingredients = response['data'] as List<dynamic>? ?? [];
-        
+
         for (final ingredient in ingredients) {
           final ingredientId = ingredient['ingredient_id'].toString();
-          final quantity = double.tryParse(ingredient['quantity']?.toString() ?? '0') ?? 0.0;
+          final quantity =
+              double.tryParse(ingredient['quantity']?.toString() ?? '0') ?? 0.0;
           final scaledQuantity = quantity * meal.servings;
-          
+
           if (ingredientsMap.containsKey(ingredientId)) {
             // Add to existing quantity
             ingredientsMap[ingredientId]!['quantity'] += scaledQuantity;
@@ -1302,14 +1358,18 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
               'recipes': <String>[meal.recipeName ?? 'Món ăn'],
             };
           }
-          
+
           // Add recipe name to list
-          if (!ingredientsMap[ingredientId]!['recipes'].contains(meal.recipeName)) {
-            ingredientsMap[ingredientId]!['recipes'].add(meal.recipeName ?? 'Món ăn');
+          if (!ingredientsMap[ingredientId]!['recipes'].contains(
+            meal.recipeName,
+          )) {
+            ingredientsMap[ingredientId]!['recipes'].add(
+              meal.recipeName ?? 'Món ăn',
+            );
           }
         }
       }
-      
+
       if (ingredientsMap.isEmpty) {
         throw Exception('Không tìm thấy nguyên liệu nào từ các món đã chọn');
       }
@@ -1318,14 +1378,14 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       final dateRange = selectedDates.length == 1
           ? _formatDateShort(selectedDates.first)
           : '${_formatDateShort(selectedDates.first)} - ${_formatDateShort(selectedDates.last)}';
-      
+
       final createDto = CreateShoppingListDto(
         name: 'Mua sắm $dateRange',
         description: 'Từ kế hoạch bữa ăn (${meals.length} món)',
       );
-      
+
       final newListId = await apiService.createShoppingList(token, createDto);
-      
+
       // Add items to shopping list
       for (final ingredientData in ingredientsMap.values) {
         final recipes = ingredientData['recipes'] as List<String>;
@@ -1336,27 +1396,29 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
           unit: ingredientData['unit'],
           notes: 'Cho: ${recipes.join(', ')}',
         );
-        
+
         try {
           await apiService.addItemToShoppingList(token, newListId, addItemDto);
         } catch (e) {
           print('Failed to add ${ingredientData['ingredient_name']}: $e');
         }
       }
-      
+
       // Reload shopping lists to show the new one
       await context.read<ShoppingListCubit>().loadShoppingLists();
-      
+
       // Load and select the newly created shopping list
       final newList = await apiService.getShoppingListById(token, newListId);
       if (mounted && !_disposed) {
         context.read<ShoppingListCubit>().selectShoppingList(newList);
       }
-      
+
       if (mounted && !_disposed) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Đã tạo danh sách mua sắm với ${ingredientsMap.length} nguyên liệu từ ${meals.length} món!'),
+            content: Text(
+              'Đã tạo danh sách mua sắm với ${ingredientsMap.length} nguyên liệu từ ${meals.length} món!',
+            ),
             backgroundColor: AppTheme.primaryGreen,
             duration: const Duration(seconds: 3),
           ),
@@ -1374,7 +1436,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       }
     }
   }
-  
+
   String _formatDateShort(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
@@ -1425,7 +1487,15 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
   String _formatDate(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
-      final weekday = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][date.weekday % 7];
+      final weekday = [
+        'CN',
+        'T2',
+        'T3',
+        'T4',
+        'T5',
+        'T6',
+        'T7',
+      ][date.weekday % 7];
       return '$weekday, ${date.day}/${date.month}';
     } catch (e) {
       return dateStr;
@@ -1440,8 +1510,6 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
         return '🌞';
       case MealType.dinner:
         return '🌙';
-      case MealType.snack:
-        return '🍪';
     }
   }
 
@@ -1465,7 +1533,9 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: AppTheme.primaryGreen,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1494,9 +1564,7 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey[200]!),
-                ),
+                border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
               ),
               child: Row(
                 children: [
@@ -1562,34 +1630,36 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
-                        ...meals.map((meal) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    _getMealTypeIcon(meal.mealType),
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      meal.recipeName ?? 'Món ăn',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    '${meal.servings} phần',
+                        ...meals.map(
+                          (meal) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              children: [
+                                Text(
+                                  _getMealTypeIcon(meal.mealType),
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    meal.recipeName ?? 'Món ăn',
                                     style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[500],
+                                      fontSize: 13,
+                                      color: Colors.grey[700],
                                     ),
                                   ),
-                                ],
-                              ),
-                            )),
+                                ),
+                                Text(
+                                  '${meal.servings} phần',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -1601,9 +1671,7 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Colors.grey[200]!),
-                ),
+                border: Border(top: BorderSide(color: Colors.grey[200]!)),
               ),
               child: Row(
                 children: [
@@ -1619,7 +1687,9 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
                     child: ElevatedButton.icon(
                       onPressed: _selectedDates.isEmpty
                           ? null
-                          : () => Navigator.of(context).pop(_selectedDates.toList()),
+                          : () => Navigator.of(
+                              context,
+                            ).pop(_selectedDates.toList()),
                       icon: const Icon(Icons.shopping_cart),
                       label: Text('Tạo ($totalMeals món)'),
                       style: ElevatedButton.styleFrom(

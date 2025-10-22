@@ -244,11 +244,11 @@ class ApiService {
   Future<Map<String, dynamic>> getRecipeIngredientsRaw(String recipeId) async {
     try {
       final response = await _dio.get('/api/recipes/$recipeId/ingredients');
-      
+
       if (response.data is Map<String, dynamic>) {
         return response.data as Map<String, dynamic>;
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to fetch recipe ingredients: $e');
@@ -631,7 +631,11 @@ class ApiService {
     }
   }
 
-  Future<MealPlanModel?> getMealPlanByWeek(String token, String userId, String weekStartDate) async {
+  Future<MealPlanModel?> getMealPlanByWeek(
+    String token,
+    String userId,
+    String weekStartDate,
+  ) async {
     try {
       final response = await _dio.get(
         '/api/meal-plans/$userId/$weekStartDate',
@@ -640,8 +644,11 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
-          return MealPlanModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
+          return MealPlanModel.fromJson(
+            responseData['data'] as Map<String, dynamic>,
+          );
         }
       }
       return null;
@@ -651,7 +658,10 @@ class ApiService {
     }
   }
 
-  Future<MealPlanModel> createMealPlan(String token, CreateMealPlanDto dto) async {
+  Future<MealPlanModel> createMealPlan(
+    String token,
+    CreateMealPlanDto dto,
+  ) async {
     try {
       final response = await _dio.post(
         '/api/meal-plans',
@@ -661,9 +671,10 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
           final data = responseData['data'] as Map<String, dynamic>;
-          
+
           // Create a meal plan model with the returned ID
           return MealPlanModel(
             id: data['id']?.toString() ?? 'unknown',
@@ -677,7 +688,7 @@ class ApiService {
           );
         }
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       print('Create meal plan error: $e');
@@ -685,7 +696,11 @@ class ApiService {
     }
   }
 
-  Future<bool> addMealToPlan(String token, String planId, AddMealDto dto) async {
+  Future<bool> addMealToPlan(
+    String token,
+    String planId,
+    AddMealDto dto,
+  ) async {
     try {
       final response = await _dio.post(
         '/api/meal-plans/$planId/meals',
@@ -697,14 +712,17 @@ class ApiService {
         final responseData = response.data as Map<String, dynamic>;
         return responseData['success'] == true;
       }
-      
+
       return false;
     } catch (e) {
       throw Exception('Failed to add meal to plan: $e');
     }
   }
 
-  Future<MealPlanModel> quickAddMealToToday(String token, QuickAddMealDto dto) async {
+  Future<MealPlanModel> quickAddMealToToday(
+    String token,
+    QuickAddMealDto dto,
+  ) async {
     try {
       final response = await _dio.post(
         '/api/meal-plans/quick-add',
@@ -717,8 +735,9 @@ class ApiService {
         if (responseData['success'] == true) {
           // Create a meal plan model for today
           final today = DateTime.now();
-          final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-          
+          final todayStr =
+              '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
           return MealPlanModel(
             id: responseData['data']?['meal_plan_id'] ?? 'today-plan',
             userId: 'current-user',
@@ -731,7 +750,7 @@ class ApiService {
           );
         }
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       print('Quick add meal error: $e');
@@ -739,7 +758,8 @@ class ApiService {
     }
   }
 
-  Future<MealPlanModel> generateMealPlan(String token, {
+  Future<MealPlanModel> generateMealPlan(
+    String token, {
     DateTime? startDate,
     String? region,
     int? budgetPerMeal,
@@ -747,8 +767,9 @@ class ApiService {
   }) async {
     try {
       final weekStart = startDate ?? DateTime.now();
-      final weekStartStr = '${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}';
-      
+      final weekStartStr =
+          '${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}';
+
       final response = await _dio.post(
         '/api/meal-plans/generate',
         data: {
@@ -767,23 +788,25 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
           final data = responseData['data'] as Map<String, dynamic>;
-          
+
           // Parse meals from the response
           List<MealSlot> meals = [];
           if (data['days'] is List) {
             final days = data['days'] as List;
             for (var day in days) {
-              if (day is Map<String, dynamic> && day['meals'] is Map<String, dynamic>) {
+              if (day is Map<String, dynamic> &&
+                  day['meals'] is Map<String, dynamic>) {
                 final dayMeals = day['meals'] as Map<String, dynamic>;
                 final date = day['date']?.toString() ?? '';
-                
-                // Parse each meal slot (breakfast, lunch, dinner, snack)
-                for (var mealType in ['breakfast', 'lunch', 'dinner', 'snack']) {
+
+                // Parse each meal slot (breakfast, lunch, dinner)
+                for (var mealType in ['breakfast', 'lunch', 'dinner']) {
                   if (dayMeals[mealType] is Map<String, dynamic>) {
                     final mealData = dayMeals[mealType] as Map<String, dynamic>;
-                    
+
                     // Convert string mealType to MealType enum
                     MealType mealTypeEnum;
                     switch (mealType) {
@@ -796,20 +819,19 @@ class ApiService {
                       case 'dinner':
                         mealTypeEnum = MealType.dinner;
                         break;
-                      case 'snack':
-                        mealTypeEnum = MealType.snack;
-                        break;
                       default:
                         mealTypeEnum = MealType.breakfast;
                     }
-                    
+
                     final meal = MealSlot(
                       id: 'generated-${DateTime.now().millisecondsSinceEpoch}-$mealType-$date',
-                      mealPlanId: 'generated-${DateTime.now().millisecondsSinceEpoch}',
+                      mealPlanId:
+                          'generated-${DateTime.now().millisecondsSinceEpoch}',
                       date: date,
                       mealType: mealTypeEnum,
                       recipeId: mealData['recipe_id']?.toString(),
-                      recipeName: mealData['recipe_name']?.toString() ?? 'Món ăn',
+                      recipeName:
+                          mealData['recipe_name']?.toString() ?? 'Món ăn',
                       recipeImage: mealData['recipe_image']?.toString(),
                       servings: mealData['servings'] ?? servings,
                     );
@@ -819,7 +841,7 @@ class ApiService {
               }
             }
           }
-          
+
           // Convert the backend response to our model format
           final mealPlan = MealPlanModel(
             id: 'generated-${DateTime.now().millisecondsSinceEpoch}',
@@ -831,11 +853,11 @@ class ApiService {
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           );
-          
+
           return mealPlan;
         }
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       print('Generate meal plan error: $e');
@@ -854,7 +876,12 @@ class ApiService {
     }
   }
 
-  Future<void> removeMealFromPlan(String token, String planId, String date, String mealSlot) async {
+  Future<void> removeMealFromPlan(
+    String token,
+    String planId,
+    String date,
+    String mealSlot,
+  ) async {
     try {
       await _dio.delete(
         '/api/meal-plans/$planId/meals/$date/$mealSlot',
@@ -895,7 +922,10 @@ class ApiService {
     }
   }
 
-  Future<ShoppingListModel> getShoppingListById(String token, String listId) async {
+  Future<ShoppingListModel> getShoppingListById(
+    String token,
+    String listId,
+  ) async {
     try {
       final response = await _dio.get(
         '/api/shopping/lists/$listId',
@@ -904,9 +934,10 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
           final data = responseData['data'] as Map<String, dynamic>;
-          
+
           // Backend returns groups, need to flatten to items
           final List<dynamic> allItems = [];
           if (data['groups'] is List) {
@@ -916,44 +947,59 @@ class ApiService {
               }
             }
           }
-          
+
           // Transform to format expected by ShoppingListModel
           final transformedData = {
             'id': data['id'],
-            'user_id': listId, // Not provided by backend, use listId as placeholder
+            'user_id':
+                listId, // Not provided by backend, use listId as placeholder
             'name': data['title'] ?? 'Danh sách mua sắm',
             'description': null,
-            'items': allItems.map((item) => {
-              'id': item['id']?.toString() ?? '',
-              'shopping_list_id': listId,
-              'ingredient_id': item['ingredient_id']?.toString() ?? '',
-              'ingredient_name': item['ingredient_name']?.toString() ?? 'Nguyên liệu',
-              'quantity': double.tryParse(item['quantity']?.toString() ?? '0') ?? 0.0,
-              'unit': item['unit']?.toString() ?? 'g',
-              'is_checked': item['is_checked'] ?? false,
-              'notes': item['note']?.toString(),
-              'store_section_id': item['store_section']?.toString(),
-              'store_section_name': item['section_name']?.toString(),
-              'estimated_price': double.tryParse(item['price_per_unit']?.toString() ?? '0') ?? 0.0,
-              'priority': 0,
-            }).toList(),
+            'items': allItems
+                .map(
+                  (item) => {
+                    'id': item['id']?.toString() ?? '',
+                    'shopping_list_id': listId,
+                    'ingredient_id': item['ingredient_id']?.toString() ?? '',
+                    'ingredient_name':
+                        item['ingredient_name']?.toString() ?? 'Nguyên liệu',
+                    'quantity':
+                        double.tryParse(item['quantity']?.toString() ?? '0') ??
+                        0.0,
+                    'unit': item['unit']?.toString() ?? 'g',
+                    'is_checked': item['is_checked'] ?? false,
+                    'notes': item['note']?.toString(),
+                    'store_section_id': item['store_section']?.toString(),
+                    'store_section_name': item['section_name']?.toString(),
+                    'estimated_price':
+                        double.tryParse(
+                          item['price_per_unit']?.toString() ?? '0',
+                        ) ??
+                        0.0,
+                    'priority': 0,
+                  },
+                )
+                .toList(),
             'is_shared': data['is_shared'] ?? false,
             'shared_with': [],
             'created_at': data['created_at'],
             'updated_at': data['updated_at'],
           };
-          
+
           return ShoppingListModel.fromJson(transformedData);
         }
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to fetch shopping list: $e');
     }
   }
 
-  Future<String> createShoppingList(String token, CreateShoppingListDto dto) async {
+  Future<String> createShoppingList(
+    String token,
+    CreateShoppingListDto dto,
+  ) async {
     try {
       final response = await _dio.post(
         '/api/shopping/lists',
@@ -963,12 +1009,13 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
           // Backend returns {success, data: {id}}, return the list ID
           return responseData['data']['id'].toString();
         }
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to create shopping list: $e');
@@ -976,7 +1023,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> generateShoppingListFromMealPlan(
-    String token, 
+    String token,
     String mealPlanId,
   ) async {
     try {
@@ -988,12 +1035,13 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
           // Backend returns {list_id, total_items, message}
           return responseData['data'] as Map<String, dynamic>;
         }
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to generate shopping list: $e');
@@ -1014,12 +1062,13 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
           // Backend returns {success, data: {id}}, not shopping list
           return responseData['data'] as Map<String, dynamic>;
         }
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to add item to shopping list: $e');
@@ -1055,7 +1104,11 @@ class ApiService {
     }
   }
 
-  Future<void> removeItemFromShoppingList(String token, String listId, String itemId) async {
+  Future<void> removeItemFromShoppingList(
+    String token,
+    String listId,
+    String itemId,
+  ) async {
     try {
       await _dio.delete(
         '/api/shopping/lists/$listId/items/$itemId',
@@ -1066,7 +1119,11 @@ class ApiService {
     }
   }
 
-  Future<void> shareShoppingList(String token, String listId, String email) async {
+  Future<void> shareShoppingList(
+    String token,
+    String listId,
+    String email,
+  ) async {
     try {
       await _dio.post(
         '/api/shopping/lists/$listId/share',
@@ -1079,7 +1136,8 @@ class ApiService {
   }
 
   // Pantry Management
-  Future<List<PantryItemModel>> getPantryItems(String token, {
+  Future<List<PantryItemModel>> getPantryItems(
+    String token, {
     String? location,
     bool? isExpired,
     bool? isLowStock,
@@ -1126,19 +1184,25 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
-          return PantryStatsModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
+          return PantryStatsModel.fromJson(
+            responseData['data'] as Map<String, dynamic>,
+          );
         }
         return PantryStatsModel.fromJson(response.data as Map<String, dynamic>);
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to fetch pantry stats: $e');
     }
   }
 
-  Future<PantryItemModel> addPantryItem(String token, AddPantryItemDto dto) async {
+  Future<PantryItemModel> addPantryItem(
+    String token,
+    AddPantryItemDto dto,
+  ) async {
     try {
       final response = await _dio.post(
         '/api/pantry',
@@ -1148,19 +1212,26 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
-          return PantryItemModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
+          return PantryItemModel.fromJson(
+            responseData['data'] as Map<String, dynamic>,
+          );
         }
         return PantryItemModel.fromJson(response.data as Map<String, dynamic>);
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to add pantry item: $e');
     }
   }
 
-  Future<PantryItemModel> updatePantryItem(String token, String itemId, UpdatePantryItemDto dto) async {
+  Future<PantryItemModel> updatePantryItem(
+    String token,
+    String itemId,
+    UpdatePantryItemDto dto,
+  ) async {
     try {
       final response = await _dio.put(
         '/api/pantry/$itemId',
@@ -1170,19 +1241,26 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
-          return PantryItemModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        if (responseData['success'] == true &&
+            responseData['data'] is Map<String, dynamic>) {
+          return PantryItemModel.fromJson(
+            responseData['data'] as Map<String, dynamic>,
+          );
         }
         return PantryItemModel.fromJson(response.data as Map<String, dynamic>);
       }
-      
+
       throw Exception('Invalid API response format');
     } catch (e) {
       throw Exception('Failed to update pantry item: $e');
     }
   }
 
-  Future<void> consumePantryItem(String token, String itemId, ConsumePantryItemDto dto) async {
+  Future<void> consumePantryItem(
+    String token,
+    String itemId,
+    ConsumePantryItemDto dto,
+  ) async {
     try {
       await _dio.post(
         '/api/pantry/$itemId/consume',

@@ -6,8 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/meal_plan_model.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
-import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
-import 'package:bepviet_mobile/data/repositories/auth_repository.dart';
 import 'package:bepviet_mobile/presentation/features/planner/cubit/meal_plan_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/cubit/pantry_cubit.dart';
 import 'package:bepviet_mobile/presentation/widgets/recipe_selection_dialog.dart';
@@ -23,12 +21,12 @@ class _PlannerPageState extends State<PlannerPage>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
   DateTime _selectedWeek = DateTime.now();
-  
+
   // Cache for performance optimization
   String? _lastLoadedWeek;
   bool _isLoadingMealPlans = false;
   bool _disposed = false;
-  
+
   // Debounce timer to prevent rapid successive calls
   Timer? _debounceTimer;
 
@@ -41,7 +39,7 @@ class _PlannerPageState extends State<PlannerPage>
     print('PlannerPage initState called');
     _tabController = TabController(length: 2, vsync: this);
     _selectedWeek = _getStartOfWeek(DateTime.now());
-    
+
     // Delay initial load to avoid conflicts
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_disposed) {
@@ -67,14 +65,14 @@ class _PlannerPageState extends State<PlannerPage>
 
   void _loadMealPlansIfNeeded() {
     if (_disposed || !mounted) return;
-    
+
     final currentWeekString = DateFormat('yyyy-MM-dd').format(_selectedWeek);
-    
+
     // Only load if we haven't loaded this week yet and not currently loading
     if (_lastLoadedWeek != currentWeekString && !_isLoadingMealPlans) {
       // Cancel previous timer if exists
       _debounceTimer?.cancel();
-      
+
       // Add debounce to prevent rapid successive calls
       _debounceTimer = Timer(const Duration(milliseconds: 300), () {
         if (mounted && !_disposed) {
@@ -85,29 +83,29 @@ class _PlannerPageState extends State<PlannerPage>
   }
 
   Future<void> _loadMealPlans() async {
-    if (_disposed || !mounted || _isLoadingMealPlans) return; // Prevent multiple concurrent loads
-    
+    if (_disposed || !mounted || _isLoadingMealPlans)
+      return; // Prevent multiple concurrent loads
+
     try {
       if (mounted) {
         setState(() {
           _isLoadingMealPlans = true;
         });
       }
-      
+
       final dateString = DateFormat('yyyy-MM-dd').format(_selectedWeek);
       _lastLoadedWeek = dateString;
-      
+
       await context.read<MealPlanCubit>().loadMealPlans(date: dateString);
-      
     } catch (error) {
       if (mounted && !_disposed) {
         // Show timeout error message to user
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              error.toString().contains('timeout') 
-                ? 'Kết nối chậm, vui lòng thử lại' 
-                : 'Lỗi tải dữ liệu, vui lòng thử lại',
+              error.toString().contains('timeout')
+                  ? 'Kết nối chậm, vui lòng thử lại'
+                  : 'Lỗi tải dữ liệu, vui lòng thử lại',
             ),
             backgroundColor: Colors.orange,
             action: SnackBarAction(
@@ -131,7 +129,7 @@ class _PlannerPageState extends State<PlannerPage>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     print('PlannerPage build called');
-    
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -143,10 +141,37 @@ class _PlannerPageState extends State<PlannerPage>
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart),
-            tooltip: 'Tạo danh sách mua sắm',
-            onPressed: _generateShoppingList,
+          // Nút Tủ lạnh
+          Container(
+            margin: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.kitchen_outlined, size: 24),
+              ),
+              tooltip: 'Tủ lạnh',
+              onPressed: () => context.go('/pantry'),
+            ),
+          ),
+          // Nút Danh sách mua sắm
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.shopping_bag_outlined, size: 24),
+              ),
+              tooltip: 'Danh sách mua sắm',
+              onPressed: () => context.go('/shopping'),
+            ),
           ),
         ],
         bottom: TabBar(
@@ -162,10 +187,7 @@ class _PlannerPageState extends State<PlannerPage>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildWeeklyPlanView(),
-          _buildCreatePlanView(),
-        ],
+        children: [_buildWeeklyPlanView(), _buildCreatePlanView()],
       ),
     );
   }
@@ -194,16 +216,18 @@ class _PlannerPageState extends State<PlannerPage>
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: _isLoadingMealPlans || _disposed ? null : () {
-                        if (mounted && !_disposed) {
-                          setState(() {
-                            _selectedWeek = _selectedWeek.subtract(
-                              const Duration(days: 7),
-                            );
-                          });
-                          _loadMealPlansIfNeeded();
-                        }
-                      },
+                      onTap: _isLoadingMealPlans || _disposed
+                          ? null
+                          : () {
+                              if (mounted && !_disposed) {
+                                setState(() {
+                                  _selectedWeek = _selectedWeek.subtract(
+                                    const Duration(days: 7),
+                                  );
+                                });
+                                _loadMealPlansIfNeeded();
+                              }
+                            },
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         padding: const EdgeInsets.all(12),
@@ -213,9 +237,9 @@ class _PlannerPageState extends State<PlannerPage>
                         ),
                         child: Icon(
                           Icons.chevron_left,
-                          color: _isLoadingMealPlans 
-                            ? Colors.grey.shade400
-                            : AppTheme.primaryGreen,
+                          color: _isLoadingMealPlans
+                              ? Colors.grey.shade400
+                              : AppTheme.primaryGreen,
                         ),
                       ),
                     ),
@@ -240,7 +264,9 @@ class _PlannerPageState extends State<PlannerPage>
                               height: 2,
                               child: LinearProgressIndicator(
                                 backgroundColor: Colors.grey.shade200,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryGreen),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppTheme.primaryGreen,
+                                ),
                               ),
                             ),
                           ],
@@ -251,16 +277,18 @@ class _PlannerPageState extends State<PlannerPage>
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: _isLoadingMealPlans || _disposed ? null : () {
-                        if (mounted && !_disposed) {
-                          setState(() {
-                            _selectedWeek = _selectedWeek.add(
-                              const Duration(days: 7),
-                            );
-                          });
-                          _loadMealPlansIfNeeded();
-                        }
-                      },
+                      onTap: _isLoadingMealPlans || _disposed
+                          ? null
+                          : () {
+                              if (mounted && !_disposed) {
+                                setState(() {
+                                  _selectedWeek = _selectedWeek.add(
+                                    const Duration(days: 7),
+                                  );
+                                });
+                                _loadMealPlansIfNeeded();
+                              }
+                            },
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         padding: const EdgeInsets.all(12),
@@ -270,9 +298,9 @@ class _PlannerPageState extends State<PlannerPage>
                         ),
                         child: Icon(
                           Icons.chevron_right,
-                          color: _isLoadingMealPlans 
-                            ? Colors.grey.shade400
-                            : AppTheme.primaryGreen,
+                          color: _isLoadingMealPlans
+                              ? Colors.grey.shade400
+                              : AppTheme.primaryGreen,
                         ),
                       ),
                     ),
@@ -300,8 +328,10 @@ class _PlannerPageState extends State<PlannerPage>
   }
 
   Widget _buildMealPlanContent(MealPlanState state) {
-    print('PlannerPage: _buildMealPlanContent - isLoading: ${state.isLoading}, error: ${state.error}, mealPlans count: ${state.mealPlans.length}');
-    
+    print(
+      'PlannerPage: _buildMealPlanContent - isLoading: ${state.isLoading}, error: ${state.error}, mealPlans count: ${state.mealPlans.length}',
+    );
+
     if (state.isLoading) {
       print('PlannerPage: Showing loading indicator');
       return const Center(child: CircularProgressIndicator());
@@ -313,11 +343,7 @@ class _PlannerPageState extends State<PlannerPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppTheme.errorColor,
-            ),
+            Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
             const SizedBox(height: 16),
             Text(
               'Lỗi: ${state.error}',
@@ -339,12 +365,23 @@ class _PlannerPageState extends State<PlannerPage>
   }
 
   Widget _buildWeeklySchedule(MealPlanState state) {
-    print('PlannerPage: _buildWeeklySchedule called with ${state.mealPlans.length} meal plans');
-    
+    print(
+      'PlannerPage: _buildWeeklySchedule called with ${state.mealPlans.length} meal plans',
+    );
+
     // Generate 7 days starting from Monday of the selected week
-    final weekStart = DateTime(_selectedWeek.year, _selectedWeek.month, _selectedWeek.day);
-    final days = List.generate(7, (index) => weekStart.add(Duration(days: index)));
-    print('PlannerPage: Generated ${days.length} days from ${DateFormat('yyyy-MM-dd').format(weekStart)}');
+    final weekStart = DateTime(
+      _selectedWeek.year,
+      _selectedWeek.month,
+      _selectedWeek.day,
+    );
+    final days = List.generate(
+      7,
+      (index) => weekStart.add(Duration(days: index)),
+    );
+    print(
+      'PlannerPage: Generated ${days.length} days from ${DateFormat('yyyy-MM-dd').format(weekStart)}',
+    );
 
     // Get all meals from all meal plans for this week
     final allMeals = <MealSlot>[];
@@ -383,36 +420,50 @@ class _PlannerPageState extends State<PlannerPage>
                 Row(
                   children: [
                     IconButton(
-                      onPressed: _disposed ? null : () {
-                        if (mounted && !_disposed) {
-                          setState(() {
-                            _selectedWeek = _selectedWeek.subtract(const Duration(days: 7));
-                          });
-                          _loadMealPlansIfNeeded();
-                        }
-                      },
-                      icon: const Icon(Icons.chevron_left, color: AppTheme.primaryGreen),
+                      onPressed: _disposed
+                          ? null
+                          : () {
+                              if (mounted && !_disposed) {
+                                setState(() {
+                                  _selectedWeek = _selectedWeek.subtract(
+                                    const Duration(days: 7),
+                                  );
+                                });
+                                _loadMealPlansIfNeeded();
+                              }
+                            },
+                      icon: const Icon(
+                        Icons.chevron_left,
+                        color: AppTheme.primaryGreen,
+                      ),
                     ),
                     IconButton(
-                      onPressed: _disposed ? null : () {
-                        if (mounted && !_disposed) {
-                          setState(() {
-                            _selectedWeek = _selectedWeek.add(const Duration(days: 7));
-                          });
-                          _loadMealPlansIfNeeded();
-                        }
-                      },
-                      icon: const Icon(Icons.chevron_right, color: AppTheme.primaryGreen),
+                      onPressed: _disposed
+                          ? null
+                          : () {
+                              if (mounted && !_disposed) {
+                                setState(() {
+                                  _selectedWeek = _selectedWeek.add(
+                                    const Duration(days: 7),
+                                  );
+                                });
+                                _loadMealPlansIfNeeded();
+                              }
+                            },
+                      icon: const Icon(
+                        Icons.chevron_right,
+                        color: AppTheme.primaryGreen,
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          
+
           // Daily rows layout - each day is a row with meal slots
           ...days.map((day) => _buildDayRow(day, allMeals)).toList(),
-          
+
           const SizedBox(height: 20),
         ],
       ),
@@ -421,13 +472,18 @@ class _PlannerPageState extends State<PlannerPage>
 
   bool _isToday(DateTime day) {
     final today = DateTime.now();
-    return DateFormat('yyyy-MM-dd').format(day) == DateFormat('yyyy-MM-dd').format(today);
+    return DateFormat('yyyy-MM-dd').format(day) ==
+        DateFormat('yyyy-MM-dd').format(today);
   }
 
   Widget _buildDayRow(DateTime day, List<MealSlot> allMeals) {
-    final dayString = DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day));
+    final dayString = DateFormat(
+      'yyyy-MM-dd',
+    ).format(DateTime(day.year, day.month, day.day));
     final today = DateTime.now();
-    final isPastDay = day.isBefore(DateTime(today.year, today.month, today.day));
+    final isPastDay = day.isBefore(
+      DateTime(today.year, today.month, today.day),
+    );
     final isToday = _isToday(day);
     final dayName = _getDayName(day);
 
@@ -453,17 +509,17 @@ class _PlannerPageState extends State<PlannerPage>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: isToday 
-              ? AppTheme.primaryGreen.withOpacity(0.2)
-              : Colors.grey.withOpacity(0.1),
+            color: isToday
+                ? AppTheme.primaryGreen.withOpacity(0.2)
+                : Colors.grey.withOpacity(0.1),
             blurRadius: isToday ? 12 : 8,
             offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
-          color: isToday 
-            ? AppTheme.primaryGreen.withOpacity(0.5)
-            : Colors.grey.withOpacity(0.2),
+          color: isToday
+              ? AppTheme.primaryGreen.withOpacity(0.5)
+              : Colors.grey.withOpacity(0.2),
           width: isToday ? 2 : 1,
         ),
       ),
@@ -474,9 +530,14 @@ class _PlannerPageState extends State<PlannerPage>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: isToday ? AppTheme.primaryGreen : AppTheme.primaryGreen.withOpacity(0.1),
+                  color: isToday
+                      ? AppTheme.primaryGreen
+                      : AppTheme.primaryGreen.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -496,7 +557,9 @@ class _PlannerPageState extends State<PlannerPage>
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: isToday ? Colors.white.withOpacity(0.9) : AppTheme.primaryGreen.withOpacity(0.8),
+                        color: isToday
+                            ? Colors.white.withOpacity(0.9)
+                            : AppTheme.primaryGreen.withOpacity(0.8),
                       ),
                     ),
                   ],
@@ -505,7 +568,10 @@ class _PlannerPageState extends State<PlannerPage>
               const Spacer(),
               if (isPastDay)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -521,9 +587,9 @@ class _PlannerPageState extends State<PlannerPage>
                 ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Meal slots in horizontal row
           Row(
             children: MealType.values.map((mealType) {
@@ -531,13 +597,15 @@ class _PlannerPageState extends State<PlannerPage>
                 (m) => m.mealType == mealType,
                 orElse: () => MealSlot(
                   id: '',
-                  mealPlanId: allMeals.isNotEmpty ? allMeals.first.mealPlanId : 'default',
+                  mealPlanId: allMeals.isNotEmpty
+                      ? allMeals.first.mealPlanId
+                      : 'default',
                   date: dayString,
                   mealType: mealType,
                   servings: 1,
                 ),
               );
-              
+
               return Expanded(
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -554,34 +622,38 @@ class _PlannerPageState extends State<PlannerPage>
   Widget _buildHorizontalMealSlot(MealSlot meal, DateTime day, bool isPastDay) {
     final hasRecipe = meal.recipeName != null && meal.recipeName!.isNotEmpty;
     final mealTypeDisplay = _getMealTypeDisplay(meal.mealType);
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: isPastDay ? null : () {
-          print('Meal slot tapped: ${meal.mealType} on ${DateFormat('yyyy-MM-dd').format(day)}');
-          print('isPastDay: $isPastDay');
-          
-          // If meal has recipe, show options menu. Otherwise, show recipe selection
-          if (hasRecipe) {
-            _showMealOptions(meal, day);
-          } else {
-            _selectRecipeForMeal(meal, day);
-          }
-        },
+        onTap: isPastDay
+            ? null
+            : () {
+                print(
+                  'Meal slot tapped: ${meal.mealType} on ${DateFormat('yyyy-MM-dd').format(day)}',
+                );
+                print('isPastDay: $isPastDay');
+
+                // If meal has recipe, show options menu. Otherwise, show recipe selection
+                if (hasRecipe) {
+                  _showMealOptions(meal, day);
+                } else {
+                  _selectRecipeForMeal(meal, day);
+                }
+              },
         child: Container(
           height: 80,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            color: hasRecipe 
-              ? AppTheme.primaryGreen.withOpacity(0.1)
-              : Colors.grey.withOpacity(0.05),
+            color: hasRecipe
+                ? AppTheme.primaryGreen.withOpacity(0.1)
+                : Colors.grey.withOpacity(0.05),
             border: Border.all(
-              color: hasRecipe 
-                ? AppTheme.primaryGreen.withOpacity(0.3)
-                : Colors.grey.withOpacity(0.2),
+              color: hasRecipe
+                  ? AppTheme.primaryGreen.withOpacity(0.3)
+                  : Colors.grey.withOpacity(0.2),
             ),
           ),
           child: Column(
@@ -594,11 +666,13 @@ class _PlannerPageState extends State<PlannerPage>
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: hasRecipe ? AppTheme.primaryGreen : Colors.grey.shade600,
+                  color: hasRecipe
+                      ? AppTheme.primaryGreen
+                      : Colors.grey.shade600,
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               // Recipe name or add button
               if (hasRecipe) ...[
                 Expanded(
@@ -608,7 +682,9 @@ class _PlannerPageState extends State<PlannerPage>
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w500,
-                        color: isPastDay ? Colors.grey.shade500 : AppTheme.textPrimary,
+                        color: isPastDay
+                            ? Colors.grey.shade500
+                            : AppTheme.textPrimary,
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 2,
@@ -658,10 +734,7 @@ class _PlannerPageState extends State<PlannerPage>
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.auto_awesome,
-                        color: AppTheme.primaryGreen,
-                      ),
+                      Icon(Icons.auto_awesome, color: AppTheme.primaryGreen),
                       const SizedBox(width: 8),
                       const Text(
                         'Tạo kế hoạch tự động',
@@ -704,10 +777,7 @@ class _PlannerPageState extends State<PlannerPage>
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.create,
-                        color: AppTheme.primaryGreen,
-                      ),
+                      Icon(Icons.create, color: AppTheme.primaryGreen),
                       const SizedBox(width: 8),
                       const Text(
                         'Tạo kế hoạch thủ công',
@@ -775,10 +845,7 @@ class _PlannerPageState extends State<PlannerPage>
                   '• Kiểm tra tủ lạnh trước khi tạo kế hoạch\n'
                   '• Có thể chỉnh sửa từng bữa ăn sau khi tạo\n'
                   '• Tạo danh sách mua sắm từ kế hoạch bữa ăn',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    height: 1.5,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, height: 1.5),
                 ),
               ],
             ),
@@ -802,8 +869,6 @@ class _PlannerPageState extends State<PlannerPage>
         return 'Trưa';
       case MealType.dinner:
         return 'Tối';
-      case MealType.snack:
-        return 'Ăn vặt';
     }
   }
 
@@ -835,20 +900,22 @@ class _PlannerPageState extends State<PlannerPage>
   }
 
   void _selectRecipeForMeal(MealSlot meal, DateTime day) async {
-    print('_selectRecipeForMeal called for meal: ${meal.mealType} on day: $day');
+    print(
+      '_selectRecipeForMeal called for meal: ${meal.mealType} on day: $day',
+    );
     print('Meal plan ID: ${meal.mealPlanId}');
-    
+
     final parentContext = context;
     String mealTypeDisplay = '';
     String mealSlotString = '';
-    
+
     // Get or create a meal plan for this week if none exists
     final currentState = parentContext.read<MealPlanCubit>().state;
     String mealPlanId = meal.mealPlanId;
-    
+
     print('Current meal plan ID before check: $mealPlanId');
     print('Available meal plans: ${currentState.mealPlans.length}');
-    
+
     if (mealPlanId.isEmpty || mealPlanId == 'default') {
       if (currentState.mealPlans.isNotEmpty) {
         mealPlanId = currentState.mealPlans.first.id;
@@ -857,27 +924,26 @@ class _PlannerPageState extends State<PlannerPage>
         print('No meal plans available, creating new one...');
         // Create a new meal plan for this week
         final weekString = DateFormat('yyyy-MM-dd').format(_selectedWeek);
-        
+
         // Show loading indicator
         showDialog(
           context: parentContext,
           barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          builder: (context) =>
+              const Center(child: CircularProgressIndicator()),
         );
-        
+
         try {
           await parentContext.read<MealPlanCubit>().createMealPlan(
             weekString,
             note: 'Kế hoạch tuần ${DateFormat('dd/MM').format(_selectedWeek)}',
           );
-          
+
           // Close loading dialog
           if (mounted && Navigator.canPop(parentContext)) {
             Navigator.of(parentContext).pop();
           }
-          
+
           // Get the newly created meal plan ID
           final newState = parentContext.read<MealPlanCubit>().state;
           if (newState.mealPlans.isNotEmpty) {
@@ -887,7 +953,9 @@ class _PlannerPageState extends State<PlannerPage>
             print('Failed to create meal plan');
             ScaffoldMessenger.of(parentContext).showSnackBar(
               const SnackBar(
-                content: Text('Không thể tạo kế hoạch bữa ăn. Vui lòng thử lại.'),
+                content: Text(
+                  'Không thể tạo kế hoạch bữa ăn. Vui lòng thử lại.',
+                ),
                 backgroundColor: Colors.red,
               ),
             );
@@ -898,7 +966,7 @@ class _PlannerPageState extends State<PlannerPage>
           if (mounted && Navigator.canPop(parentContext)) {
             Navigator.of(parentContext).pop();
           }
-          
+
           print('Error creating meal plan: $e');
           ScaffoldMessenger.of(parentContext).showSnackBar(
             const SnackBar(
@@ -910,7 +978,7 @@ class _PlannerPageState extends State<PlannerPage>
         }
       }
     }
-    
+
     switch (meal.mealType) {
       case MealType.breakfast:
         mealTypeDisplay = 'bữa sáng';
@@ -924,10 +992,6 @@ class _PlannerPageState extends State<PlannerPage>
         mealTypeDisplay = 'bữa tối';
         mealSlotString = 'dinner';
         break;
-      case MealType.snack:
-        mealTypeDisplay = 'bữa phụ';
-        mealSlotString = 'snack';
-        break;
     }
 
     showDialog(
@@ -939,27 +1003,37 @@ class _PlannerPageState extends State<PlannerPage>
         onRecipeSelected: (RecipeModel recipe) async {
           // Create AddMealDto for adding recipe to meal plan
           print('Adding recipe ${recipe.name} to meal plan $mealPlanId');
-          print('DTO details - date: ${DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day))}, mealSlot: $mealSlotString, recipeId: ${recipe.id}');
-          
+          print(
+            'DTO details - date: ${DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day))}, mealSlot: $mealSlotString, recipeId: ${recipe.id}',
+          );
+
           final dto = AddMealDto(
             // Use local date-only for payload to avoid timezone shifts
-            date: DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day)),
+            date: DateFormat(
+              'yyyy-MM-dd',
+            ).format(DateTime(day.year, day.month, day.day)),
             mealSlot: mealSlotString,
             recipeId: recipe.id,
             servings: meal.servings,
           );
-          
+
           try {
             // Add meal to plan and wait for completion using parentContext
             print('Calling addMealToPlan...');
-            await parentContext.read<MealPlanCubit>().addMealToPlan(mealPlanId, dto);
+            await parentContext.read<MealPlanCubit>().addMealToPlan(
+              mealPlanId,
+              dto,
+            );
             print('addMealToPlan completed successfully');
 
             // Auto-consume ingredients from pantry if available
             try {
               print('Auto-consuming ingredients for recipe ${recipe.id}...');
               final pantryCubit = parentContext.read<PantryCubit>();
-              await pantryCubit.consumeIngredientsFromRecipe(recipe.id, meal.servings);
+              await pantryCubit.consumeIngredientsFromRecipe(
+                recipe.id,
+                meal.servings,
+              );
               print('Auto-consume completed');
             } catch (e) {
               print('Auto-consume failed (non-critical): $e');
@@ -985,7 +1059,9 @@ class _PlannerPageState extends State<PlannerPage>
               if (mounted) {
                 ScaffoldMessenger.of(parentContext).showSnackBar(
                   SnackBar(
-                    content: Text('Đã thêm ${recipe.name} vào $mealTypeDisplay'),
+                    content: Text(
+                      'Đã thêm ${recipe.name} vào $mealTypeDisplay',
+                    ),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -1035,25 +1111,19 @@ class _PlannerPageState extends State<PlannerPage>
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Title
             Text(
               '${meal.recipeName}',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             Text(
               '${_getMealTypeName(meal.mealType)} - ${DateFormat('dd/MM/yyyy').format(day)}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
             const SizedBox(height: 24),
-            
+
             // Options
             ListTile(
               leading: const Icon(Icons.edit, color: AppTheme.primaryGreen),
@@ -1085,25 +1155,29 @@ class _PlannerPageState extends State<PlannerPage>
       context: parentContext,
       builder: (context) => AlertDialog(
         title: const Text('Xóa món ăn'),
-        content: Text('Bạn có chắc chắn muốn xóa "${meal.recipeName}" khỏi bữa ${_getMealTypeName(meal.mealType).toLowerCase()}?'),
+        content: Text(
+          'Bạn có chắc chắn muốn xóa "${meal.recipeName}" khỏi bữa ${_getMealTypeName(meal.mealType).toLowerCase()}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Hủy'),
           ),
           TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
+            onPressed: () async {
+              Navigator.pop(context);
 
-                try {
+              try {
                 // Debug info
                 print('=== REMOVE MEAL DEBUG ===');
                 print('Removing meal: ${meal.recipeName}');
                 print('Original meal plan ID: ${meal.mealPlanId}');
                 print('Meal ID: ${meal.id}');
                 print('Recipe ID: ${meal.recipeId}');
-                print('Date: ${DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day))}');
-                
+                print(
+                  'Date: ${DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day))}',
+                );
+
                 // Get meal slot string for API
                 String mealSlotString = '';
                 switch (meal.mealType) {
@@ -1116,66 +1190,69 @@ class _PlannerPageState extends State<PlannerPage>
                   case MealType.dinner:
                     mealSlotString = 'dinner';
                     break;
-                  case MealType.snack:
-                    mealSlotString = 'snack';
-                    break;
                 }
-                
+
                 print('Meal slot: $mealSlotString');
-                
+
                 // Get current state for debugging
                 final currentState = parentContext.read<MealPlanCubit>().state;
                 print('Available meal plans: ${currentState.mealPlans.length}');
                 for (var plan in currentState.mealPlans) {
                   print('  Plan ID: ${plan.id}, Week: ${plan.weekStartDate}');
                 }
-                
+
                 String planIdToUse = meal.mealPlanId;
-                
+
                 // Check if meal plan ID is valid
                 if (meal.mealPlanId.isEmpty || meal.mealPlanId == 'default') {
                   if (currentState.mealPlans.isNotEmpty) {
                     planIdToUse = currentState.mealPlans.first.id;
-                    print('Using first available plan ID: $planIdToUse instead of ${meal.mealPlanId}');
+                    print(
+                      'Using first available plan ID: $planIdToUse instead of ${meal.mealPlanId}',
+                    );
                   } else {
                     throw Exception('Không tìm thấy kế hoạch bữa ăn');
                   }
                 }
-                
+
                 print('Final plan ID to use: $planIdToUse');
-                print('API call: DELETE /api/meal-plans/$planIdToUse/meals/${DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day))}/$mealSlotString');
-                
+                print(
+                  'API call: DELETE /api/meal-plans/$planIdToUse/meals/${DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day))}/$mealSlotString',
+                );
+
                 await parentContext.read<MealPlanCubit>().removeMealFromPlan(
                   planIdToUse,
-                  DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day)),
+                  DateFormat(
+                    'yyyy-MM-dd',
+                  ).format(DateTime(day.year, day.month, day.day)),
                   mealSlotString,
                 );
-                
+
                 print('Remove meal completed successfully');
                 print('=== END DEBUG ===');
-                
-                  // Force reload meal plans
-                  _lastLoadedWeek = null; // Reset cache
-                  _loadMealPlans();
 
-                  // Show success message using parentContext
-                  if (mounted) {
-                    ScaffoldMessenger.of(parentContext).showSnackBar(
-                      SnackBar(
-                        content: Text('Đã xóa "${meal.recipeName}" thành công'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
+                // Force reload meal plans
+                _lastLoadedWeek = null; // Reset cache
+                _loadMealPlans();
+
+                // Show success message using parentContext
+                if (mounted) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    SnackBar(
+                      content: Text('Đã xóa "${meal.recipeName}" thành công'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
               } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(parentContext).showSnackBar(
-                      SnackBar(
-                        content: Text('Lỗi khi xóa món ăn: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
+                if (mounted) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    SnackBar(
+                      content: Text('Lỗi khi xóa món ăn: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Xóa', style: TextStyle(color: Colors.red)),
@@ -1193,8 +1270,6 @@ class _PlannerPageState extends State<PlannerPage>
         return 'Trưa';
       case MealType.dinner:
         return 'Tối';
-      case MealType.snack:
-        return 'Phụ';
     }
   }
 
@@ -1220,109 +1295,6 @@ class _PlannerPageState extends State<PlannerPage>
   }
 
   // Method to generate shopping list from current meal plan
-  Future<void> _generateShoppingList() async {
-    if (_disposed || !mounted) return;
-    
-    OverlayEntry? overlayEntry;
-    
-    try {
-      // Get current meal plan state
-      final mealPlanState = context.read<MealPlanCubit>().state;
-      
-      if (mealPlanState.isLoading || mealPlanState.mealPlans.isEmpty) {
-        if (mounted && !_disposed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Không có kế hoạch bữa ăn nào để tạo danh sách mua sắm'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Find meal plan for current selected week
-      final weekString = DateFormat('yyyy-MM-dd').format(_selectedWeek);
-      final currentMealPlan = mealPlanState.mealPlans.where(
-        (plan) => plan.weekStartDate == weekString,
-      ).firstOrNull;
-
-      if (currentMealPlan == null || currentMealPlan.meals.isEmpty) {
-        if (mounted && !_disposed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Kế hoạch này chưa có món ăn nào'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Show loading overlay instead of dialog
-      if (mounted && !_disposed) {
-        overlayEntry = OverlayEntry(
-          builder: (context) => Container(
-            color: Colors.black54,
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
-          ),
-        );
-        Overlay.of(context).insert(overlayEntry);
-      }
-
-      // Generate shopping list from meal plan
-      final apiService = context.read<ApiService>();
-      final authRepo = context.read<AuthRepository>();
-      
-      if (authRepo.accessToken == null) {
-        if (mounted && !_disposed && overlayEntry != null) {
-          overlayEntry.remove();
-        }
-        return;
-      }
-
-      final result = await apiService.generateShoppingListFromMealPlan(
-        authRepo.accessToken!,
-        currentMealPlan.id,
-      );
-
-      // Remove loading overlay
-      if (mounted && !_disposed && overlayEntry != null) {
-        overlayEntry.remove();
-        overlayEntry = null;
-      }
-
-      // Show success and navigate to shopping list
-      if (mounted && !_disposed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đã tạo danh sách mua sắm với ${result['total_items']} món'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Navigate to shopping page
-        context.go('/shopping');
-      }
-
-    } catch (e) {
-      // Remove loading overlay if open
-      if (mounted && !_disposed && overlayEntry != null) {
-        overlayEntry.remove();
-      }
-      
-      if (mounted && !_disposed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi tạo danh sách: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 }
 
 // Generate Plan Dialog
@@ -1347,23 +1319,26 @@ class _GeneratePlanDialogState extends State<_GeneratePlanDialog> {
   @override
   void initState() {
     super.initState();
-    _nameController.text = 'Kế hoạch tuần ${DateFormat('dd/MM').format(widget.selectedWeek)}';
+    _nameController.text =
+        'Kế hoạch tuần ${DateFormat('dd/MM').format(widget.selectedWeek)}';
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<MealPlanCubit, MealPlanState>(
       listener: (context, state) {
-        if (!state.isLoading && state.error == null && state.mealPlans.isNotEmpty) {
+        if (!state.isLoading &&
+            state.error == null &&
+            state.mealPlans.isNotEmpty) {
           Navigator.pop(context);
           widget.onGenerated();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Kế hoạch đã được tạo thành công!')),
           );
         } else if (state.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: ${state.error}')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Lỗi: ${state.error}')));
         }
       },
       child: AlertDialog(
@@ -1405,9 +1380,7 @@ class _GeneratePlanDialogState extends State<_GeneratePlanDialog> {
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: _budgetRange,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(border: OutlineInputBorder()),
                 items: const [
                   DropdownMenuItem(value: 'low', child: Text('Tiết kiệm')),
                   DropdownMenuItem(value: 'medium', child: Text('Trung bình')),
@@ -1447,7 +1420,9 @@ class _GeneratePlanDialogState extends State<_GeneratePlanDialog> {
     context.read<MealPlanCubit>().generateMealPlan(
       startDate: widget.selectedWeek,
       region: 'NAM',
-      budgetPerMeal: _budgetRange == 'low' ? 30000 : (_budgetRange == 'high' ? 80000 : 50000),
+      budgetPerMeal: _budgetRange == 'low'
+          ? 30000
+          : (_budgetRange == 'high' ? 80000 : 50000),
       servings: 2,
     );
   }
@@ -1464,7 +1439,8 @@ class _CreateManualPlanDialog extends StatefulWidget {
   });
 
   @override
-  State<_CreateManualPlanDialog> createState() => _CreateManualPlanDialogState();
+  State<_CreateManualPlanDialog> createState() =>
+      _CreateManualPlanDialogState();
 }
 
 class _CreateManualPlanDialogState extends State<_CreateManualPlanDialog> {
@@ -1474,23 +1450,26 @@ class _CreateManualPlanDialogState extends State<_CreateManualPlanDialog> {
   @override
   void initState() {
     super.initState();
-    _nameController.text = 'Kế hoạch tuần ${DateFormat('dd/MM').format(widget.selectedWeek)}';
+    _nameController.text =
+        'Kế hoạch tuần ${DateFormat('dd/MM').format(widget.selectedWeek)}';
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<MealPlanCubit, MealPlanState>(
       listener: (context, state) {
-        if (!state.isLoading && state.error == null && state.mealPlans.isNotEmpty) {
+        if (!state.isLoading &&
+            state.error == null &&
+            state.mealPlans.isNotEmpty) {
           Navigator.pop(context);
           widget.onCreated();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Kế hoạch đã được tạo thành công!')),
           );
         } else if (state.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: ${state.error}')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Lỗi: ${state.error}')));
         }
       },
       child: AlertDialog(

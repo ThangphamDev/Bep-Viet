@@ -4,14 +4,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:bepviet_mobile/data/models/suggestion_model.dart';
-import 'package:dio/dio.dart';
+import 'package:bepviet_mobile/data/models/meal_plan_model.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/cubit/suggest_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/widgets/suggest_filters.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/widgets/suggestion_card.dart';
+import 'package:bepviet_mobile/presentation/features/planner/cubit/meal_plan_cubit.dart';
 
 class SuggestPage extends StatelessWidget {
   const SuggestPage({super.key});
@@ -237,7 +240,7 @@ class _SuggestPageViewState extends State<SuggestPageView> {
 
       if (!mounted) return;
 
-      // Show loading AFTER checking token
+      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -250,9 +253,9 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Column(
+              child: const Column(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(
                       AppTheme.primaryGreen,
@@ -271,19 +274,53 @@ class _SuggestPageViewState extends State<SuggestPageView> {
       );
       isLoading = true;
 
-      // Call API
-      final dio = Dio();
-      dio.options.baseUrl = AppConfig.ngrokBaseUrl;
-      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
-      final apiService = ApiService(dio);
+      // Get or create meal plan for today's week (same logic as planner)
+      final mealPlanCubit = context.read<MealPlanCubit>();
+      final currentState = mealPlanCubit.state;
 
-      await apiService.quickAddToToday(
-        token: token,
-        recipeId: suggestion.recipeId,
-        mealSlot: mealSlot,
-        servings: suggestion.servings ?? 2,
-        variantRegion: suggestion.variantRegion,
+      // Get today's date and week start
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      final weekStart = todayDate.subtract(
+        Duration(days: todayDate.weekday - 1),
       );
+      final weekString = DateFormat('yyyy-MM-dd').format(weekStart);
+
+      String mealPlanId = '';
+
+      // Find existing meal plan for this week
+      final existingPlan = currentState.mealPlans
+          .where((plan) => plan.weekStartDate == weekString)
+          .firstOrNull;
+
+      if (existingPlan != null) {
+        mealPlanId = existingPlan.id;
+      } else {
+        // Create new meal plan for this week
+        await mealPlanCubit.createMealPlan(
+          weekString,
+          note: 'Kế hoạch tuần ${DateFormat('dd/MM').format(weekStart)}',
+        );
+
+        // Get the newly created plan
+        final newState = mealPlanCubit.state;
+        if (newState.mealPlans.isNotEmpty) {
+          mealPlanId = newState.mealPlans.last.id;
+        } else {
+          throw Exception('Không thể tạo kế hoạch bữa ăn');
+        }
+      }
+
+      // Create AddMealDto (same as planner)
+      final dto = AddMealDto(
+        date: DateFormat('yyyy-MM-dd').format(todayDate),
+        mealSlot: mealSlot,
+        recipeId: suggestion.recipeId,
+        servings: suggestion.servings ?? 2,
+      );
+
+      // Add meal to plan using MealPlanCubit (same as planner)
+      await mealPlanCubit.addMealToPlan(mealPlanId, dto);
 
       if (!mounted) return;
 
