@@ -720,137 +720,144 @@ class _PlannerPageState extends State<PlannerPage>
   }
 
   Widget _buildCreatePlanView() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Quick Generate
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.auto_awesome, color: AppTheme.primaryGreen),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Tạo kế hoạch tự động',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'AI sẽ tạo kế hoạch 7 ngày cân bằng dinh dưỡng và chi phí',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _showGeneratePlanDialog(),
-                    icon: const Icon(Icons.auto_awesome),
-                    label: const Text('Tạo kế hoạch thông minh'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryGreen,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Manual Create
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.create, color: AppTheme.primaryGreen),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Tạo kế hoạch thủ công',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tự chọn món ăn cho từng bữa trong tuần',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _showCreateManualPlanDialog(),
-                    icon: const Icon(Icons.create),
-                    label: const Text('Tạo kế hoạch mới'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Tips
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Quick Generate
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.lightbulb_outline,
-                      color: AppTheme.primaryGreen,
-                      size: 20,
+                    Row(
+                      children: [
+                        Icon(Icons.auto_awesome, color: AppTheme.primaryGreen),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Tạo kế hoạch tự động',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 8),
                     const Text(
-                      'Mẹo hay',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryGreen,
+                      'AI sẽ tạo kế hoạch 7 ngày cân bằng dinh dưỡng và chi phí',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => _showGeneratePlanDialog(),
+                      icon: const Icon(Icons.auto_awesome),
+                      label: const Text('Tạo kế hoạch thông minh'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(48),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  '• Kế hoạch tự động sẽ tránh lặp món và cân bằng chi phí\n'
-                  '• Kiểm tra tủ lạnh trước khi tạo kế hoạch\n'
-                  '• Có thể chỉnh sửa từng bữa ăn sau khi tạo\n'
-                  '• Tạo danh sách mua sắm từ kế hoạch bữa ăn',
-                  style: TextStyle(color: AppTheme.textSecondary, height: 1.5),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 16),
+
+            // Manual Create
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.create, color: AppTheme.primaryGreen),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Tạo kế hoạch thủ công',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Tự chọn món ăn cho từng bữa trong tuần',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => _showCreateManualPlanDialog(),
+                      icon: const Icon(Icons.create),
+                      label: const Text('Tạo kế hoạch mới'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Tips
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.primaryGreen.withOpacity(0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.lightbulb_outline,
+                        color: AppTheme.primaryGreen,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Mẹo hay',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '• Kế hoạch tự động sẽ tránh lặp món và cân bằng chi phí\n'
+                    '• Kiểm tra tủ lạnh trước khi tạo kế hoạch\n'
+                    '• Có thể chỉnh sửa từng bữa ăn sau khi tạo\n'
+                    '• Tạo danh sách mua sắm từ kế hoạch bữa ăn',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -878,9 +885,11 @@ class _PlannerPageState extends State<PlannerPage>
       context: context,
       builder: (context) => _GeneratePlanDialog(
         selectedWeek: _selectedWeek,
-        onGenerated: () {
-          _loadMealPlans();
-          _tabController.animateTo(0);
+        onGenerated: () async {
+          await _loadMealPlans();
+          if (mounted && !_disposed) {
+            _tabController.animateTo(0);
+          }
         },
       ),
     );
@@ -891,9 +900,11 @@ class _PlannerPageState extends State<PlannerPage>
       context: context,
       builder: (context) => _CreateManualPlanDialog(
         selectedWeek: _selectedWeek,
-        onCreated: () {
-          _loadMealPlans();
-          _tabController.animateTo(0);
+        onCreated: () async {
+          await _loadMealPlans();
+          if (mounted && !_disposed) {
+            _tabController.animateTo(0);
+          }
         },
       ),
     );
@@ -1300,7 +1311,7 @@ class _PlannerPageState extends State<PlannerPage>
 // Generate Plan Dialog
 class _GeneratePlanDialog extends StatefulWidget {
   final DateTime selectedWeek;
-  final VoidCallback onGenerated;
+  final Future<void> Function() onGenerated;
 
   const _GeneratePlanDialog({
     required this.selectedWeek,
@@ -1326,15 +1337,17 @@ class _GeneratePlanDialogState extends State<_GeneratePlanDialog> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<MealPlanCubit, MealPlanState>(
-      listener: (context, state) {
+      listener: (context, state) async {
         if (!state.isLoading &&
             state.error == null &&
             state.mealPlans.isNotEmpty) {
           Navigator.pop(context);
-          widget.onGenerated();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kế hoạch đã được tạo thành công!')),
-          );
+          await widget.onGenerated();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Kế hoạch đã được tạo thành công!')),
+            );
+          }
         } else if (state.error != null) {
           ScaffoldMessenger.of(
             context,
@@ -1423,7 +1436,7 @@ class _GeneratePlanDialogState extends State<_GeneratePlanDialog> {
       budgetPerMeal: _budgetRange == 'low'
           ? 30000
           : (_budgetRange == 'high' ? 80000 : 50000),
-      servings: 2,
+      servings: _servings,
     );
   }
 }
@@ -1431,7 +1444,7 @@ class _GeneratePlanDialogState extends State<_GeneratePlanDialog> {
 // Create Manual Plan Dialog
 class _CreateManualPlanDialog extends StatefulWidget {
   final DateTime selectedWeek;
-  final VoidCallback onCreated;
+  final Future<void> Function() onCreated;
 
   const _CreateManualPlanDialog({
     required this.selectedWeek,
@@ -1457,15 +1470,17 @@ class _CreateManualPlanDialogState extends State<_CreateManualPlanDialog> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<MealPlanCubit, MealPlanState>(
-      listener: (context, state) {
+      listener: (context, state) async {
         if (!state.isLoading &&
             state.error == null &&
             state.mealPlans.isNotEmpty) {
           Navigator.pop(context);
-          widget.onCreated();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kế hoạch đã được tạo thành công!')),
-          );
+          await widget.onCreated();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Kế hoạch đã được tạo thành công!')),
+            );
+          }
         } else if (state.error != null) {
           ScaffoldMessenger.of(
             context,
