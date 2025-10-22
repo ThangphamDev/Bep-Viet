@@ -66,53 +66,21 @@ class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _authRepository;
 
   AuthCubit(this._authRepository) : super(AuthInitial()) {
-    _checkAuthStatus();
+    // REMOVED: Auto-login check to allow biometric login
+    // User will always start at login page
+    _initializeAuthState();
   }
 
   // Getter for auth repository
   AuthRepository get authRepository => _authRepository;
 
-  Future<void> _checkAuthStatus() async {
+  Future<void> _initializeAuthState() async {
     // Show splash screen for at least 1 second
-    final splashFuture = Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 1));
 
-    if (_authRepository.isLoggedIn && _authRepository.shouldAutoLogin) {
-      // Token exists and not expired - verify with server
-      try {
-        final isValid = await _authRepository.isTokenValid();
-        if (isValid) {
-          // Token valid, get fresh user data
-          final user = await _authRepository.getUserProfile();
-
-          // Wait for splash screen minimum duration
-          await splashFuture;
-          emit(AuthAuthenticated(user: user));
-        } else {
-          // Token invalid or expired, logout
-          await _authRepository.logout();
-
-          // Wait for splash screen minimum duration
-          await splashFuture;
-          emit(AuthUnauthenticated());
-        }
-      } catch (e) {
-        // Error verifying token (network error, user deleted, etc.)
-        await _authRepository.logout();
-
-        // Wait for splash screen minimum duration
-        await splashFuture;
-        emit(AuthUnauthenticated());
-      }
-    } else {
-      // No token or token expired
-      if (_authRepository.isLoggedIn) {
-        await _authRepository.logout();
-      }
-
-      // Wait for splash screen minimum duration
-      await splashFuture;
-      emit(AuthUnauthenticated());
-    }
+    // Always emit Unauthenticated to show login page
+    // This allows users to use biometric login
+    emit(AuthUnauthenticated());
   }
 
   Future<void> login(

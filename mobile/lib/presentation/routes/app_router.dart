@@ -108,23 +108,12 @@ class AppRouter {
           return AppRoutes.login;
         }
 
-        // If authenticated and on auth pages, redirect based on role
-        if (isAuthenticated && (isLoggingIn || isRegistering)) {
-          if (authNotifier.isAdmin) {
-            return AppRoutes.admin;
-          } else {
-            return AppRoutes.home;
-          }
-        }
+        // REMOVED: Auto-redirect when authenticated on login page
+        // Now users can stay on login page to use biometric authentication
 
         // If trying to access admin routes but not admin, redirect to home
         if (isAuthenticated && isAdminRoute && !authNotifier.isAdmin) {
           return AppRoutes.home;
-        }
-
-        // If admin trying to access user routes, redirect to admin
-        if (isAuthenticated && !isAdminRoute && authNotifier.isAdmin) {
-          return AppRoutes.admin;
         }
 
         // Allow access to the requested route
