@@ -11,6 +11,7 @@ import 'package:bepviet_mobile/presentation/features/community/pages/community_p
 import 'package:bepviet_mobile/presentation/features/personal/pages/personal_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/pages/login_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/pages/register_page.dart';
+import 'package:bepviet_mobile/presentation/features/shopping/pages/shopping_list_page.dart';
 import 'package:bepviet_mobile/presentation/widgets/main_navigation.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/pages/ai_suggest_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
@@ -23,6 +24,7 @@ class AppRoutes {
   static const String planner = '/planner';
   static const String pantry = '/pantry';
   static const String community = '/community';
+  static const String shopping = '/shopping';
 
   // Auth routes
   static const String login = '/login';
@@ -119,6 +121,11 @@ class AppRouter {
               path: AppRoutes.pantry,
               name: 'pantry',
               builder: (context, state) => const PantryPage(),
+            ),
+            GoRoute(
+              path: AppRoutes.shopping,
+              name: 'shopping',
+              builder: (context, state) => const ShoppingListPage(),
             ),
             GoRoute(
               path: AppRoutes.community,

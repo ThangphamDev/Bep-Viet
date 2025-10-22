@@ -3,6 +3,9 @@ import 'package:bepviet_mobile/data/models/recipe_model.dart';
 import 'package:bepviet_mobile/data/models/suggestion_model.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/user_model.dart';
+import 'package:bepviet_mobile/data/models/meal_plan_model.dart';
+import 'package:bepviet_mobile/data/models/shopping_list_model.dart';
+import 'package:bepviet_mobile/data/models/pantry_item_model.dart';
 
 class ApiService {
   final Dio _dio;
@@ -522,6 +525,598 @@ class ApiService {
       return [];
     } catch (e) {
       throw Exception('Failed to fetch ingredients: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchIngredients(String query) async {
+    try {
+      final response = await _dio.get(
+        '/api/ingredients/search',
+        queryParameters: {'q': query},
+      );
+      if (response.data is List) {
+        return (response.data as List).cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to search ingredients: $e');
+    }
+  }
+
+  // ===== PHASE 3 API METHODS =====
+
+  // Meal Plans
+  Future<List<MealPlanModel>> getMealPlans(String token, {String? date}) async {
+    try {
+      final response = await _dio.get(
+        '/api/meal-plans',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is List) {
+          return (responseData['data'] as List)
+              .map((e) => MealPlanModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) => MealPlanModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print('Get meal plans error: $e');
+      throw Exception('Không thể tải kế hoạch bữa ăn: ${e.toString()}');
+    }
+  }
+
+  Future<MealPlanModel?> getMealPlanByWeek(String token, String userId, String weekStartDate) async {
+    try {
+      final response = await _dio.get(
+        '/api/meal-plans/$userId/$weekStartDate',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          return MealPlanModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Get meal plan by week error: $e');
+      return null; // Return null instead of throwing for not found
+    }
+  }
+
+  Future<MealPlanModel> createMealPlan(String token, CreateMealPlanDto dto) async {
+    try {
+      final response = await _dio.post(
+        '/api/meal-plans',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          final data = responseData['data'] as Map<String, dynamic>;
+          
+          // Create a meal plan model with the returned ID
+          return MealPlanModel(
+            id: data['id']?.toString() ?? 'unknown',
+            userId: 'current-user',
+            weekStartDate: dto.weekStartDate,
+            name: dto.note ?? 'Kế hoạch bữa ăn',
+            description: dto.note,
+            meals: [],
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+        }
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      print('Create meal plan error: $e');
+      throw Exception('Không thể tạo kế hoạch bữa ăn: ${e.toString()}');
+    }
+  }
+
+  Future<bool> addMealToPlan(String token, String planId, AddMealDto dto) async {
+    try {
+      final response = await _dio.post(
+        '/api/meal-plans/$planId/meals',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        return responseData['success'] == true;
+      }
+      
+      return false;
+    } catch (e) {
+      throw Exception('Failed to add meal to plan: $e');
+    }
+  }
+
+  Future<MealPlanModel> quickAddMealToToday(String token, QuickAddMealDto dto) async {
+    try {
+      final response = await _dio.post(
+        '/api/meal-plans/quick-add',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true) {
+          // Create a meal plan model for today
+          final today = DateTime.now();
+          final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+          
+          return MealPlanModel(
+            id: responseData['data']?['meal_plan_id'] ?? 'today-plan',
+            userId: 'current-user',
+            weekStartDate: todayStr,
+            name: 'Kế hoạch hôm nay',
+            description: 'Đã thêm món ăn vào hôm nay',
+            meals: [],
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+        }
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      print('Quick add meal error: $e');
+      throw Exception('Không thể thêm món ăn: ${e.toString()}');
+    }
+  }
+
+  Future<MealPlanModel> generateMealPlan(String token, {
+    DateTime? startDate,
+    String? region,
+    int? budgetPerMeal,
+    int servings = 2,
+  }) async {
+    try {
+      final weekStart = startDate ?? DateTime.now();
+      final weekStartStr = '${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}';
+      
+      final response = await _dio.post(
+        '/api/meal-plans/generate',
+        data: {
+          'week_start': weekStartStr,
+          'region': region ?? 'NAM',
+          'budget_per_meal': budgetPerMeal ?? 50000,
+          'servings': servings,
+          'constraints': {
+            'max_time': 60,
+            'no_repeat': true,
+            'nutrition_balance': true,
+          },
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          final data = responseData['data'] as Map<String, dynamic>;
+          
+          // Parse meals from the response
+          List<MealSlot> meals = [];
+          if (data['days'] is List) {
+            final days = data['days'] as List;
+            for (var day in days) {
+              if (day is Map<String, dynamic> && day['meals'] is Map<String, dynamic>) {
+                final dayMeals = day['meals'] as Map<String, dynamic>;
+                final date = day['date']?.toString() ?? '';
+                
+                // Parse each meal slot (breakfast, lunch, dinner, snack)
+                for (var mealType in ['breakfast', 'lunch', 'dinner', 'snack']) {
+                  if (dayMeals[mealType] is Map<String, dynamic>) {
+                    final mealData = dayMeals[mealType] as Map<String, dynamic>;
+                    
+                    // Convert string mealType to MealType enum
+                    MealType mealTypeEnum;
+                    switch (mealType) {
+                      case 'breakfast':
+                        mealTypeEnum = MealType.breakfast;
+                        break;
+                      case 'lunch':
+                        mealTypeEnum = MealType.lunch;
+                        break;
+                      case 'dinner':
+                        mealTypeEnum = MealType.dinner;
+                        break;
+                      case 'snack':
+                        mealTypeEnum = MealType.snack;
+                        break;
+                      default:
+                        mealTypeEnum = MealType.breakfast;
+                    }
+                    
+                    final meal = MealSlot(
+                      id: 'generated-${DateTime.now().millisecondsSinceEpoch}-$mealType-$date',
+                      mealPlanId: 'generated-${DateTime.now().millisecondsSinceEpoch}',
+                      date: date,
+                      mealType: mealTypeEnum,
+                      recipeId: mealData['recipe_id']?.toString(),
+                      recipeName: mealData['recipe_name']?.toString() ?? 'Món ăn',
+                      recipeImage: mealData['recipe_image']?.toString(),
+                      servings: mealData['servings'] ?? servings,
+                    );
+                    meals.add(meal);
+                  }
+                }
+              }
+            }
+          }
+          
+          // Convert the backend response to our model format
+          final mealPlan = MealPlanModel(
+            id: 'generated-${DateTime.now().millisecondsSinceEpoch}',
+            userId: 'current-user',
+            weekStartDate: data['week_start'] ?? weekStartStr,
+            name: 'Kế hoạch tự động',
+            description: 'Kế hoạch bữa ăn được tạo tự động',
+            meals: meals,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          
+          return mealPlan;
+        }
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      print('Generate meal plan error: $e');
+      throw Exception('Không thể tạo kế hoạch tự động: ${e.toString()}');
+    }
+  }
+
+  Future<void> deleteMealPlan(String token, String planId) async {
+    try {
+      await _dio.delete(
+        '/api/meal-plans/$planId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to delete meal plan: $e');
+    }
+  }
+
+  Future<void> removeMealFromPlan(String token, String planId, String date, String mealSlot) async {
+    try {
+      await _dio.delete(
+        '/api/meal-plans/$planId/meals/$date/$mealSlot',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      print('Remove meal from plan error: $e');
+      throw Exception('Không thể xóa món ăn: ${e.toString()}');
+    }
+  }
+
+  // Shopping Lists
+  Future<List<ShoppingListModel>> getShoppingLists(String token) async {
+    try {
+      final response = await _dio.get(
+        '/api/shopping/lists',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is List) {
+          return (responseData['data'] as List)
+              .map((e) => ShoppingListModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) => ShoppingListModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print('Get shopping lists error: $e');
+      throw Exception('Không thể tải danh sách mua sắm: ${e.toString()}');
+    }
+  }
+
+  Future<ShoppingListModel> getShoppingListById(String token, String listId) async {
+    try {
+      final response = await _dio.get(
+        '/api/shopping/lists/$listId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        }
+        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to fetch shopping list: $e');
+    }
+  }
+
+  Future<ShoppingListModel> createShoppingList(String token, CreateShoppingListDto dto) async {
+    try {
+      final response = await _dio.post(
+        '/api/shopping/lists',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        }
+        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to create shopping list: $e');
+    }
+  }
+
+  Future<ShoppingListModel> generateShoppingListFromMealPlan(
+    String token, 
+    String mealPlanId,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/api/shopping/generate-from-meal-plan',
+        data: {'meal_plan_id': mealPlanId},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        }
+        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to generate shopping list: $e');
+    }
+  }
+
+  Future<ShoppingListModel> addItemToShoppingList(
+    String token,
+    String listId,
+    AddShoppingItemDto dto,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/api/shopping/$listId/items',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        }
+        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to add item to shopping list: $e');
+    }
+  }
+
+  Future<ShoppingListModel> updateShoppingItem(
+    String token,
+    String listId,
+    String itemId,
+    UpdateShoppingItemDto dto,
+  ) async {
+    try {
+      final response = await _dio.put(
+        '/api/shopping/$listId/items/$itemId',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          return ShoppingListModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        }
+        return ShoppingListModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to update shopping item: $e');
+    }
+  }
+
+  Future<void> deleteShoppingList(String token, String listId) async {
+    try {
+      await _dio.delete(
+        '/api/shopping/$listId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to delete shopping list: $e');
+    }
+  }
+
+  Future<void> removeItemFromShoppingList(String token, String listId, String itemId) async {
+    try {
+      await _dio.delete(
+        '/api/shopping/$listId/items/$itemId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to remove item from shopping list: $e');
+    }
+  }
+
+  Future<void> shareShoppingList(String token, String listId, String email) async {
+    try {
+      await _dio.post(
+        '/api/shopping/$listId/share',
+        data: {'email': email},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to share shopping list: $e');
+    }
+  }
+
+  // Pantry Management
+  Future<List<PantryItemModel>> getPantryItems(String token, {
+    String? location,
+    bool? isExpired,
+    bool? isLowStock,
+    String? sortBy,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/api/pantry',
+        queryParameters: {
+          if (location != null) 'location': location,
+          if (isExpired != null) 'is_expired': isExpired.toString(),
+          if (isLowStock != null) 'is_low_stock': isLowStock.toString(),
+          if (sortBy != null) 'sort_by': sortBy,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is List) {
+          return (responseData['data'] as List)
+              .map((e) => PantryItemModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) => PantryItemModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to fetch pantry items: $e');
+    }
+  }
+
+  Future<PantryStatsModel> getPantryStats(String token) async {
+    try {
+      final response = await _dio.get(
+        '/api/pantry/stats',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          return PantryStatsModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        }
+        return PantryStatsModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to fetch pantry stats: $e');
+    }
+  }
+
+  Future<PantryItemModel> addPantryItem(String token, AddPantryItemDto dto) async {
+    try {
+      final response = await _dio.post(
+        '/api/pantry',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          return PantryItemModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        }
+        return PantryItemModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to add pantry item: $e');
+    }
+  }
+
+  Future<PantryItemModel> updatePantryItem(String token, String itemId, UpdatePantryItemDto dto) async {
+    try {
+      final response = await _dio.put(
+        '/api/pantry/$itemId',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true && responseData['data'] is Map<String, dynamic>) {
+          return PantryItemModel.fromJson(responseData['data'] as Map<String, dynamic>);
+        }
+        return PantryItemModel.fromJson(response.data as Map<String, dynamic>);
+      }
+      
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to update pantry item: $e');
+    }
+  }
+
+  Future<void> consumePantryItem(String token, String itemId, ConsumePantryItemDto dto) async {
+    try {
+      await _dio.post(
+        '/api/pantry/$itemId/consume',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to consume pantry item: $e');
+    }
+  }
+
+  Future<void> deletePantryItem(String token, String itemId) async {
+    try {
+      await _dio.delete(
+        '/api/pantry/$itemId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw Exception('Failed to delete pantry item: $e');
     }
   }
 }

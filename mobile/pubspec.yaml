@@ -40,7 +40,6 @@ dependencies:
   dio: ^5.4.0
   retrofit: ^4.1.0
   json_annotation: ^4.8.1
-  freezed: ^2.4.7
   
   # Local Storage
   shared_preferences: ^2.2.2
@@ -116,3 +115,7 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Dependency overrides to fix compilation issues
+dependency_overrides:
+  shared_preferences_android: 2.2.3

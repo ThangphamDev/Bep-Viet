@@ -62,6 +62,44 @@ class _HomePageState extends State<HomePage> {
             floating: false,
             pinned: true,
             backgroundColor: AppTheme.primaryGreen,
+            actions: [
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'community':
+                      context.go('/community');
+                      break;
+                    case 'logout':
+                      context.read<AuthCubit>().logout();
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'community',
+                    child: Row(
+                      children: [
+                        Icon(Icons.people, color: AppTheme.primaryGreen),
+                        SizedBox(width: 8),
+                        Text('Cộng đồng'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
             flexibleSpace: LayoutBuilder(
               builder: (context, constraints) {
                 // Calculate if AppBar is collapsed

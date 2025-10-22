@@ -11,8 +11,13 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation> 
+    with AutomaticKeepAliveClientMixin {
   int _currentIndex = 0;
+  bool _disposed = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   final List<NavigationItem> _navigationItems = [
     NavigationItem(
@@ -34,21 +39,49 @@ class _MainNavigationState extends State<MainNavigation> {
       route: '/planner',
     ),
     NavigationItem(
-      icon: Icons.people_outline,
-      activeIcon: Icons.people,
-      label: 'Cộng đồng',
-      route: '/community',
+      icon: Icons.kitchen_outlined,
+      activeIcon: Icons.kitchen,
+      label: 'Tủ lạnh',
+      route: '/pantry',
     ),
     NavigationItem(
-      icon: Icons.person_outline,
+      icon: Icons.shopping_cart_outlined,
+      activeIcon: Icons.shopping_cart,
+      label: 'Mua sắm',
+      route: '/shopping',
+    ),
+    NavigationItem(
+      icon: Icons.person_outlined,
       activeIcon: Icons.person,
-      label: 'Profile',
+      label: 'Cá nhân',
       route: '/profile',
     ),
   ];
 
   @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+  
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    
+    // Sync currentIndex with current route
+    final currentLocation = GoRouterState.of(context).uri.path;
+    final routeIndex = _navigationItems.indexWhere((item) => item.route == currentLocation);
+    if (routeIndex != -1 && routeIndex != _currentIndex) {
+      print('Syncing navigation: $currentLocation -> index $routeIndex (was $_currentIndex)');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_disposed) {
+          setState(() {
+            _currentIndex = routeIndex;
+          });
+        }
+      });
+    }
+    
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: Container(
@@ -75,10 +108,14 @@ class _MainNavigationState extends State<MainNavigation> {
                 return Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                      context.go(item.route);
+                      if (mounted && !_disposed) {
+                        print('Navigation tap: ${item.label} (${item.route})');
+                        setState(() {
+                          _currentIndex = index;
+                        });
+                        context.go(item.route);
+                        print('Navigation completed to: ${item.route}');
+                      }
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 8),

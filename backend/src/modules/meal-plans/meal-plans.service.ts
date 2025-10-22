@@ -111,26 +111,66 @@ export class MealPlansService {
          WHERE id = ?`,
         [recipe_id, variant_region ?? null, servings ?? 2, existingId]
       );
-      return {
-        success: true,
-        data: { id: existingId },
-      };
+    } else {
+      // Generate UUID and insert new meal
+      const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+      const mealItemId = (uuidResult as any[])[0].id;
+
+      await this.db.execute(
+        `INSERT INTO meal_plan_items 
+         (id, meal_plan_id, date, meal_slot, recipe_id, variant_region, servings)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [mealItemId, mealPlanId, date, meal_slot, recipe_id, variant_region ?? null, servings ?? 2]
+      );
     }
 
-    // Generate UUID and insert new meal
-    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
-    const mealItemId = (uuidResult as any[])[0].id;
+    // Return the updated meal plan with all items
+    const [mealPlan] = await this.db.execute(
+      `SELECT 
+        mp.id,
+        mp.user_id,
+        mp.week_start_date,
+        mp.note,
+        mp.created_at,
+        mp.updated_at
+      FROM meal_plans mp
+      WHERE mp.id = ?`,
+      [mealPlanId]
+    );
 
-    await this.db.execute(
-      `INSERT INTO meal_plan_items 
-       (id, meal_plan_id, date, meal_slot, recipe_id, variant_region, servings)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [mealItemId, mealPlanId, date, meal_slot, recipe_id, variant_region ?? null, servings ?? 2]
+    if ((mealPlan as any[]).length === 0) {
+      throw new NotFoundException('Meal plan not found');
+    }
+
+    const plan = (mealPlan as any[])[0];
+
+    // Get meal plan items with recipe details
+    const [items] = await this.db.execute(
+      `SELECT 
+        mpi.id,
+        mpi.date,
+        mpi.meal_slot,
+        mpi.recipe_id,
+        mpi.variant_region,
+        mpi.servings,
+        r.name_vi,
+        r.name_en,
+        r.image_url,
+        r.cook_time_min,
+        r.difficulty
+      FROM meal_plan_items mpi
+      JOIN recipes r ON mpi.recipe_id = r.id
+      WHERE mpi.meal_plan_id = ?
+      ORDER BY mpi.date, mpi.meal_slot`,
+      [mealPlanId]
     );
 
     return {
       success: true,
-      data: { id: mealItemId },
+      data: {
+        ...plan,
+        items: items
+      },
     };
   }
 
