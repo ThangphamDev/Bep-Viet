@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/advisory_card.dart';
 import 'package:bepviet_mobile/presentation/features/premium/widgets/health_check_card.dart';
+import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 
 class AdvisoryPage extends StatefulWidget {
   const AdvisoryPage({super.key});
@@ -16,54 +19,102 @@ class _AdvisoryPageState extends State<AdvisoryPage>
     with TickerProviderStateMixin {
   late TabController _tabController;
   String _selectedFilter = 'all';
-
-  final List<AdvisoryItem> _advisories = [
-    AdvisoryItem(
-      id: '1',
-      title: 'Cảnh báo dị ứng hải sản',
-      description: 'Món cá kho tộ chứa hải sản có thể gây dị ứng cho bố',
-      type: AdvisoryType.allergy,
-      priority: AdvisoryPriority.high,
-      memberName: 'Nguyễn Văn A',
-      recipeName: 'Cá kho tộ',
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      isRead: false,
-    ),
-    AdvisoryItem(
-      id: '2',
-      title: 'Cảnh báo đường huyết',
-      description: 'Món chè đậu đỏ có lượng đường cao, không phù hợp với mẹ',
-      type: AdvisoryType.health,
-      priority: AdvisoryPriority.medium,
-      memberName: 'Trần Thị B',
-      recipeName: 'Chè đậu đỏ',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      isRead: true,
-    ),
-    AdvisoryItem(
-      id: '3',
-      title: 'Cảnh báo cay',
-      description:
-          'Món bún bò Huế có độ cay cao, không phù hợp với khẩu vị gia đình',
-      type: AdvisoryType.spice,
-      priority: AdvisoryPriority.low,
-      memberName: 'Gia đình',
-      recipeName: 'Bún bò Huế',
-      createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      isRead: true,
-    ),
-  ];
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<AdvisoryItem> _advisories = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadWarnings();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadWarnings() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is! AuthAuthenticated) {
+        throw Exception('Vui lòng đăng nhập');
+      }
+
+      final token = context.read<AuthCubit>().authRepository.accessToken;
+      if (token == null) {
+        throw Exception('Token không hợp lệ');
+      }
+
+      final dio = Dio();
+      dio.options.baseUrl = AppConfig.ngrokBaseUrl;
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+
+      final response = await dio.get(
+        '/api/analytics/weekly-report',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic> &&
+          response.data['success'] == true) {
+        final data = response.data['data'] as Map<String, dynamic>;
+        final warnings = (data['warnings'] as List?) ?? [];
+
+        setState(() {
+          _advisories = warnings.map((warning) {
+            final type = warning['type'] == 'allergy'
+                ? AdvisoryType.allergy
+                : warning['type'] == 'diet'
+                ? AdvisoryType.health
+                : AdvisoryType.spice;
+
+            final priority = warning['severity'] == 'high'
+                ? AdvisoryPriority.high
+                : warning['severity'] == 'medium'
+                ? AdvisoryPriority.medium
+                : AdvisoryPriority.low;
+
+            return AdvisoryItem(
+              id: warning['member_name'] ?? 'unknown',
+              title: _getWarningTitle(type),
+              description: warning['description'] ?? 'Không có mô tả',
+              type: type,
+              priority: priority,
+              memberName: warning['member_name'] ?? 'Thành viên',
+              recipeName: warning['recipe_name'] ?? 'Món ăn',
+              createdAt: DateTime.now(),
+              isRead: false,
+            );
+          }).toList();
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('Invalid response format');
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _getWarningTitle(AdvisoryType type) {
+    switch (type) {
+      case AdvisoryType.allergy:
+        return 'Cảnh báo dị ứng';
+      case AdvisoryType.health:
+        return 'Cảnh báo sức khỏe';
+      case AdvisoryType.spice:
+        return 'Cảnh báo khác';
+    }
   }
 
   @override
@@ -114,6 +165,58 @@ class _AdvisoryPageState extends State<AdvisoryPage>
   }
 
   Widget _buildAdvisoriesTab() {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Đang tải cảnh báo...'),
+          ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: AppTheme.errorColor.withOpacity(0.5),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Không thể tải dữ liệu',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadWarnings,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Thử lại'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final filteredAdvisories = _getFilteredAdvisories();
 
     return Column(
@@ -155,7 +258,7 @@ class _AdvisoryPageState extends State<AdvisoryPage>
                 ),
               ),
               ElevatedButton(
-                onPressed: () => _runHealthCheck(),
+                onPressed: () => _loadWarnings(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryGreen,
                   foregroundColor: Colors.white,
@@ -234,20 +337,22 @@ class _AdvisoryPageState extends State<AdvisoryPage>
           ),
           const SizedBox(height: 16),
 
-          // Health Reports List
-          _buildHealthReportCard(
-            title: 'Báo cáo tuần này',
-            date: '15/01/2024',
-            status: 'Tốt',
-            color: AppTheme.successColor,
-          ),
-          const SizedBox(height: 12),
-          _buildHealthReportCard(
-            title: 'Cảnh báo dinh dưỡng',
-            date: '10/01/2024',
-            status: 'Cần chú ý',
-            color: AppTheme.warningColor,
-          ),
+          // Health Reports List (from real data)
+          if (_advisories.isNotEmpty) ...[
+            _buildHealthReportCard(
+              title: 'Cảnh báo tuần này',
+              date: _formatDate(DateTime.now()),
+              status: _getHealthStatus(),
+              color: _getHealthStatusColor(),
+            ),
+          ] else ...[
+            _buildHealthReportCard(
+              title: 'Không có cảnh báo',
+              date: _formatDate(DateTime.now()),
+              status: 'Tốt',
+              color: AppTheme.successColor,
+            ),
+          ],
         ],
       ),
     );
@@ -294,6 +399,41 @@ class _AdvisoryPageState extends State<AdvisoryPage>
         ],
       ),
     );
+  }
+
+  List<AdvisoryItem> _getFilteredAdvisories() {
+    switch (_selectedFilter) {
+      case 'unread':
+        return _advisories.where((a) => !a.isRead).toList();
+      case 'high':
+        return _advisories
+            .where((a) => a.priority == AdvisoryPriority.high)
+            .toList();
+      default:
+        return _advisories;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String _getHealthStatus() {
+    final highPriorityCount = _advisories
+        .where((a) => a.priority == AdvisoryPriority.high)
+        .length;
+    if (highPriorityCount > 0) return 'Cần chú ý';
+    if (_advisories.length > 2) return 'Bình thường';
+    return 'Tốt';
+  }
+
+  Color _getHealthStatusColor() {
+    final highPriorityCount = _advisories
+        .where((a) => a.priority == AdvisoryPriority.high)
+        .length;
+    if (highPriorityCount > 0) return AppTheme.errorColor;
+    if (_advisories.length > 2) return AppTheme.warningColor;
+    return AppTheme.successColor;
   }
 
   Widget _buildHealthReportCard({
@@ -346,27 +486,6 @@ class _AdvisoryPageState extends State<AdvisoryPage>
     );
   }
 
-  List<AdvisoryItem> _getFilteredAdvisories() {
-    switch (_selectedFilter) {
-      case 'unread':
-        return _advisories.where((a) => !a.isRead).toList();
-      case 'high':
-        return _advisories
-            .where((a) => a.priority == AdvisoryPriority.high)
-            .toList();
-      default:
-        return _advisories;
-    }
-  }
-
-  void _runHealthCheck() {
-    _showHealthCheckDialog(
-      title: 'Kiểm tra sức khỏe tổng quát',
-      description:
-          'Đang phân tích tình trạng sức khỏe của tất cả thành viên...',
-    );
-  }
-
   void _runQuickHealthCheck() {
     _showHealthCheckDialog(
       title: 'Kiểm tra nhanh',
@@ -391,12 +510,12 @@ class _AdvisoryPageState extends State<AdvisoryPage>
   void _showHealthCheckDialog({
     required String title,
     required String description,
-  }) {
-    // Show loading dialog first
+  }) async {
+    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConfig.defaultPadding + 4),
         ),
@@ -420,18 +539,21 @@ class _AdvisoryPageState extends State<AdvisoryPage>
       ),
     );
 
-    // Simulate health check process and show results
-    Future.delayed(const Duration(seconds: 2), () {
+    // Wait 2 seconds
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Close dialog if still mounted
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+
+      // Wait a bit before showing bottom sheet
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Show results if still mounted
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-        // Small delay to ensure dialog is closed
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (mounted) {
-            _showHealthCheckResults(title);
-          }
-        });
+        _showHealthCheckResults(title);
       }
-    });
+    }
   }
 
   void _showHealthCheckResults(String checkType) {
@@ -443,149 +565,160 @@ class _AdvisoryPageState extends State<AdvisoryPage>
       backgroundColor: Colors.transparent,
       isDismissible: true,
       enableDrag: true,
-      builder: (context) => _buildHealthCheckResultsSheet(checkType),
+      useRootNavigator: false,
+      builder: (sheetContext) => _buildHealthCheckResultsSheet(checkType),
     );
   }
 
   Widget _buildHealthCheckResultsSheet(String checkType) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
+    final totalWarnings = _advisories.length;
+    final highPriorityCount = _advisories
+        .where((a) => a.priority == AdvisoryPriority.high)
+        .length;
+    final unreadCount = _advisories.where((a) => !a.isRead).length;
 
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.health_and_safety,
-                    color: AppTheme.primaryGreen,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Kết quả $checkType',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.health_and_safety,
+                      color: AppTheme.primaryGreen,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Kết quả $checkType',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Results content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildResultCard(
-                      'Tình trạng tổng thể',
-                      'Tốt',
-                      AppTheme.successColor,
-                      'Sức khỏe gia đình đang ở mức tốt',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildResultCard(
-                      'Cảnh báo',
-                      '2',
-                      AppTheme.warningColor,
-                      'Có 2 vấn đề cần chú ý',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildResultCard(
-                      'Khuyến nghị',
-                      '3',
-                      AppTheme.infoColor,
-                      '3 gợi ý cải thiện sức khỏe',
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Detailed results
-                    Text(
-                      'Chi tiết kết quả',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildDetailItem(
-                      'Thành viên: Bố',
-                      'Sức khỏe tốt, cần giảm muối',
-                      AppTheme.successColor,
-                    ),
-                    _buildDetailItem(
-                      'Thành viên: Mẹ',
-                      'Cần bổ sung canxi',
-                      AppTheme.warningColor,
-                    ),
-                    _buildDetailItem(
-                      'Thành viên: Con',
-                      'Cân bằng dinh dưỡng tốt',
-                      AppTheme.successColor,
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
                     ),
                   ],
                 ),
               ),
-            ),
-
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Đóng'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        // Navigate to detailed report
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryGreen,
-                        foregroundColor: Colors.white,
+              const SizedBox(height: 20),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildResultCard(
+                        'Tình trạng tổng thể',
+                        _getHealthStatus(),
+                        _getHealthStatusColor(),
+                        totalWarnings == 0
+                            ? 'Sức khỏe gia đình đang ở mức tốt'
+                            : 'Có $totalWarnings cảnh báo cần lưu ý',
                       ),
-                      child: const Text('Xem báo cáo chi tiết'),
-                    ),
+                      const SizedBox(height: 16),
+                      _buildResultCard(
+                        'Cảnh báo ưu tiên cao',
+                        '$highPriorityCount',
+                        highPriorityCount > 0
+                            ? AppTheme.errorColor
+                            : AppTheme.successColor,
+                        highPriorityCount > 0
+                            ? 'Cần xử lý ngay'
+                            : 'Không có cảnh báo nghiêm trọng',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildResultCard(
+                        'Cảnh báo chưa đọc',
+                        '$unreadCount',
+                        unreadCount > 0
+                            ? AppTheme.warningColor
+                            : AppTheme.infoColor,
+                        unreadCount > 0
+                            ? 'Cần xem và xử lý'
+                            : 'Đã xem tất cả cảnh báo',
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Chi tiết cảnh báo',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      if (_advisories.isEmpty)
+                        _buildDetailItem(
+                          'Tuyệt vời!',
+                          'Không có cảnh báo nào',
+                          AppTheme.successColor,
+                        )
+                      else
+                        ..._advisories
+                            .take(5)
+                            .map(
+                              (advisory) => _buildDetailItem(
+                                'Thành viên: ${advisory.memberName}',
+                                advisory.description,
+                                _getPriorityColor(advisory.priority),
+                              ),
+                            ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Đóng'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          context.go('/premium/report');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryGreen,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Xem báo cáo chi tiết'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
