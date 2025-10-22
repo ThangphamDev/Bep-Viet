@@ -64,6 +64,11 @@ dependencies:
   # Animations
   lottie: ^3.0.0
   flutter_animate: ^4.3.0
+  google_sign_in: 6.2.1
+  
+  # Biometric Authentication
+  local_auth: ^2.1.7
+  flutter_secure_storage: ^9.0.0
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +83,7 @@ dev_dependencies:
   json_serializable: ^6.7.1
   retrofit_generator: ^8.1.0
   freezed: ^2.4.7
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

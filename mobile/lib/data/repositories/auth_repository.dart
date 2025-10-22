@@ -1,10 +1,19 @@
 import 'package:bepviet_mobile/data/models/user_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/auth_service.dart';
+import 'package:bepviet_mobile/data/sources/remote/google_auth_service.dart';
+import 'package:bepviet_mobile/data/sources/local/biometric_auth_service.dart';
+import 'package:bepviet_mobile/data/sources/local/app_data_cleaner.dart';
 
 class AuthRepository {
   final AuthService _authService;
+  final GoogleAuthService _googleAuthService;
+  final BiometricAuthService _biometricAuthService;
 
-  AuthRepository(this._authService);
+  AuthRepository(
+    this._authService,
+    this._googleAuthService,
+    this._biometricAuthService,
+  );
 
   // Check if user is logged in
   bool get isLoggedIn => _authService.isLoggedIn;
@@ -48,6 +57,10 @@ class AuthRepository {
 
   // Logout
   Future<void> logout() async {
+    // Disconnect Google account to force account selection next time
+    await _googleAuthService.signOut();
+    
+    // Clear local auth data
     await _authService.logout();
   }
 
@@ -63,6 +76,136 @@ class AuthRepository {
 
   // Delete account
   Future<void> deleteAccount() async {
-    return await _authService.deleteAccount();
+    // Delete account on server first
+    await _authService.deleteAccount();
+    
+    // Disconnect Google account
+    await _googleAuthService.signOut();
+    
+    // Clear ALL app data (secure storage, shared prefs, cache, databases)
+    await AppDataCleaner.clearAllData();
+  }
+
+  // Login with Google
+  Future<AuthResponse> loginWithGoogle() async {
+    try {
+      final authData = await _googleAuthService.signInAndAuthenticate();
+      
+      if (authData == null) {
+        throw Exception('Google Sign-In failed');
+      }
+
+      // Save auth data (similar to regular login)
+      final user = UserModel.fromJson(authData['user']);
+      final accessToken = authData['accessToken'] as String;
+      final refreshToken = authData['refreshToken'] as String;
+
+      await _authService.saveAuthData(
+        user: user,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        rememberMe: true, // Always remember Google users
+      );
+
+      return AuthResponse(
+        success: true,
+        data: AuthData(
+          user: user,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+        ),
+      );
+    } catch (error) {
+      print('Google login error in repository: $error');
+      throw Exception('Đăng nhập Google thất bại: ${error.toString()}');
+    }
+  }
+
+  // Logout Google
+  Future<void> logoutGoogle() async {
+    await _googleAuthService.signOut();
+    await _authService.logout();
+  }
+
+  // ========== Biometric Authentication Methods ==========
+
+  /// Check if biometric is available on device
+  Future<bool> isBiometricAvailable() async {
+    return await _biometricAuthService.isBiometricAvailable();
+  }
+
+  /// Check if biometric login is enabled
+  Future<bool> isBiometricEnabled() async {
+    return await _biometricAuthService.isBiometricEnabled();
+  }
+
+  /// Enable biometric login (call after successful login)
+  Future<void> enableBiometric(String email) async {
+    await _biometricAuthService.enableBiometric(email);
+  }
+
+  /// Disable biometric login
+  Future<void> disableBiometric() async {
+    await _biometricAuthService.disableBiometric();
+  }
+
+  /// Login with biometric
+  Future<AuthResponse> loginWithBiometric() async {
+    try {
+      // Check if biometric is enabled
+      final isEnabled = await _biometricAuthService.isBiometricEnabled();
+      if (!isEnabled) {
+        throw Exception('Vui lòng đăng nhập lần đầu để kích hoạt tính năng này');
+      }
+
+      // Check if user has valid token
+      if (!isLoggedIn || !shouldAutoLogin) {
+        throw Exception('Bạn cần đăng nhập bằng email và mật khẩu trước');
+      }
+
+      // Get last logged in email
+      final email = await _biometricAuthService.getLastLoggedInEmail();
+      if (email == null || email.isEmpty) {
+        throw Exception('Không tìm thấy thông tin đăng nhập. Vui lòng đăng nhập lại');
+      }
+
+      // Authenticate with biometric
+      final message = await _biometricAuthService.getBiometricMessage();
+      final authenticated = await _biometricAuthService.authenticate(
+        reason: message,
+      );
+
+      if (!authenticated) {
+        throw Exception('Xác thực sinh trắc học bị hủy hoặc thất bại');
+      }
+
+      // Verify token is still valid
+      final isValid = await isTokenValid();
+      if (!isValid) {
+        throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại');
+      }
+
+      // Get user profile from server
+      final user = await _authService.getUserProfile();
+
+      return AuthResponse(
+        success: true,
+        data: AuthData(
+          user: user,
+          accessToken: _authService.accessToken ?? '',
+          refreshToken: '', // No need to refresh
+        ),
+      );
+    } catch (error) {
+      print('Biometric login error in repository: $error');
+      // Re-throw with clean error message
+      final errorMsg = error.toString().replaceFirst('Exception: ', '');
+      throw Exception(errorMsg);
+    }
+  }
+
+  /// Get biometric message
+  Future<String> getBiometricMessage() async {
+    return await _biometricAuthService.getBiometricMessage();
   }
 }

@@ -178,4 +178,21 @@ class AuthService {
       throw Exception('Failed to delete account: $e');
     }
   }
+
+  // Public method to save auth data (for Google login)
+  Future<void> saveAuthData({
+    required UserModel user,
+    required String accessToken,
+    required String refreshToken,
+    bool rememberMe = false,
+  }) async {
+    await _saveAuthData(
+      AuthData(
+        user: user,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      ),
+      rememberMe: rememberMe,
+    );
+  }
 }

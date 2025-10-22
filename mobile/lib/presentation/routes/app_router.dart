@@ -68,7 +68,14 @@ class AppRouter {
       initialLocation: AppRoutes.login,
       refreshListenable: authNotifier,
       redirect: (context, state) {
-        final isAuthenticated = authCubit.state is AuthAuthenticated;
+        final authState = authCubit.state;
+        
+        // Show splash (stay on current route) while checking auth
+        if (authState is AuthInitial) {
+          return null;
+        }
+
+        final isAuthenticated = authState is AuthAuthenticated;
         final isLoggingIn = state.matchedLocation == AppRoutes.login;
         final isRegistering = state.matchedLocation == AppRoutes.register;
 

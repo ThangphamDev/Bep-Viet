@@ -2,7 +2,7 @@ class AppConfig {
   // API Configuration
   static const String baseUrl = 'http://localhost:8080';
   static const String ngrokBaseUrl =
-      'https://gullably-nonpsychological-leisha.ngrok-free.dev';
+      'https://shortly-discordant-yoshiko.ngrok-free.dev';
 
   // App Information
   static const String appName = 'Bếp Việt';

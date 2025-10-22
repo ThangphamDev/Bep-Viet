@@ -21,6 +21,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  
+  // Biometric state
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  String _biometricMessage = 'Đăng nhập bằng vân tay';
 
   @override
   void initState() {
@@ -40,6 +45,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ),
         );
     _animationController.forward();
+    _checkBiometric();
+  }
+
+  Future<void> _checkBiometric() async {
+    final authCubit = context.read<AuthCubit>();
+    final available = await authCubit.isBiometricAvailable();
+    final enabled = await authCubit.isBiometricEnabled();
+    final message = await authCubit.getBiometricMessage();
+    
+    setState(() {
+      _biometricAvailable = available;
+      _biometricEnabled = enabled;
+      _biometricMessage = message;
+    });
   }
 
   bool _hasShownMessage = false;
@@ -85,7 +104,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         ),
         child: SafeArea(
           child: BlocListener<AuthCubit, AuthState>(
-            listener: (context, state) {
+            listener: (context, state) async {
               if (state is AuthError) {
                 _showErrorSnackBar(state.message);
               } else if (state is AuthAuthenticated) {
@@ -97,8 +116,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ? userName
                     : 'bạn';
 
+                // Check if should prompt for biometric setup
+                if (_biometricAvailable && !_biometricEnabled) {
+                  await _promptEnableBiometric(state.user.email);
+                }
+
                 // Navigate to home with welcome message
-                context.go('${AppRoutes.home}?welcome=$firstName');
+                if (mounted) {
+                  context.go('${AppRoutes.home}?welcome=$firstName');
+                }
               }
             },
             child: SingleChildScrollView(
@@ -223,6 +249,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             _buildRememberMeRow(),
             const SizedBox(height: 24),
             _buildLoginButton(),
+            if (_biometricAvailable && _biometricEnabled) ...[
+              const SizedBox(height: 16),
+              _buildBiometricButton(),
+            ],
             const SizedBox(height: 16),
             _buildForgotPassword(),
           ],
@@ -433,8 +463,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               child: _buildSocialButton(
                 icon: Icons.g_mobiledata,
                 label: 'Google',
-                onTap: () =>
-                    _showInfoSnackBar('Đăng nhập Google sẽ sớm có mặt!'),
+                onTap: _handleGoogleLogin,
               ),
             ),
             const SizedBox(width: 16),
@@ -554,5 +583,114 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
+  }
+
+  Future<void> _promptEnableBiometric(String email) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.fingerprint, color: AppTheme.primaryGreen, size: 28),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('Kích hoạt đăng nhập nhanh?'),
+            ),
+          ],
+        ),
+        content: Text(
+          'Bạn có muốn sử dụng $_biometricMessage để đăng nhập nhanh không?',
+          style: const TextStyle(fontSize: 16),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Để sau', style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Kích hoạt', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      try {
+        await context.read<AuthCubit>().enableBiometric(email);
+        setState(() {
+          _biometricEnabled = true;
+        });
+        if (mounted) {
+          _showInfoSnackBar('✓ Đã kích hoạt đăng nhập nhanh!');
+        }
+      } catch (e) {
+        if (mounted) {
+          _showErrorSnackBar('Không thể kích hoạt đăng nhập nhanh');
+        }
+      }
+    }
+  }
+
+  void _handleGoogleLogin() {
+    context.read<AuthCubit>().loginWithGoogle();
+  }
+
+  Widget _buildBiometricButton() {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryGreen.withOpacity(0.1),
+            AppTheme.primaryGreenLight.withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _handleBiometricLogin,
+          borderRadius: BorderRadius.circular(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.fingerprint,
+                color: AppTheme.primaryGreen,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  _biometricMessage,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryGreen,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleBiometricLogin() {
+    context.read<AuthCubit>().loginWithBiometric();
   }
 }

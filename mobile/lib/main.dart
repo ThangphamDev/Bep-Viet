@@ -8,6 +8,8 @@ import 'core/config/app_config.dart';
 import 'presentation/routes/app_router.dart';
 import 'data/sources/remote/api_service.dart';
 import 'data/sources/remote/auth_service.dart';
+import 'data/sources/remote/google_auth_service.dart';
+import 'data/sources/local/biometric_auth_service.dart';
 import 'data/sources/remote/premium_service.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/premium_repository.dart';
@@ -22,7 +24,13 @@ void main() async {
   final dio = Dio();
   final apiService = ApiService(dio);
   final authService = AuthService(apiService, prefs);
-  final authRepository = AuthRepository(authService);
+  final googleAuthService = GoogleAuthService(dio);
+  final biometricAuthService = BiometricAuthService();
+  final authRepository = AuthRepository(
+    authService,
+    googleAuthService,
+    biometricAuthService,
+  );
   final premiumService = PremiumService(dio);
   final premiumRepository = PremiumRepository(premiumService);
 
@@ -75,24 +83,11 @@ class _BepVietAppState extends State<BepVietApp> {
         BlocProvider<AuthCubit>.value(value: _authCubit),
         BlocProvider<PremiumCubit>.value(value: _premiumCubit),
       ],
-      child: BlocBuilder<AuthCubit, AuthState>(
-        builder: (context, state) {
-          // Show splash screen while checking auth
-          if (state is AuthInitial) {
-            return MaterialApp(
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              home: const _SplashScreen(),
-            );
-          }
-
-          return MaterialApp.router(
-            title: AppConfig.appName,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            routerConfig: _router,
-          );
-        },
+      child: MaterialApp.router(
+        title: AppConfig.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        routerConfig: _router,
       ),
     );
   }

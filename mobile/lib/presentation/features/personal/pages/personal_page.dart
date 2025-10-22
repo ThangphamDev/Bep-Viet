@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
@@ -7,8 +8,38 @@ import 'package:bepviet_mobile/data/models/user_model.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 import 'package:bepviet_mobile/presentation/routes/app_router.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  String _biometricMessage = 'Đăng nhập bằng vân tay';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricSettings();
+  }
+
+  Future<void> _loadBiometricSettings() async {
+    final authCubit = context.read<AuthCubit>();
+    final available = await authCubit.isBiometricAvailable();
+    final enabled = await authCubit.isBiometricEnabled();
+    final message = await authCubit.getBiometricMessage();
+    
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = available;
+        _biometricEnabled = enabled;
+        _biometricMessage = message;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -243,10 +274,16 @@ class ProfilePage extends StatelessWidget {
                                     },
                                   ),
                                   const Divider(height: 1),
+                                  if (_biometricAvailable)
+                                    _buildBiometricSettingsItem(
+                                      context: context,
+                                      currentUser: currentUser,
+                                    ),
+                                  if (_biometricAvailable) const Divider(height: 1),
                                   _buildSettingsItem(
                                     icon: Icons.security,
-                                    title: 'Bảo mật',
-                                    subtitle: 'Đổi mật khẩu, xác thực',
+                                    title: 'Đổi mật khẩu',
+                                    subtitle: 'Thay đổi mật khẩu đăng nhập',
                                     onTap: () {
                                       ScaffoldMessenger.of(
                                         context,
@@ -669,33 +706,16 @@ class ProfilePage extends StatelessWidget {
       // Call delete account API
       await context.read<AuthCubit>().deleteAccount();
 
+      // Close loading dialog if still mounted
       if (context.mounted) {
-        // Close loading dialog
         Navigator.of(context).pop();
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                Icon(Icons.check_circle_outline, color: Colors.white),
-                SizedBox(width: 8),
-                Expanded(child: Text('Tài khoản đã được xóa thành công')),
-              ],
-            ),
-            backgroundColor: AppTheme.successColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-
-        // Redirect to login (already logged out by deleteAccount)
-        if (context.mounted) {
-          context.go(AppRoutes.login);
-        }
       }
+
+      // Wait a bit for navigation to complete
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Exit app completely - user will see login page on restart
+      SystemNavigator.pop();
     } catch (e) {
       if (context.mounted) {
         // Close loading dialog
@@ -720,6 +740,138 @@ class ProfilePage extends StatelessWidget {
         );
       }
     }
+  }
+
+  Widget _buildBiometricSettingsItem({
+    required BuildContext context,
+    required UserModel? currentUser,
+  }) {
+    return ListTile(
+      leading: Icon(
+        Icons.fingerprint,
+        color: _biometricEnabled ? AppTheme.primaryGreen : AppTheme.textSecondary,
+      ),
+      title: Text(
+        _biometricMessage,
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+      subtitle: Text(
+        _biometricEnabled ? 'Đang bật' : 'Đang tắt',
+        style: TextStyle(
+          color: _biometricEnabled 
+              ? AppTheme.successColor 
+              : AppTheme.textSecondary,
+        ),
+      ),
+      trailing: Switch(
+        value: _biometricEnabled,
+        activeColor: AppTheme.primaryGreen,
+        onChanged: (value) async {
+          if (value) {
+            // Enable biometric
+            await _enableBiometric(context, currentUser);
+          } else {
+            // Disable biometric
+            await _disableBiometric(context);
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _enableBiometric(
+    BuildContext context,
+    UserModel? currentUser,
+  ) async {
+    if (currentUser == null) {
+      _showSnackBar(context, 'Không tìm thấy thông tin người dùng', isError: true);
+      return;
+    }
+
+    try {
+      await context.read<AuthCubit>().enableBiometric(currentUser.email);
+      if (mounted) {
+        setState(() {
+          _biometricEnabled = true;
+        });
+        _showSnackBar(context, '✓ Đã bật $_biometricMessage');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar(context, 'Không thể bật đăng nhập nhanh', isError: true);
+      }
+    }
+  }
+
+  Future<void> _disableBiometric(BuildContext context) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.fingerprint_outlined, color: AppTheme.primaryGreen),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('Tắt đăng nhập nhanh?')),
+          ],
+        ),
+        content: const Text(
+          'Bạn sẽ phải nhập email và mật khẩu để đăng nhập vào lần sau.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Tắt',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await context.read<AuthCubit>().disableBiometric();
+        if (mounted) {
+          setState(() {
+            _biometricEnabled = false;
+          });
+          _showSnackBar(context, 'Đã tắt đăng nhập nhanh');
+        }
+      } catch (e) {
+        if (mounted) {
+          _showSnackBar(context, 'Không thể tắt đăng nhập nhanh', isError: true);
+        }
+      }
+    }
+  }
+
+  void _showSnackBar(BuildContext context, String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppTheme.errorColor : AppTheme.successColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
   }
 
   Widget _buildWarningItem(String text) {
