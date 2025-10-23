@@ -321,11 +321,15 @@ class AdminCommunityRecipeCard extends StatelessWidget {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'APPROVED':
-        return Colors.green;
+        return Colors.orange; // Pending
+      case 'PROMOTED':
+        return Colors.blue; // Official
       case 'PENDING':
         return Colors.orange;
       case 'REJECTED':
         return Colors.red;
+      case 'FEATURED':
+        return Colors.purple;
       default:
         return Colors.grey;
     }
@@ -334,11 +338,15 @@ class AdminCommunityRecipeCard extends StatelessWidget {
   String _getStatusText(String status) {
     switch (status) {
       case 'APPROVED':
-        return 'Đã duyệt';
+        return 'Pending';
+      case 'PROMOTED':
+        return 'Official';
       case 'PENDING':
         return 'Chờ duyệt';
       case 'REJECTED':
         return 'Từ chối';
+      case 'FEATURED':
+        return 'Nổi bật';
       default:
         return status;
     }

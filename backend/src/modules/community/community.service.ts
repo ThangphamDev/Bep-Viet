@@ -572,7 +572,7 @@ export class CommunityService {
     for (const ing of (ingredients as any[])) {
       // Try to find matching ingredient in ingredients table
       const [matchedIngredients] = await this.db.execute(
-        `SELECT id FROM ingredients WHERE name = ? LIMIT 1`,
+        `SELECT id FROM ingredients WHERE name_vi = ? LIMIT 1`,
         [ing.ingredient_name]
       );
 
