@@ -119,6 +119,35 @@ export class CommunityController {
     return this.communityService.moderateRecipe(id, req.user.id, action, note);
   }
 
+  @Post('recipes/:id/promote-to-official')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Promote community recipe to official recipe (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Community Recipe ID' })
+  @ApiQuery({ name: 'meal_type', required: false, enum: ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'], description: 'Meal type for the official recipe (default: LUNCH)' })
+  @ApiResponse({ status: 200, description: 'Recipe promoted successfully', schema: {
+    example: {
+      success: true,
+      message: 'Community recipe promoted to official recipe successfully',
+      data: {
+        communityRecipeId: 'uuid-1',
+        newRecipeId: 'uuid-2',
+        recipeName: 'Phở Bò Hà Nội'
+      }
+    }
+  }})
+  @ApiResponse({ status: 400, description: 'Recipe already promoted or not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
+  async promoteToOfficialRecipe(
+    @Param('id') id: string,
+    @Request() req,
+    @Query('meal_type') mealType?: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK'
+  ) {
+    return this.communityService.promoteToOfficialRecipe(id, req.user.id, mealType || 'LUNCH');
+  }
+
   @Put('recipes/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

@@ -410,6 +410,137 @@ export class CommunityService {
     };
   }
 
+  async promoteToOfficialRecipe(communityRecipeId: string, adminUserId: string, mealType: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK' = 'LUNCH') {
+    // 1. Get community recipe with ingredients and steps
+    const [communityRecipes] = await this.db.execute(
+      `SELECT cr.*, u.name as author_name, u.email as author_email
+       FROM community_recipes cr
+       JOIN users u ON cr.author_user_id = u.id
+       WHERE cr.id = ?`,
+      [communityRecipeId]
+    );
+
+    if ((communityRecipes as any[]).length === 0) {
+      throw new Error('Community recipe not found');
+    }
+
+    const communityRecipe = (communityRecipes as any[])[0];
+
+    // Check if already promoted
+    if (communityRecipe.promoted_to_recipe_id) {
+      throw new Error('This recipe has already been promoted');
+    }
+
+    // 2. Get ingredients
+    const [ingredients] = await this.db.execute(
+      `SELECT * FROM community_recipe_ingredients WHERE community_recipe_id = ? ORDER BY id`,
+      [communityRecipeId]
+    );
+
+    // 3. Get steps
+    const [steps] = await this.db.execute(
+      `SELECT * FROM community_recipe_steps WHERE community_recipe_id = ? ORDER BY order_no`,
+      [communityRecipeId]
+    );
+
+    // 4. Generate UUID for new recipe
+    const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+    const newRecipeId = (uuidResult as any[])[0].id;
+
+    // 5. Map difficulty from community format (DE, TRUNG_BINH, KHO) to official format (1-5)
+    const difficultyMap = {
+      'DE': 1,
+      'TRUNG_BINH': 3,
+      'KHO': 5
+    };
+    const difficulty = difficultyMap[communityRecipe.difficulty] || 3;
+
+    // 6. Build instructions_md from steps
+    let instructionsMd = communityRecipe.description_md || '';
+    if ((steps as any[]).length > 0) {
+      instructionsMd += '\n\n## Các bước thực hiện\n\n';
+      (steps as any[]).forEach((step: any) => {
+        instructionsMd += `${step.order_no}. ${step.content_md}\n\n`;
+      });
+    }
+
+    // 7. Insert into recipes table
+    await this.db.execute(
+      `INSERT INTO recipes (
+        id, name_vi, meal_type, difficulty, cook_time_min, 
+        base_region, image_url, instructions_md, author_id, servings
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newRecipeId,
+        communityRecipe.title,
+        mealType,
+        difficulty,
+        communityRecipe.time_min || 30,
+        communityRecipe.region || 'BAC',
+        communityRecipe.image_url,
+        instructionsMd,
+        communityRecipe.author_user_id,
+        2 // default servings
+      ]
+    );
+
+    // 8. Insert ingredients (try to match with ingredients table, otherwise skip or add as note)
+    for (const ing of (ingredients as any[])) {
+      // Try to find matching ingredient in ingredients table
+      const [matchedIngredients] = await this.db.execute(
+        `SELECT id FROM ingredients WHERE name_vi = ? LIMIT 1`,
+        [ing.ingredient_name]
+      );
+
+      if ((matchedIngredients as any[]).length > 0) {
+        const ingredientId = (matchedIngredients as any[])[0].id;
+        const [ingUuidResult] = await this.db.execute('SELECT UUID() as id');
+        const recipeIngId = (ingUuidResult as any[])[0].id;
+
+        // Parse quantity (extract number from string like "200g")
+        const quantityMatch = ing.quantity?.match(/(\d+(\.\d+)?)/);
+        const quantity = quantityMatch ? parseFloat(quantityMatch[1]) : 100;
+        
+        // Extract unit (g, ml, kg, etc)
+        const unit = ing.quantity?.replace(/[\d\.\s]+/g, '').trim() || 'g';
+
+        await this.db.execute(
+          `INSERT INTO recipe_ingredients (id, recipe_id, ingredient_id, quantity, unit, note)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [recipeIngId, newRecipeId, ingredientId, quantity, unit, ing.note]
+        );
+      }
+    }
+
+    // 9. Update community recipe with promoted info
+    await this.db.execute(
+      `UPDATE community_recipes 
+       SET status = 'PROMOTED', promoted_to_recipe_id = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [newRecipeId, communityRecipeId]
+    );
+
+    // 10. Log moderation action
+    const [actionUuidResult] = await this.db.execute('SELECT UUID() as id');
+    const actionId = (actionUuidResult as any[])[0].id;
+
+    await this.db.execute(
+      `INSERT INTO moderation_actions (id, target_type, target_id, admin_user_id, action, note)
+       VALUES (?, 'COMMUNITY_RECIPE', ?, ?, 'PROMOTE', ?)`,
+      [actionId, communityRecipeId, adminUserId, `Promoted to official recipe: ${newRecipeId}`]
+    );
+
+    return {
+      success: true,
+      message: 'Community recipe promoted to official recipe successfully',
+      data: {
+        communityRecipeId: communityRecipeId,
+        newRecipeId: newRecipeId,
+        recipeName: communityRecipe.title
+      }
+    };
+  }
+
   async getFeaturedRecipes(limit: number = 10) {
     const [recipes] = await this.db.execute(
       `SELECT 
