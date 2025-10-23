@@ -64,7 +64,7 @@ class AdminApiService {
 
   // Get all official recipes for admin
   Future<Map<String, dynamic>> getAllOfficialRecipes({
-    int limit = 50,
+    int limit = 20,
     int offset = 0,
     String? region,
     String? search,
