@@ -41,7 +41,6 @@ dependencies:
   http: ^1.1.0
   retrofit: ^4.1.0
   json_annotation: ^4.8.1
-  freezed: ^2.4.7
   
   # Local Storage
   shared_preferences: ^2.2.2
@@ -64,7 +63,12 @@ dependencies:
   # Animations
   lottie: ^3.0.0
   flutter_animate: ^4.3.0
+
+  google_sign_in: 6.2.1
   
+  # Biometric Authentication
+  local_auth: ^2.1.7
+  flutter_secure_storage: ^9.0.0
   # Sharing
   share_plus: ^10.0.2
 
@@ -123,3 +127,7 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Dependency overrides to fix compilation issues
+dependency_overrides:
+  shared_preferences_android: 2.2.3

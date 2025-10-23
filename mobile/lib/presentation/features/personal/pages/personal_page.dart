@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
@@ -6,9 +7,41 @@ import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/user_model.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 import 'package:bepviet_mobile/presentation/routes/app_router.dart';
+import 'package:bepviet_mobile/presentation/features/personal/widgets/edit_profile_dialog.dart';
+import 'package:bepviet_mobile/presentation/features/personal/widgets/change_password_dialog.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  String _biometricMessage = 'Đăng nhập bằng vân tay';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricSettings();
+  }
+
+  Future<void> _loadBiometricSettings() async {
+    final authCubit = context.read<AuthCubit>();
+    final available = await authCubit.isBiometricAvailable();
+    final enabled = await authCubit.isBiometricEnabled();
+    final message = await authCubit.getBiometricMessage();
+
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = available;
+        _biometricEnabled = enabled;
+        _biometricMessage = message;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,79 +156,225 @@ class ProfilePage extends StatelessWidget {
                         child: Column(
                           children: [
                             // Avatar Section
-                            Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppTheme.primaryGreen.withOpacity(0.1),
-                                border: Border.all(
-                                  color: AppTheme.primaryGreen,
-                                  width: 3,
+                            Stack(
+                              children: [
+                                Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        AppTheme.primaryGreen.withOpacity(0.1),
+                                        AppTheme.primaryGreen.withOpacity(0.2),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    border: Border.all(
+                                      color: AppTheme.primaryGreen,
+                                      width: 3,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.primaryGreen
+                                            .withOpacity(0.3),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: AppTheme.primaryGreen,
+                                  ),
                                 ),
-                              ),
-                              child: Icon(
-                                Icons.person,
-                                size: 60,
-                                color: AppTheme.primaryGreen,
-                              ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryGreen,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 24),
+
+                            // User Name & Status
+                            Column(
+                              children: [
+                                Text(
+                                  currentUser?.name ?? 'Chưa cập nhật',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: currentUser?.isActive == true
+                                        ? AppTheme.successColor.withOpacity(0.1)
+                                        : AppTheme.errorColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: currentUser?.isActive == true
+                                          ? AppTheme.successColor
+                                          : AppTheme.errorColor,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: currentUser?.isActive == true
+                                              ? AppTheme.successColor
+                                              : AppTheme.errorColor,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        currentUser?.isActive == true
+                                            ? 'Hoạt động'
+                                            : 'Tạm khóa',
+                                        style: TextStyle(
+                                          color: currentUser?.isActive == true
+                                              ? AppTheme.successColor
+                                              : AppTheme.errorColor,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
 
                             // User Info Card
                             Card(
-                              elevation: 2,
+                              elevation: 4,
+                              shadowColor: Colors.black.withOpacity(0.1),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Thông tin cá nhân',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: AppTheme.textPrimary,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    colors: [Colors.white, Colors.grey.shade50],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.primaryGreen
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              Icons.person_outline,
+                                              color: AppTheme.primaryGreen,
+                                              size: 20,
+                                            ),
                                           ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _buildInfoRow(
-                                      'Tên',
-                                      currentUser?.name ?? 'Chưa cập nhật',
-                                    ),
-                                    _buildInfoRow(
-                                      'Email',
-                                      currentUser?.email ?? 'Chưa cập nhật',
-                                    ),
-                                    _buildInfoRow(
-                                      'Vùng',
-                                      currentUser?.region ?? 'Chưa cập nhật',
-                                    ),
-                                    _buildInfoRow(
-                                      'Tỉnh/Thành phố',
-                                      currentUser?.subregion ?? 'Chưa cập nhật',
-                                    ),
-                                    _buildInfoRow(
-                                      'Vai trò',
-                                      currentUser?.role ?? 'USER',
-                                    ),
-                                    _buildInfoRow(
-                                      'Trạng thái',
-                                      currentUser?.isActive == true
-                                          ? 'Hoạt động'
-                                          : 'Tạm khóa',
-                                    ),
-                                    if (currentUser?.createdAt != null)
-                                      _buildInfoRow(
-                                        'Ngày tạo',
-                                        _formatDate(currentUser!.createdAt!),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Thông tin cá nhân',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleLarge
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppTheme.textPrimary,
+                                                ),
+                                          ),
+                                        ],
                                       ),
-                                  ],
+                                      const SizedBox(height: 20),
+                                      _buildEnhancedInfoRow(
+                                        Icons.badge_outlined,
+                                        'Tên',
+                                        currentUser?.name ?? 'Chưa cập nhật',
+                                      ),
+                                      _buildEnhancedInfoRow(
+                                        Icons.email_outlined,
+                                        'Email',
+                                        currentUser?.email ?? 'Chưa cập nhật',
+                                      ),
+                                      _buildEnhancedInfoRow(
+                                        Icons.location_on_outlined,
+                                        'Vùng',
+                                        _getRegionDisplayName(
+                                          currentUser?.region,
+                                        ),
+                                      ),
+                                      _buildEnhancedInfoRow(
+                                        Icons.place_outlined,
+                                        'Tỉnh/Thành phố',
+                                        currentUser?.subregion ??
+                                            'Chưa cập nhật',
+                                      ),
+                                      _buildEnhancedInfoRow(
+                                        Icons.admin_panel_settings_outlined,
+                                        'Vai trò',
+                                        _getRoleDisplayName(currentUser?.role),
+                                      ),
+                                      if (currentUser?.createdAt != null)
+                                        _buildEnhancedInfoRow(
+                                          Icons.calendar_today_outlined,
+                                          'Ngày tham gia',
+                                          _formatDate(currentUser!.createdAt!),
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -203,91 +382,123 @@ class ProfilePage extends StatelessWidget {
 
                             // Settings Section
                             Card(
-                              elevation: 2,
+                              elevation: 4,
+                              shadowColor: Colors.black.withOpacity(0.1),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Column(
-                                children: [
-                                  _buildSettingsItem(
-                                    icon: Icons.edit,
-                                    title: 'Chỉnh sửa thông tin',
-                                    subtitle: 'Cập nhật thông tin cá nhân',
-                                    onTap: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Tính năng đang phát triển',
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    colors: [Colors.white, Colors.grey.shade50],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.primaryGreen
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              Icons.settings_outlined,
+                                              color: AppTheme.primaryGreen,
+                                              size: 20,
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const Divider(height: 1),
-                                  _buildSettingsItem(
-                                    icon: Icons.notifications,
-                                    title: 'Thông báo',
-                                    subtitle: 'Quản lý thông báo',
-                                    onTap: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Tính năng đang phát triển',
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Cài đặt',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleLarge
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppTheme.textPrimary,
+                                                ),
                                           ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const Divider(height: 1),
-                                  _buildSettingsItem(
-                                    icon: Icons.security,
-                                    title: 'Bảo mật',
-                                    subtitle: 'Đổi mật khẩu, xác thực',
-                                    onTap: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Tính năng đang phát triển',
+                                        ],
+                                      ),
+                                    ),
+                                    _buildSettingsItem(
+                                      icon: Icons.edit,
+                                      title: 'Chỉnh sửa thông tin',
+                                      subtitle: 'Cập nhật thông tin cá nhân',
+                                      onTap: () {
+                                        if (currentUser != null) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) =>
+                                                EditProfileDialog(
+                                                  user: currentUser!,
+                                                ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    const Divider(height: 1),
+                                    _buildSettingsItem(
+                                      icon: Icons.notifications,
+                                      title: 'Thông báo',
+                                      subtitle: 'Quản lý thông báo',
+                                      onTap: () {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Tính năng đang phát triển',
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const Divider(height: 1),
-                                  _buildPremiumSettingsItem(
-                                    context: context,
-                                    icon: Icons.star,
-                                    title: 'Premium',
-                                    subtitle: 'Nâng cấp tài khoản Premium',
-                                    onTap: () {
-                                      // Navigate to Premium Dashboard
-                                      context.go('/premium');
-                                    },
-                                  ),
-                                  const Divider(height: 1),
-                                  _buildSettingsItem(
-                                    icon: Icons.help,
-                                    title: 'Trợ giúp',
-                                    subtitle: 'FAQ, liên hệ hỗ trợ',
-                                    onTap: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Tính năng đang phát triển',
+                                        );
+                                      },
+                                    ),
+                                    const Divider(height: 1),
+                                    if (_biometricAvailable)
+                                      _buildBiometricSettingsItem(),
+                                    if (_biometricAvailable)
+                                      const Divider(height: 1),
+                                    _buildSettingsItem(
+                                      icon: Icons.security,
+                                      title: 'Đổi mật khẩu',
+                                      subtitle: 'Thay đổi mật khẩu đăng nhập',
+                                      onTap: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) =>
+                                              const ChangePasswordDialog(),
+                                        );
+                                      },
+                                    ),
+                                    const Divider(height: 1),
+                                    _buildSettingsItem(
+                                      icon: Icons.help,
+                                      title: 'Trợ giúp',
+                                      subtitle: 'FAQ, liên hệ hỗ trợ',
+                                      onTap: () {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Tính năng đang phát triển',
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -444,68 +655,6 @@ class ProfilePage extends StatelessWidget {
         color: AppTheme.textSecondary,
       ),
       onTap: onTap,
-    );
-  }
-
-  Widget _buildPremiumSettingsItem({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.orange.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13),
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Icon(
-            Icons.arrow_forward_ios,
-            size: 14,
-            color: Colors.white,
-          ),
-        ),
-        onTap: onTap,
-      ),
     );
   }
 
@@ -673,28 +822,8 @@ class ProfilePage extends StatelessWidget {
         // Close loading dialog
         Navigator.of(context).pop();
 
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                Icon(Icons.check_circle_outline, color: Colors.white),
-                SizedBox(width: 8),
-                Expanded(child: Text('Tài khoản đã được xóa thành công')),
-              ],
-            ),
-            backgroundColor: AppTheme.successColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-
-        // Redirect to login (already logged out by deleteAccount)
-        if (context.mounted) {
-          context.go(AppRoutes.login);
-        }
+        // Exit the app after successful deletion
+        SystemNavigator.pop();
       }
     } catch (e) {
       if (context.mounted) {
@@ -737,5 +866,208 @@ class ProfilePage extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Widget _buildEnhancedInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: AppTheme.textSecondary),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getRegionDisplayName(String? region) {
+    switch (region) {
+      case 'BAC':
+        return 'Miền Bắc';
+      case 'TRUNG':
+        return 'Miền Trung';
+      case 'NAM':
+        return 'Miền Nam';
+      default:
+        return 'Chưa cập nhật';
+    }
+  }
+
+  String _getRoleDisplayName(String? role) {
+    switch (role) {
+      case 'ADMIN':
+        return 'Quản trị viên';
+      case 'MODERATOR':
+        return 'Kiểm duyệt viên';
+      case 'USER':
+        return 'Người dùng';
+      default:
+        return 'Người dùng';
+    }
+  }
+
+  Widget _buildBiometricSettingsItem() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _biometricEnabled
+                ? AppTheme.primaryGreen.withOpacity(0.1)
+                : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            _biometricEnabled ? Icons.fingerprint : Icons.fingerprint_outlined,
+            color: _biometricEnabled
+                ? AppTheme.primaryGreen
+                : AppTheme.textSecondary,
+            size: 24,
+          ),
+        ),
+        title: Text(
+          _biometricMessage,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+        subtitle: Text(
+          _biometricEnabled
+              ? 'Đã bật - Bạn có thể đăng nhập nhanh'
+              : 'Tắt - Bật để đăng nhập nhanh hơn',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
+        trailing: Switch(
+          value: _biometricEnabled,
+          onChanged: (value) {
+            if (value) {
+              _enableBiometric();
+            } else {
+              _disableBiometric();
+            }
+          },
+          activeColor: AppTheme.primaryGreen,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _enableBiometric() async {
+    final authState = context.read<AuthCubit>().state;
+    if (authState is! AuthAuthenticated) return;
+
+    try {
+      await context.read<AuthCubit>().enableBiometric(authState.user.email);
+      setState(() {
+        _biometricEnabled = true;
+      });
+      _showSnackBar('Đã bật đăng nhập bằng sinh trắc học', isError: false);
+    } catch (e) {
+      _showSnackBar(
+        'Lỗi khi bật sinh trắc học: ${e.toString()}',
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _disableBiometric() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Tắt đăng nhập sinh trắc học?'),
+        content: const Text(
+          'Bạn sẽ cần nhập mật khẩu để đăng nhập vào lần sau.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Tắt'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await context.read<AuthCubit>().disableBiometric();
+        setState(() {
+          _biometricEnabled = false;
+        });
+        _showSnackBar('Đã tắt đăng nhập bằng sinh trắc học', isError: false);
+      } catch (e) {
+        _showSnackBar(
+          'Lỗi khi tắt sinh trắc học: ${e.toString()}',
+          isError: true,
+        );
+      }
+    }
+  }
+
+  void _showSnackBar(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: isError ? AppTheme.errorColor : AppTheme.successColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 }

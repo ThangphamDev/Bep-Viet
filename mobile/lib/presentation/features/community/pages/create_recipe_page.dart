@@ -4,6 +4,12 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
+
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/community_api_service.dart';
@@ -14,6 +20,7 @@ class CreateRecipePage extends StatefulWidget {
   final CommunityRecipe? editingRecipe;
   
   const CreateRecipePage({super.key, this.editingRecipe});
+
 
   @override
   State<CreateRecipePage> createState() => _CreateRecipePageState();
@@ -102,6 +109,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
   }
 
   @override
+
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
@@ -148,7 +156,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
+
         title: Text(widget.editingRecipe != null ? 'Chỉnh sửa công thức' : 'Tạo công thức'),
+
         backgroundColor: AppTheme.surfaceColor,
         elevation: 0,
         actions: [
@@ -156,6 +166,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
             onPressed: _isLoading ? null : _saveRecipe,
             child: Text(
               widget.editingRecipe != null ? 'Cập nhật' : 'Lưu',
+
               style: TextStyle(
                 color: _isLoading ? AppTheme.textSecondary : AppTheme.primaryGreen,
                 fontWeight: FontWeight.bold,
@@ -380,6 +391,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                               flex: 2,
                               child: TextFormField(
                                 controller: _ingredientNameControllers[index],
+
                                 decoration: InputDecoration(
                                   labelText: 'Tên nguyên liệu',
                                   border: OutlineInputBorder(
@@ -387,12 +399,23 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 ),
+                                onChanged: (value) {
+                                  _ingredients[index] = CreateIngredientRequest(
+                                    name: value,
+                                    quantity: ingredient.quantity,
+                                    note: ingredient.note,
+                                  );
+                                },
+
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
                                 controller: _ingredientQuantityControllers[index],
+
+                                initialValue: ingredient.quantity,
+
                                 decoration: InputDecoration(
                                   labelText: 'Số lượng',
                                   border: OutlineInputBorder(
@@ -400,6 +423,14 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 ),
+
+                                onChanged: (value) {
+                                  _ingredients[index] = CreateIngredientRequest(
+                                    name: ingredient.name,
+                                    quantity: value,
+                                    note: ingredient.note,
+                                  );
+                                },
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -459,6 +490,8 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                   children: [
                     ..._steps.asMap().entries.map((entry) {
                       final index = entry.key;
+                      final step = entry.value;
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(12),
@@ -580,6 +613,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                         )
                       : Text(
                           widget.editingRecipe != null ? 'Cập nhật công thức' : 'Tạo công thức',
+
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

@@ -3,10 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
+import 'package:bepviet_mobile/data/models/meal_plan_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
+import 'package:bepviet_mobile/presentation/features/planner/cubit/meal_plan_cubit.dart';
 import 'package:dio/dio.dart';
 
 class RecipeDetailPage extends StatelessWidget {
@@ -278,28 +281,53 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
       );
       isLoading = true;
 
-      // Get token from SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString(AppConfig.tokenKey);
+      // Get or create meal plan for today's week (same logic as planner)
+      final mealPlanCubit = context.read<MealPlanCubit>();
+      final currentState = mealPlanCubit.state;
 
-      if (token == null) {
-        throw Exception('Vui lòng đăng nhập để sử dụng tính năng này');
+      // Get today's date and week start
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      final weekStart = todayDate.subtract(
+        Duration(days: todayDate.weekday - 1),
+      );
+      final weekString = DateFormat('yyyy-MM-dd').format(weekStart);
+
+      String mealPlanId = '';
+
+      // Find existing meal plan for this week
+      final existingPlan = currentState.mealPlans
+          .where((plan) => plan.weekStartDate == weekString)
+          .firstOrNull;
+
+      if (existingPlan != null) {
+        mealPlanId = existingPlan.id;
+      } else {
+        // Create new meal plan for this week
+        await mealPlanCubit.createMealPlan(
+          weekString,
+          note: 'Kế hoạch tuần ${DateFormat('dd/MM').format(weekStart)}',
+        );
+
+        // Get the newly created plan
+        final newState = mealPlanCubit.state;
+        if (newState.mealPlans.isNotEmpty) {
+          mealPlanId = newState.mealPlans.last.id;
+        } else {
+          throw Exception('Không thể tạo kế hoạch bữa ăn');
+        }
       }
 
-      // Create Dio and ApiService
-      final dio = Dio();
-      dio.options.baseUrl = AppConfig.ngrokBaseUrl;
-      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
-      final apiService = ApiService(dio);
-
-      // Call API
-      await apiService.quickAddToToday(
-        token: token,
-        recipeId: recipe.id,
+      // Create AddMealDto (same as planner)
+      final dto = AddMealDto(
+        date: DateFormat('yyyy-MM-dd').format(todayDate),
         mealSlot: mealSlot,
+        recipeId: recipe.id,
         servings: recipe.servings ?? 2,
-        variantRegion: recipe.baseRegion,
       );
+
+      // Add meal to plan using MealPlanCubit (same as planner)
+      await mealPlanCubit.addMealToPlan(mealPlanId, dto);
 
       if (!mounted) return;
 

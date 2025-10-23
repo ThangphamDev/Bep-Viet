@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
-import { UpdateProfileDto, UserProfileDto } from './dto/users.dto';
+import { UpdateProfileDto, UserProfileDto, ChangePasswordDto } from './dto/users.dto';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
@@ -71,8 +72,12 @@ export class UsersService {
       );
     }
 
+    // Get updated user profile
+    const updatedUser = await this.getProfile(userId);
+    
     return {
       success: true,
+      data: updatedUser,
       message: 'Profile updated successfully',
     };
   }
@@ -132,6 +137,41 @@ export class UsersService {
     await this.db.execute(
       `DELETE FROM users WHERE id = ?`,
       [userId]
+    );
+  }
+
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<void> {
+    const { currentPassword, newPassword } = changePasswordDto;
+
+    if (!userId) {
+      throw new NotFoundException('User ID is required');
+    }
+
+    // Get user with current password
+    const [users] = await this.db.execute(
+      `SELECT id, password_hash FROM users WHERE id = ?`,
+      [userId]
+    );
+
+    const user = (users as any[])[0];
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    await this.db.execute(
+      `UPDATE users SET password_hash = ? WHERE id = ?`,
+      [hashedNewPassword, userId]
     );
   }
 }

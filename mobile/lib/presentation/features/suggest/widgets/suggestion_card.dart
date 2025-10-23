@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/suggestion_model.dart';
 import 'package:bepviet_mobile/core/constants/app_constants.dart';
@@ -74,10 +75,26 @@ class SuggestionCard extends StatelessWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
                           child: suggestion.recipeImageUrl != null
-                              ? Image.network(
-                                  suggestion.recipeImageUrl!,
+                              ? CachedNetworkImage(
+                                  imageUrl: suggestion.recipeImageUrl!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
+                                  placeholder: (context, url) => Container(
+                                    color: Colors.grey.shade200,
+                                    child: const Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                AppTheme.primaryGreen,
+                                              ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
                                       _buildPlaceholderImage(),
                                 )
                               : _buildPlaceholderImage(),
@@ -149,7 +166,7 @@ class SuggestionCard extends StatelessWidget {
                               ),
                               _buildStatChip(
                                 Icons.people,
-                                '${suggestion.servings} người',
+                                '${suggestion.servings ?? 2} người',
                               ),
                               _buildStatChip(
                                 Icons.star,
@@ -240,24 +257,29 @@ class SuggestionCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: ElevatedButton.icon(
-                          onPressed: onAddToMealPlan,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Thêm vào hôm nay'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryGreen,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: onAddToMealPlan,
+                        icon: const Icon(Icons.add_circle_outline, size: 22),
+                        label: const Text(
+                          'Thêm vào hôm nay',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          elevation: 3,
+                          shadowColor: AppTheme.primaryGreen.withOpacity(0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),

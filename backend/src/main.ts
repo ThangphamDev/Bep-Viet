@@ -16,8 +16,8 @@ async function bootstrap() {
     // Enable CORS
     app.enableCors({
       origin: [
-        process.env.CORS_ORIGIN || 'http://localhost:3000',
-        'https://shortly-discordant-yoshiko.ngrok-free.dev/',
+        process.env.CORS_ORIGIN || 'http://localhost:8080',
+        'https://gullably-nonpsychological-leisha.ngrok-free.dev/',
         /\.ngrok-free\.dev$/,
         /\.ngrok\.io$/
       ],

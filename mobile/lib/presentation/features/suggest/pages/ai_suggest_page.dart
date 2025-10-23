@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:dio/dio.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/widgets/image_analysis_widget.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/widgets/suggestion_card.dart';
 import 'package:bepviet_mobile/data/models/suggestion_model.dart';
+import 'package:bepviet_mobile/data/models/meal_plan_model.dart';
+import 'package:bepviet_mobile/presentation/features/planner/cubit/meal_plan_cubit.dart';
 
 // Metadata cho mỗi suggestion với match score và advisory
 // NOTE: Backend giờ đã tính sẵn requestMatchScore, ingredientMatchScore, matchScore
@@ -277,6 +283,309 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
         _isLoading = false;
         _error = null;
       });
+    }
+  }
+
+  Future<void> _showMealSlotDialog(SuggestionModel suggestion) async {
+    final mealSlot = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.restaurant_menu,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Thêm vào hôm nay',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              suggestion.recipeName,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Chọn bữa ăn:',
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            _buildMealSlotOption(
+              dialogContext,
+              'BREAKFAST',
+              '🌅 Bữa sáng',
+              '7:00 - 9:00',
+            ),
+            _buildMealSlotOption(
+              dialogContext,
+              'LUNCH',
+              '☀️ Bữa trưa',
+              '11:00 - 13:00',
+            ),
+            _buildMealSlotOption(
+              dialogContext,
+              'DINNER',
+              '🌙 Bữa tối',
+              '18:00 - 20:00',
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (mealSlot != null) {
+      // Delay nhỏ để đảm bảo dialog chọn bữa đã đóng hoàn toàn
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (mounted) {
+        await _addToToday(suggestion, mealSlot);
+      }
+    }
+  }
+
+  Widget _buildMealSlotOption(
+    BuildContext dialogContext,
+    String value,
+    String title,
+    String time,
+  ) {
+    return InkWell(
+      onTap: () => Navigator.of(dialogContext).pop(value),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.primaryGreen.withOpacity(0.05),
+              AppTheme.primaryGreen.withOpacity(0.02),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.2)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    time,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppTheme.primaryGreen,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addToToday(SuggestionModel suggestion, String mealSlot) async {
+    bool isLoading = false;
+
+    try {
+      // Get token first
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConfig.tokenKey);
+
+      if (token == null) {
+        throw Exception('Vui lòng đăng nhập lại');
+      }
+
+      if (!mounted) return;
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (loadingContext) => PopScope(
+          canPop: false,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppTheme.primaryGreen,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Đang thêm vào kế hoạch...',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      isLoading = true;
+
+      // Get or create meal plan for today's week (same logic as planner)
+      final mealPlanCubit = context.read<MealPlanCubit>();
+      final currentState = mealPlanCubit.state;
+
+      // Get today's date and week start
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      final weekStart = todayDate.subtract(
+        Duration(days: todayDate.weekday - 1),
+      );
+      final weekString = DateFormat('yyyy-MM-dd').format(weekStart);
+
+      String mealPlanId = '';
+
+      // Find existing meal plan for this week
+      final existingPlan = currentState.mealPlans
+          .where((plan) => plan.weekStartDate == weekString)
+          .firstOrNull;
+
+      if (existingPlan != null) {
+        mealPlanId = existingPlan.id;
+      } else {
+        // Create new meal plan for this week
+        await mealPlanCubit.createMealPlan(
+          weekString,
+          note: 'Kế hoạch tuần ${DateFormat('dd/MM').format(weekStart)}',
+        );
+
+        // Get the newly created plan
+        final newState = mealPlanCubit.state;
+        if (newState.mealPlans.isNotEmpty) {
+          mealPlanId = newState.mealPlans.last.id;
+        } else {
+          throw Exception('Không thể tạo kế hoạch bữa ăn');
+        }
+      }
+
+      // Create AddMealDto (same as planner)
+      final dto = AddMealDto(
+        date: DateFormat('yyyy-MM-dd').format(todayDate),
+        mealSlot: mealSlot,
+        recipeId: suggestion.recipeId,
+        servings: suggestion.servings ?? 2,
+      );
+
+      // Add meal to plan using MealPlanCubit (same as planner)
+      await mealPlanCubit.addMealToPlan(mealPlanId, dto);
+
+      if (!mounted) return;
+
+      // Close loading dialog
+      if (isLoading) {
+        Navigator.of(context, rootNavigator: true).pop();
+        isLoading = false;
+      }
+
+      // Show success
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Đã thêm "${suggestion.recipeName}" vào ${_getMealSlotName(mealSlot)}',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.successColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      // Close loading dialog if showing
+      if (isLoading) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // Show error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Lỗi: ${e.toString()}')),
+            ],
+          ),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+
+  String _getMealSlotName(String mealSlot) {
+    switch (mealSlot) {
+      case 'BREAKFAST':
+        return 'bữa sáng hôm nay';
+      case 'LUNCH':
+        return 'bữa trưa hôm nay';
+      case 'DINNER':
+        return 'bữa tối hôm nay';
+      default:
+        return 'hôm nay';
     }
   }
 
@@ -696,7 +1005,11 @@ class _AiSuggestPageState extends State<AiSuggestPage> {
                               ),
                             ),
                             // Recipe Card
-                            SuggestionCard(suggestion: s, onTap: () {}),
+                            SuggestionCard(
+                              suggestion: s,
+                              onTap: () {},
+                              onAddToMealPlan: () => _showMealSlotDialog(s),
+                            ),
                           ],
                         ),
                       );

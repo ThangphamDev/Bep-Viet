@@ -756,7 +756,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
               Expanded(
                 child: _buildInfoItem(
                   icon: Icons.star,
-                  label: 'Số sao TB',
+                  label: 'Đánh giá',
                   value: avgRating.toStringAsFixed(1),
                   color: Colors.amber,
                 ),
@@ -766,6 +766,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
                   icon: Icons.trending_up,
                   label: 'Số đánh giá',
                   value: '$ratingCount',
+
                   color: AppTheme.primaryGreen,
                 ),
               ),

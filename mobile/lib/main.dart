@@ -8,11 +8,17 @@ import 'core/config/app_config.dart';
 import 'presentation/routes/app_router.dart';
 import 'data/sources/remote/api_service.dart';
 import 'data/sources/remote/auth_service.dart';
+import 'data/sources/remote/google_auth_service.dart';
+import 'data/sources/local/biometric_auth_service.dart';
 import 'data/sources/remote/premium_service.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/premium_repository.dart';
 import 'presentation/features/auth/cubit/auth_cubit.dart';
 import 'presentation/features/premium/cubit/premium_cubit.dart';
+
+import 'presentation/features/planner/cubit/meal_plan_cubit.dart';
+import 'presentation/features/shopping/cubit/shopping_list_cubit.dart';
+import 'presentation/features/pantry/cubit/pantry_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +28,13 @@ void main() async {
   final dio = Dio();
   final apiService = ApiService(dio);
   final authService = AuthService(apiService, prefs);
-  final authRepository = AuthRepository(authService);
+  final googleAuthService = GoogleAuthService(dio);
+  final biometricAuthService = BiometricAuthService();
+  final authRepository = AuthRepository(
+    authService,
+    googleAuthService,
+    biometricAuthService,
+  );
   final premiumService = PremiumService(dio);
   final premiumRepository = PremiumRepository(premiumService);
 
@@ -30,18 +42,28 @@ void main() async {
     BepVietApp(
       authRepository: authRepository,
       premiumRepository: premiumRepository,
+      apiService: apiService,
+      authService: authService,
     ),
   );
 }
 
 class BepVietApp extends StatefulWidget {
   final AuthRepository authRepository;
+
   final PremiumRepository premiumRepository;
+
+  final ApiService apiService;
+  final AuthService authService;
 
   const BepVietApp({
     super.key,
     required this.authRepository,
+
     required this.premiumRepository,
+
+    required this.apiService,
+    required this.authService,
   });
 
   @override
@@ -50,7 +72,13 @@ class BepVietApp extends StatefulWidget {
 
 class _BepVietAppState extends State<BepVietApp> {
   late final AuthCubit _authCubit;
+
   late final PremiumCubit _premiumCubit;
+
+  late final MealPlanCubit _mealPlanCubit;
+  late final ShoppingListCubit _shoppingListCubit;
+  late final PantryCubit _pantryCubit;
+
   late final GoRouter _router;
 
   @override
@@ -58,6 +86,12 @@ class _BepVietAppState extends State<BepVietApp> {
     super.initState();
     _authCubit = AuthCubit(widget.authRepository);
     _premiumCubit = PremiumCubit(widget.premiumRepository);
+    _mealPlanCubit = MealPlanCubit(widget.apiService, widget.authService);
+    _shoppingListCubit = ShoppingListCubit(
+      widget.apiService,
+      widget.authService,
+    );
+    _pantryCubit = PantryCubit(widget.apiService, widget.authService);
     _router = AppRouter.router(_authCubit);
   }
 
@@ -65,34 +99,46 @@ class _BepVietAppState extends State<BepVietApp> {
   void dispose() {
     _authCubit.close();
     _premiumCubit.close();
+    _mealPlanCubit.close();
+    _shoppingListCubit.close();
+    _pantryCubit.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiRepositoryProvider(
       providers: [
-        BlocProvider<AuthCubit>.value(value: _authCubit),
-        BlocProvider<PremiumCubit>.value(value: _premiumCubit),
+        RepositoryProvider<ApiService>.value(value: widget.apiService),
+        RepositoryProvider<AuthService>.value(value: widget.authService),
       ],
-      child: BlocBuilder<AuthCubit, AuthState>(
-        builder: (context, state) {
-          // Show splash screen while checking auth
-          if (state is AuthInitial) {
-            return MaterialApp(
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<AuthCubit>.value(value: _authCubit),
+          BlocProvider<PremiumCubit>.value(value: _premiumCubit),
+          BlocProvider<MealPlanCubit>.value(value: _mealPlanCubit),
+          BlocProvider<ShoppingListCubit>.value(value: _shoppingListCubit),
+          BlocProvider<PantryCubit>.value(value: _pantryCubit),
+        ],
+        child: BlocBuilder<AuthCubit, AuthState>(
+          builder: (context, state) {
+            // Show splash screen while checking auth
+            if (state is AuthInitial) {
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.lightTheme,
+                home: const _SplashScreen(),
+              );
+            }
+
+            return MaterialApp.router(
+              title: AppConfig.appName,
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightTheme,
-              home: const _SplashScreen(),
+              routerConfig: _router,
             );
-          }
-
-          return MaterialApp.router(
-            title: AppConfig.appName,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            routerConfig: _router,
-          );
-        },
+          },
+        ),
       ),
     );
   }

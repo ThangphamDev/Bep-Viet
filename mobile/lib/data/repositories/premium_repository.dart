@@ -54,6 +54,18 @@ class PremiumRepository {
     return await _premiumService.addFamilyMember(token, familyId, request);
   }
 
+  Future<FamilyMemberModel> updateFamilyMember(
+    String token,
+    String memberId,
+    UpdateFamilyMemberRequest request,
+  ) async {
+    return await _premiumService.updateFamilyMember(token, memberId, request);
+  }
+
+  Future<void> deleteFamilyMember(String token, String memberId) async {
+    return await _premiumService.deleteFamilyMember(token, memberId);
+  }
+
   // Analytics methods
   Future<UserAnalyticsModel> getUserAnalytics(String token) async {
     return await _premiumService.getUserAnalytics(token);

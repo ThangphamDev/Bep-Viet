@@ -7,6 +7,7 @@ import 'package:bepviet_mobile/presentation/features/recipes/pages/recipe_detail
 import 'package:bepviet_mobile/presentation/features/favorites/pages/favorites_page.dart';
 import 'package:bepviet_mobile/presentation/features/planner/pages/planner_page.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/pages/pantry_page.dart';
+import 'package:bepviet_mobile/presentation/features/shopping/pages/shopping_list_page.dart';
 import 'package:bepviet_mobile/presentation/features/community/pages/community_page.dart';
 import 'package:bepviet_mobile/presentation/features/personal/pages/personal_page.dart';
 import 'package:bepviet_mobile/presentation/features/auth/pages/login_page.dart';
@@ -51,6 +52,7 @@ class AppRoutes {
 
   // Detail routes
   static const String recipeDetail = '/recipes/:id';
+  static const String shopping = '/shopping';
   static const String shoppingList = '/shopping/:id';
 }
 
@@ -91,7 +93,14 @@ class AppRouter {
       initialLocation: AppRoutes.login,
       refreshListenable: authNotifier,
       redirect: (context, state) {
-        final isAuthenticated = authCubit.state is AuthAuthenticated;
+        final authState = authCubit.state;
+
+        // Show splash (stay on current route) while checking auth
+        if (authState is AuthInitial) {
+          return null;
+        }
+
+        final isAuthenticated = authState is AuthAuthenticated;
         final isLoggingIn = state.matchedLocation == AppRoutes.login;
         final isRegistering = state.matchedLocation == AppRoutes.register;
         final isAdminRoute = state.matchedLocation.startsWith('/admin');
@@ -171,6 +180,11 @@ class AppRouter {
               path: AppRoutes.pantry,
               name: 'pantry',
               builder: (context, state) => const PantryPage(),
+            ),
+            GoRoute(
+              path: AppRoutes.shopping,
+              name: 'shopping',
+              builder: (context, state) => const ShoppingListPage(),
             ),
             GoRoute(
               path: AppRoutes.community,
