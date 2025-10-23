@@ -275,8 +275,15 @@ class MealPlanCubit extends Cubit<MealPlanState> {
     }
   }
 
-  Future<void> removeMealFromPlan(String planId, String date, String mealSlot) async {
-    emit(state.copyWith(isLoading: true, error: null));
+  Future<void> removeMealFromPlan(
+    String planId, 
+    String date, 
+    String mealSlot, {
+    bool reloadAfter = true,
+  }) async {
+    if (reloadAfter) {
+      emit(state.copyWith(isLoading: true, error: null));
+    }
     
     try {
       final token = _authService.accessToken;
@@ -290,8 +297,10 @@ class MealPlanCubit extends Cubit<MealPlanState> {
 
       await _apiService.removeMealFromPlan(token, planId, date, mealSlot);
       
-      // Reload meal plans to get updated data
-      await loadMealPlans();
+      // Reload meal plans to get updated data (only if requested)
+      if (reloadAfter) {
+        await loadMealPlans();
+      }
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,

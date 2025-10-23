@@ -9,6 +9,8 @@ import 'package:bepviet_mobile/data/models/recipe_model.dart';
 import 'package:bepviet_mobile/presentation/features/planner/cubit/meal_plan_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/cubit/pantry_cubit.dart';
 import 'package:bepviet_mobile/presentation/widgets/recipe_selection_dialog.dart';
+import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
+import 'package:bepviet_mobile/data/sources/remote/auth_service.dart';
 
 class PlannerPage extends StatefulWidget {
   const PlannerPage({super.key});
@@ -18,14 +20,14 @@ class PlannerPage extends StatefulWidget {
 }
 
 class _PlannerPageState extends State<PlannerPage>
-    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-  late TabController _tabController;
+    with AutomaticKeepAliveClientMixin {
   DateTime _selectedWeek = DateTime.now();
 
   // Cache for performance optimization
   String? _lastLoadedWeek;
   bool _isLoadingMealPlans = false;
   bool _disposed = false;
+  bool _isGeneratingPlan = false; // Loading state cho smart planning
 
   // Debounce timer to prevent rapid successive calls
   Timer? _debounceTimer;
@@ -37,7 +39,6 @@ class _PlannerPageState extends State<PlannerPage>
   void initState() {
     super.initState();
     print('PlannerPage initState called');
-    _tabController = TabController(length: 2, vsync: this);
     _selectedWeek = _getStartOfWeek(DateTime.now());
 
     // Delay initial load to avoid conflicts
@@ -53,7 +54,6 @@ class _PlannerPageState extends State<PlannerPage>
   void dispose() {
     _disposed = true;
     _debounceTimer?.cancel();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -174,20 +174,45 @@ class _PlannerPageState extends State<PlannerPage>
             ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'Lịch trình'),
-            Tab(text: 'Tạo kế hoạch'),
+      ),
+      body: Stack(
+        children: [
+          _buildWeeklyPlanView(),
+          if (_isGeneratingPlan)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'Đang lập kế hoạch...',
+                          style: TextStyle(fontSize: 16),
+                        ),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildWeeklyPlanView(), _buildCreatePlanView()],
+                ),
+              ),
+            ),
+        ],
+      ),
+      floatingActionButton: _isGeneratingPlan
+          ? null
+          : FloatingActionButton.extended(
+        onPressed: _showGeneratePlanDialog,
+        backgroundColor: AppTheme.primaryGreen,
+        icon: const Icon(Icons.auto_awesome),
+        label: const Text(
+          'Lập kế hoạch thông minh',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        heroTag: 'smart_plan',
       ),
     );
   }
@@ -332,7 +357,9 @@ class _PlannerPageState extends State<PlannerPage>
       'PlannerPage: _buildMealPlanContent - isLoading: ${state.isLoading}, error: ${state.error}, mealPlans count: ${state.mealPlans.length}',
     );
 
-    if (state.isLoading) {
+    // Don't show loading indicator if we're in smart planning mode
+    // (we already have the overlay loading indicator)
+    if (state.isLoading && !_isGeneratingPlan) {
       print('PlannerPage: Showing loading indicator');
       return const Center(child: CircularProgressIndicator());
     }
@@ -389,80 +416,15 @@ class _PlannerPageState extends State<PlannerPage>
       allMeals.addAll(mealPlan.meals);
     }
     print('PlannerPage: Found ${allMeals.length} total meals');
+    
+    // Get the meal plan ID (từ currentPlan hoặc first plan)
+    final mealPlanId = state.currentPlan?.id ?? (state.mealPlans.isNotEmpty ? state.mealPlans.first.id : '');
 
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Week navigation header
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppTheme.primaryGreen.withOpacity(0.1), Colors.white],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.2)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Tuần ${DateFormat('dd/MM').format(days.first)} - ${DateFormat('dd/MM').format(days.last)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: _disposed
-                          ? null
-                          : () {
-                              if (mounted && !_disposed) {
-                                setState(() {
-                                  _selectedWeek = _selectedWeek.subtract(
-                                    const Duration(days: 7),
-                                  );
-                                });
-                                _loadMealPlansIfNeeded();
-                              }
-                            },
-                      icon: const Icon(
-                        Icons.chevron_left,
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _disposed
-                          ? null
-                          : () {
-                              if (mounted && !_disposed) {
-                                setState(() {
-                                  _selectedWeek = _selectedWeek.add(
-                                    const Duration(days: 7),
-                                  );
-                                });
-                                _loadMealPlansIfNeeded();
-                              }
-                            },
-                      icon: const Icon(
-                        Icons.chevron_right,
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
           // Daily rows layout - each day is a row with meal slots
-          ...days.map((day) => _buildDayRow(day, allMeals)).toList(),
+          ...days.map((day) => _buildDayRow(day, allMeals, mealPlanId)).toList(),
 
           const SizedBox(height: 20),
         ],
@@ -476,7 +438,7 @@ class _PlannerPageState extends State<PlannerPage>
         DateFormat('yyyy-MM-dd').format(today);
   }
 
-  Widget _buildDayRow(DateTime day, List<MealSlot> allMeals) {
+  Widget _buildDayRow(DateTime day, List<MealSlot> allMeals, String mealPlanId) {
     final dayString = DateFormat(
       'yyyy-MM-dd',
     ).format(DateTime(day.year, day.month, day.day));
@@ -566,6 +528,18 @@ class _PlannerPageState extends State<PlannerPage>
                 ),
               ),
               const Spacer(),
+              // Clear all meals button - only show if there are meals for this day
+              if (dayMeals.any((m) => m.recipeName != null && m.recipeName!.isNotEmpty))
+                IconButton(
+                  onPressed: () => _showClearDayDialog(day, dayMeals, mealPlanId),
+                  icon: const Icon(Icons.delete_sweep),
+                  color: Colors.red.shade400,
+                  iconSize: 20,
+                  tooltip: 'Xóa toàn bộ',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              const SizedBox(width: 8),
               if (isPastDay)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -622,11 +596,14 @@ class _PlannerPageState extends State<PlannerPage>
   Widget _buildHorizontalMealSlot(MealSlot meal, DateTime day, bool isPastDay) {
     final hasRecipe = meal.recipeName != null && meal.recipeName!.isNotEmpty;
     final mealTypeDisplay = _getMealTypeDisplay(meal.mealType);
+    final mealIcon = _getMealTypeIcon(meal.mealType);
+    final mealColor = _getMealTypeColor(meal.mealType);
+    final mealGradient = _getMealTypeGradient(meal.mealType);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         onTap: isPastDay
             ? null
             : () {
@@ -643,74 +620,182 @@ class _PlannerPageState extends State<PlannerPage>
                 }
               },
         child: Container(
-          height: 80,
-          padding: const EdgeInsets.all(8),
+          height: 100,
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: hasRecipe
-                ? AppTheme.primaryGreen.withOpacity(0.1)
-                : Colors.grey.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            gradient: hasRecipe
+                ? LinearGradient(
+                    colors: mealGradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: hasRecipe ? null : Colors.grey.withOpacity(0.05),
             border: Border.all(
               color: hasRecipe
-                  ? AppTheme.primaryGreen.withOpacity(0.3)
+                  ? mealColor.withOpacity(0.3)
                   : Colors.grey.withOpacity(0.2),
+              width: 2,
             ),
+            boxShadow: hasRecipe
+                ? [
+                    BoxShadow(
+                      color: mealColor.withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Meal type header
-              Text(
-                mealTypeDisplay,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: hasRecipe
-                      ? AppTheme.primaryGreen
-                      : Colors.grey.shade600,
-                ),
-                textAlign: TextAlign.center,
+              // Meal type header with icon
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    mealIcon,
+                    size: 14,
+                    color: hasRecipe
+                        ? mealColor.withOpacity(0.9)
+                        : Colors.grey.shade500,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    mealTypeDisplay,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: hasRecipe
+                          ? mealColor.withOpacity(0.9)
+                          : Colors.grey.shade600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
 
-              // Recipe name or add button
+              // Recipe image and name or add button
               if (hasRecipe) ...[
                 Expanded(
-                  child: Center(
-                    child: Text(
-                      meal.recipeName!,
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w500,
-                        color: isPastDay
-                            ? Colors.grey.shade500
-                            : AppTheme.textPrimary,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Recipe image
+                      if (meal.recipeImage != null && meal.recipeImage!.isNotEmpty) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            meal.recipeImage!,
+                            height: 40,
+                            width: 40,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 40,
+                                width: 40,
+                                decoration: BoxDecoration(
+                                  color: mealColor.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.restaurant,
+                                  size: 20,
+                                  color: mealColor,
+                                ),
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                height: 40,
+                                width: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(mealColor),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                      // Recipe name
+                      Flexible(
+                        child: Text(
+                          meal.recipeName!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isPastDay
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade800,
+                            height: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    ],
                   ),
                 ),
               ] else if (!isPastDay) ...[
                 Expanded(
                   child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.add,
-                        size: 16,
-                        color: AppTheme.primaryGreen,
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: mealColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.add_circle_outline,
+                            size: 20,
+                            color: mealColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Thêm món',
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: mealColor.withOpacity(0.7),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ] else ...[
-                const Expanded(child: SizedBox()),
+                const Expanded(
+                  child: Center(
+                    child: Text(
+                      '-',
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ],
           ),
@@ -719,141 +804,6 @@ class _PlannerPageState extends State<PlannerPage>
     );
   }
 
-  Widget _buildCreatePlanView() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Quick Generate
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.auto_awesome, color: AppTheme.primaryGreen),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Tạo kế hoạch tự động',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'AI sẽ tạo kế hoạch 7 ngày cân bằng dinh dưỡng và chi phí',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _showGeneratePlanDialog(),
-                    icon: const Icon(Icons.auto_awesome),
-                    label: const Text('Tạo kế hoạch thông minh'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryGreen,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Manual Create
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.create, color: AppTheme.primaryGreen),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Tạo kế hoạch thủ công',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tự chọn món ăn cho từng bữa trong tuần',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _showCreateManualPlanDialog(),
-                    icon: const Icon(Icons.create),
-                    label: const Text('Tạo kế hoạch mới'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Tips
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.lightbulb_outline,
-                      color: AppTheme.primaryGreen,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Mẹo hay',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  '• Kế hoạch tự động sẽ tránh lặp món và cân bằng chi phí\n'
-                  '• Kiểm tra tủ lạnh trước khi tạo kế hoạch\n'
-                  '• Có thể chỉnh sửa từng bữa ăn sau khi tạo\n'
-                  '• Tạo danh sách mua sắm từ kế hoạch bữa ăn',
-                  style: TextStyle(color: AppTheme.textSecondary, height: 1.5),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // Helper methods
   String _getWeekRangeText(DateTime weekStart) {
@@ -872,31 +822,390 @@ class _PlannerPageState extends State<PlannerPage>
     }
   }
 
-  // Dialog methods
-  void _showGeneratePlanDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _GeneratePlanDialog(
-        selectedWeek: _selectedWeek,
-        onGenerated: () {
-          _loadMealPlans();
-          _tabController.animateTo(0);
-        },
-      ),
-    );
+  // Get icon for meal type
+  IconData _getMealTypeIcon(MealType mealType) {
+    switch (mealType) {
+      case MealType.breakfast:
+        return Icons.wb_sunny; // Sunrise for breakfast
+      case MealType.lunch:
+        return Icons.wb_sunny_outlined; // Sun for lunch
+      case MealType.dinner:
+        return Icons.nightlight_round; // Moon for dinner
+    }
   }
 
-  void _showCreateManualPlanDialog() {
-    showDialog(
+  // Get color for meal type
+  Color _getMealTypeColor(MealType mealType) {
+    switch (mealType) {
+      case MealType.breakfast:
+        return Colors.orange; // Morning orange
+      case MealType.lunch:
+        return Colors.amber; // Afternoon yellow
+      case MealType.dinner:
+        return Colors.indigo; // Evening purple/blue
+    }
+  }
+
+  // Get gradient colors for meal type
+  List<Color> _getMealTypeGradient(MealType mealType) {
+    switch (mealType) {
+      case MealType.breakfast:
+        return [Colors.orange.shade300, Colors.orange.shade100];
+      case MealType.lunch:
+        return [Colors.amber.shade300, Colors.amber.shade100];
+      case MealType.dinner:
+        return [Colors.indigo.shade300, Colors.indigo.shade100];
+    }
+  }
+
+  // Dialog methods
+  Future<void> _showGeneratePlanDialog() async {
+    print('🤖 Smart Planning: Starting...');
+    if (!mounted || _disposed) {
+      print('🤖 Smart Planning: Widget not mounted or disposed');
+      return;
+    }
+    
+    // Set loading state
+    setState(() => _isGeneratingPlan = true);
+    print('🤖 Smart Planning: Loading state set to true');
+    
+    // Lưu TẤT CẢ dependencies vào biến local NGAY từ đầu để tránh lỗi deactivated widget
+    final apiService = context.read<ApiService>();
+    final authService = context.read<AuthService>();
+    final mealPlanCubit = context.read<MealPlanCubit>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
+    try {
+      final token = authService.accessToken;
+      if (token == null) {
+        print('🤖 Smart Planning: No token found');
+        setState(() => _isGeneratingPlan = false);
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Bạn cần đăng nhập để sử dụng chức năng này'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      print('🤖 Smart Planning: Token OK');
+
+      // Lấy meal plan hiện tại
+      final currentState = mealPlanCubit.state;
+      String? mealPlanId;
+      
+      print('🤖 Smart Planning: Current meal plans count: ${currentState.mealPlans.length}');
+      
+      // Nếu chưa có meal plan cho tuần này, tạo mới
+      if (currentState.mealPlans.isEmpty) {
+        print('🤖 Smart Planning: No meal plan, creating new one...');
+        final weekString = DateFormat('yyyy-MM-dd').format(_selectedWeek);
+        await mealPlanCubit.createMealPlan(
+          weekString,
+          note: 'Kế hoạch tuần ${DateFormat('dd/MM').format(_selectedWeek)}',
+        );
+        print('🤖 Smart Planning: Meal plan created');
+        
+        if (!mounted || _disposed) {
+          setState(() => _isGeneratingPlan = false);
+          return;
+        }
+        
+        // Đợi một chút để state cập nhật
+        await Future.delayed(const Duration(milliseconds: 300));
+        
+        if (!mounted || _disposed) {
+          setState(() => _isGeneratingPlan = false);
+          return;
+        }
+        
+        final newState = mealPlanCubit.state;
+        if (newState.mealPlans.isNotEmpty) {
+          mealPlanId = newState.mealPlans.first.id;
+          print('🤖 Smart Planning: Got meal plan ID: $mealPlanId');
+        } else {
+          print('🤖 Smart Planning: ERROR - No meal plan after creation');
+        }
+      } else {
+        mealPlanId = currentState.mealPlans.first.id;
+        print('🤖 Smart Planning: Using existing meal plan ID: $mealPlanId');
+      }
+
+      if (mealPlanId == null) {
+        print('🤖 Smart Planning: ERROR - mealPlanId is null');
+        setState(() => _isGeneratingPlan = false);
+        throw Exception('Không thể tạo kế hoạch bữa ăn');
+      }
+
+      print('🤖 Smart Planning: Calling AI to generate meal suggestions...');
+      // Gọi API để lấy gợi ý món ăn (sử dụng giá trị mặc định)
+      final suggestedPlan = await apiService.generateMealPlan(
+        token,
+        startDate: _selectedWeek,
+        region: 'NAM', // Mặc định
+        budgetPerMeal: 50000, // Mặc định
+        servings: 2, // Mặc định
+      );
+      
+      print('🤖 Smart Planning: AI returned ${suggestedPlan.meals.length} meal suggestions');
+      
+      if (!mounted || _disposed) {
+        setState(() => _isGeneratingPlan = false);
+        return;
+      }
+
+      // Lấy lại state mới sau khi tạo meal plan
+      final latestState = mealPlanCubit.state;
+      
+      // Lấy danh sách các buổi ăn hiện có
+      final existingMeals = latestState.mealPlans.isNotEmpty 
+          ? latestState.mealPlans.first.meals 
+          : <MealSlot>[];
+      int addedCount = 0;
+
+      print('🤖 Smart Planning: Existing meals count: ${existingMeals.length}');
+
+      // Lấy ngày hiện tại (chỉ ngày, bỏ giờ)
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      
+      print('🤖 Smart Planning: Today date: $todayDate');
+
+      // Duyệt qua từng món ăn được gợi ý
+      print('🤖 Smart Planning: Processing suggestions...');
+      for (final suggestedMeal in suggestedPlan.meals) {
+        // Parse ngày của món ăn được gợi ý
+        final mealDate = DateTime.tryParse(suggestedMeal.date);
+        if (mealDate == null) {
+          print('🤖 Smart Planning: Skipped meal - invalid date: ${suggestedMeal.date}');
+          continue;
+        }
+        
+        final mealDateOnly = DateTime(mealDate.year, mealDate.month, mealDate.day);
+        
+        // Bỏ qua những ngày đã qua
+        if (mealDateOnly.isBefore(todayDate)) {
+          print('🤖 Smart Planning: Skipped meal - past date: $mealDateOnly (${suggestedMeal.mealType})');
+          continue;
+        }
+
+        // Kiểm tra xem buổi này đã có món ăn chưa
+        final hasExistingMeal = existingMeals.any((meal) =>
+            meal.date == suggestedMeal.date &&
+            meal.mealType == suggestedMeal.mealType &&
+            meal.recipeName != null &&
+            meal.recipeName!.isNotEmpty);
+
+        if (hasExistingMeal) {
+          print('🤖 Smart Planning: Skipped meal - slot already filled: $mealDateOnly (${suggestedMeal.mealType})');
+          continue;
+        }
+
+        if (suggestedMeal.recipeId == null) {
+          print('🤖 Smart Planning: Skipped meal - no recipe ID: $mealDateOnly (${suggestedMeal.mealType})');
+          continue;
+        }
+
+        // Nếu chưa có món ăn, thêm vào
+        print('🤖 Smart Planning: Adding meal: ${suggestedMeal.recipeName} to $mealDateOnly (${suggestedMeal.mealType})');
+        
+        // Convert to UPPERCASE - backend expects this!
+        String mealSlotString = '';
+        switch (suggestedMeal.mealType) {
+          case MealType.breakfast:
+            mealSlotString = 'BREAKFAST';
+            break;
+          case MealType.lunch:
+            mealSlotString = 'LUNCH';
+            break;
+          case MealType.dinner:
+            mealSlotString = 'DINNER';
+            break;
+        }
+
+        final dto = AddMealDto(
+          date: suggestedMeal.date,
+          mealSlot: mealSlotString,
+          recipeId: suggestedMeal.recipeId!,
+          servings: 2, // Mặc định
+        );
+
+        await mealPlanCubit.addMealToPlan(mealPlanId, dto);
+        print('🤖 Smart Planning: Meal added successfully');
+        
+        if (!mounted || _disposed) {
+          print('🤖 Smart Planning: Widget disposed after adding meal');
+          setState(() => _isGeneratingPlan = false);
+          return;
+        }
+        
+        addedCount++;
+        
+        // Đợi một chút giữa các request để tránh quá tải
+        await Future.delayed(const Duration(milliseconds: 200));
+        
+        if (!mounted || _disposed) {
+          setState(() => _isGeneratingPlan = false);
+          return;
+        }
+      }
+
+      print('🤖 Smart Planning: Completed! Added $addedCount meals');
+
+      // Tắt loading
+      setState(() => _isGeneratingPlan = false);
+
+      if (!mounted || _disposed) return;
+      
+      // Reload meal plans
+      print('🤖 Smart Planning: Reloading meal plans...');
+      _lastLoadedWeek = null;
+      if (mounted && !_disposed) {
+        _loadMealPlans();
+      }
+
+      // Hiển thị thông báo
+      print('🤖 Smart Planning: Showing result notification');
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            addedCount > 0
+                ? '🎉 Đã lập kế hoạch thành công! Thêm $addedCount món ăn'
+                : '✓ Kế hoạch của bạn đã đầy đủ!',
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('🤖 Smart Planning: ERROR - ${e.toString()}');
+      print('🤖 Smart Planning: ERROR Stack trace: ${StackTrace.current}');
+      
+      // Tắt loading
+      if (mounted && !_disposed) {
+        setState(() => _isGeneratingPlan = false);
+      }
+      
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Clear all meals for a specific day
+  Future<void> _showClearDayDialog(DateTime day, List<MealSlot> dayMeals, String mealPlanId) async {
+    if (!mounted || _disposed) return;
+    
+    // Filter only meals that have recipes
+    final mealsToDelete = dayMeals.where((m) => m.recipeName != null && m.recipeName!.isNotEmpty).toList();
+    
+    if (mealsToDelete.isEmpty) return;
+    
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => _CreateManualPlanDialog(
-        selectedWeek: _selectedWeek,
-        onCreated: () {
-          _loadMealPlans();
-          _tabController.animateTo(0);
-        },
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa toàn bộ món ăn'),
+        content: Text(
+          'Bạn có chắc muốn xóa ${mealsToDelete.length} món ăn của ngày ${DateFormat('dd/MM/yyyy').format(day)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+                    ),
+            child: const Text('Xóa tất cả'),
+          ),
+        ],
       ),
     );
+    
+    if (confirmed == true && mounted && !_disposed) {
+      await _clearDayMeals(day, mealsToDelete, mealPlanId);
+    }
+  }
+
+  Future<void> _clearDayMeals(DateTime day, List<MealSlot> mealsToDelete, String mealPlanId) async {
+    if (!mounted || _disposed) return;
+    
+    // Store ALL dependencies locally FIRST
+    final mealPlanCubit = context.read<MealPlanCubit>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
+    try {
+      if (!mounted || _disposed) return;
+      
+      // Use the day parameter for date (already in correct local timezone)
+      final dateString = DateFormat('yyyy-MM-dd').format(day);
+      
+      // Delete all meals for this day (without reloading after each deletion)
+      for (final meal in mealsToDelete) {
+        if (!mounted || _disposed) break;
+        
+        // Convert MealType to string for API (UPPERCASE - backend expects this!)
+        String mealSlotString = '';
+        switch (meal.mealType) {
+      case MealType.breakfast:
+            mealSlotString = 'BREAKFAST';
+            break;
+      case MealType.lunch:
+            mealSlotString = 'LUNCH';
+            break;
+      case MealType.dinner:
+            mealSlotString = 'DINNER';
+            break;
+        }
+        
+        // Skip reload for batch deletion - we'll reload once at the end
+        await mealPlanCubit.removeMealFromPlan(
+          mealPlanId, 
+          dateString, 
+          mealSlotString,
+          reloadAfter: false,
+        );
+        
+        if (!mounted || _disposed) break;
+        
+        // Small delay to avoid overwhelming the backend
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      
+      if (!mounted || _disposed) return;
+      
+      // Reload meal plans
+      _lastLoadedWeek = null;
+      await _loadMealPlans();
+      
+      if (!mounted || _disposed) return;
+      
+      // Show success message
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('✓ Đã xóa ${mealsToDelete.length} món ăn'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted || _disposed) return;
+      
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: const Text('❌ Lỗi khi xóa món ăn'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _selectRecipeForMeal(MealSlot meal, DateTime day) async {
@@ -979,18 +1288,19 @@ class _PlannerPageState extends State<PlannerPage>
       }
     }
 
+    // Convert to UPPERCASE - backend expects this!
     switch (meal.mealType) {
       case MealType.breakfast:
         mealTypeDisplay = 'bữa sáng';
-        mealSlotString = 'breakfast';
+        mealSlotString = 'BREAKFAST';
         break;
       case MealType.lunch:
         mealTypeDisplay = 'bữa trưa';
-        mealSlotString = 'lunch';
+        mealSlotString = 'LUNCH';
         break;
       case MealType.dinner:
         mealTypeDisplay = 'bữa tối';
-        mealSlotString = 'dinner';
+        mealSlotString = 'DINNER';
         break;
     }
 
@@ -1178,17 +1488,17 @@ class _PlannerPageState extends State<PlannerPage>
                   'Date: ${DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day))}',
                 );
 
-                // Get meal slot string for API
+                // Get meal slot string for API (UPPERCASE - backend expects this!)
                 String mealSlotString = '';
                 switch (meal.mealType) {
                   case MealType.breakfast:
-                    mealSlotString = 'breakfast';
+                    mealSlotString = 'BREAKFAST';
                     break;
                   case MealType.lunch:
-                    mealSlotString = 'lunch';
+                    mealSlotString = 'LUNCH';
                     break;
                   case MealType.dinner:
-                    mealSlotString = 'dinner';
+                    mealSlotString = 'DINNER';
                     break;
                 }
 
@@ -1294,245 +1604,4 @@ class _PlannerPageState extends State<PlannerPage>
     }
   }
 
-  // Method to generate shopping list from current meal plan
-}
-
-// Generate Plan Dialog
-class _GeneratePlanDialog extends StatefulWidget {
-  final DateTime selectedWeek;
-  final VoidCallback onGenerated;
-
-  const _GeneratePlanDialog({
-    required this.selectedWeek,
-    required this.onGenerated,
-  });
-
-  @override
-  State<_GeneratePlanDialog> createState() => _GeneratePlanDialogState();
-}
-
-class _GeneratePlanDialogState extends State<_GeneratePlanDialog> {
-  final _nameController = TextEditingController();
-  int _servings = 2;
-  String _budgetRange = 'medium';
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController.text =
-        'Kế hoạch tuần ${DateFormat('dd/MM').format(widget.selectedWeek)}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocListener<MealPlanCubit, MealPlanState>(
-      listener: (context, state) {
-        if (!state.isLoading &&
-            state.error == null &&
-            state.mealPlans.isNotEmpty) {
-          Navigator.pop(context);
-          widget.onGenerated();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kế hoạch đã được tạo thành công!')),
-          );
-        } else if (state.error != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Lỗi: ${state.error}')));
-        }
-      },
-      child: AlertDialog(
-        title: const Text('Tạo kế hoạch thông minh'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Name
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên kế hoạch',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Servings
-              Text(
-                'Số phần ăn: $_servings',
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-              Slider(
-                value: _servings.toDouble(),
-                min: 1,
-                max: 8,
-                divisions: 7,
-                onChanged: (value) => setState(() => _servings = value.round()),
-              ),
-              const SizedBox(height: 16),
-
-              // Budget
-              const Text(
-                'Mức chi phí:',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _budgetRange,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'low', child: Text('Tiết kiệm')),
-                  DropdownMenuItem(value: 'medium', child: Text('Trung bình')),
-                  DropdownMenuItem(value: 'high', child: Text('Cao cấp')),
-                ],
-                onChanged: (value) => setState(() => _budgetRange = value!),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          BlocBuilder<MealPlanCubit, MealPlanState>(
-            builder: (context, state) {
-              final isLoading = state.isLoading;
-              return ElevatedButton(
-                onPressed: isLoading ? null : _generatePlan,
-                child: isLoading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Tạo kế hoạch'),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _generatePlan() {
-    context.read<MealPlanCubit>().generateMealPlan(
-      startDate: widget.selectedWeek,
-      region: 'NAM',
-      budgetPerMeal: _budgetRange == 'low'
-          ? 30000
-          : (_budgetRange == 'high' ? 80000 : 50000),
-      servings: 2,
-    );
-  }
-}
-
-// Create Manual Plan Dialog
-class _CreateManualPlanDialog extends StatefulWidget {
-  final DateTime selectedWeek;
-  final VoidCallback onCreated;
-
-  const _CreateManualPlanDialog({
-    required this.selectedWeek,
-    required this.onCreated,
-  });
-
-  @override
-  State<_CreateManualPlanDialog> createState() =>
-      _CreateManualPlanDialogState();
-}
-
-class _CreateManualPlanDialogState extends State<_CreateManualPlanDialog> {
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController.text =
-        'Kế hoạch tuần ${DateFormat('dd/MM').format(widget.selectedWeek)}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocListener<MealPlanCubit, MealPlanState>(
-      listener: (context, state) {
-        if (!state.isLoading &&
-            state.error == null &&
-            state.mealPlans.isNotEmpty) {
-          Navigator.pop(context);
-          widget.onCreated();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kế hoạch đã được tạo thành công!')),
-          );
-        } else if (state.error != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Lỗi: ${state.error}')));
-        }
-      },
-      child: AlertDialog(
-        title: const Text('Tạo kế hoạch mới'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Tên kế hoạch *',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Mô tả (tùy chọn)',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          BlocBuilder<MealPlanCubit, MealPlanState>(
-            builder: (context, state) {
-              final isLoading = state.isLoading;
-              return ElevatedButton(
-                onPressed: isLoading ? null : _createPlan,
-                child: isLoading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Tạo'),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _createPlan() {
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập tên kế hoạch')),
-      );
-      return;
-    }
-
-    context.read<MealPlanCubit>().createMealPlan(
-      DateFormat('yyyy-MM-dd').format(widget.selectedWeek),
-      note: _nameController.text.trim().isEmpty
-          ? null
-          : _nameController.text.trim(),
-    );
-  }
 }

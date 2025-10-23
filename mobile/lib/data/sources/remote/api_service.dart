@@ -786,45 +786,62 @@ class ApiService {
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
+      print('🤖 API generateMealPlan - Status: ${response.statusCode}');
+      print('🤖 API generateMealPlan - Response: ${response.data}');
+
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
+        print('🤖 API generateMealPlan - responseData["success"]: ${responseData['success']}');
+        print('🤖 API generateMealPlan - responseData["data"] type: ${responseData['data']?.runtimeType}');
+        
         if (responseData['success'] == true &&
             responseData['data'] is Map<String, dynamic>) {
           final data = responseData['data'] as Map<String, dynamic>;
+          print('🤖 API generateMealPlan - data keys: ${data.keys}');
 
           // Parse meals from the response
           List<MealSlot> meals = [];
           if (data['days'] is List) {
             final days = data['days'] as List;
+            print('🤖 API generateMealPlan - days count: ${days.length}');
             for (var day in days) {
               if (day is Map<String, dynamic> &&
                   day['meals'] is Map<String, dynamic>) {
                 final dayMeals = day['meals'] as Map<String, dynamic>;
                 final date = day['date']?.toString() ?? '';
 
-                // Parse each meal slot (breakfast, lunch, dinner)
-                for (var mealType in ['breakfast', 'lunch', 'dinner']) {
-                  if (dayMeals[mealType] is Map<String, dynamic>) {
-                    final mealData = dayMeals[mealType] as Map<String, dynamic>;
+                print('🤖 API generateMealPlan - Processing date: $date');
+                print('🤖 API generateMealPlan - dayMeals keys: ${dayMeals.keys}');
 
-                    // Convert string mealType to MealType enum
-                    MealType mealTypeEnum;
-                    switch (mealType) {
-                      case 'breakfast':
-                        mealTypeEnum = MealType.breakfast;
-                        break;
-                      case 'lunch':
-                        mealTypeEnum = MealType.lunch;
-                        break;
-                      case 'dinner':
-                        mealTypeEnum = MealType.dinner;
-                        break;
-                      default:
-                        mealTypeEnum = MealType.breakfast;
+                // Parse each meal slot (breakfast, lunch, dinner)
+                // Check both uppercase and lowercase keys
+                final mealTypesMap = {
+                  MealType.breakfast: ['BREAKFAST', 'breakfast'],
+                  MealType.lunch: ['LUNCH', 'lunch'],
+                  MealType.dinner: ['DINNER', 'dinner'],
+                };
+
+                for (var entry in mealTypesMap.entries) {
+                  final mealTypeEnum = entry.key;
+                  final possibleKeys = entry.value;
+                  
+                  // Try to find meal data with either uppercase or lowercase key
+                  Map<String, dynamic>? mealData;
+                  String? foundKey;
+                  
+                  for (var key in possibleKeys) {
+                    if (dayMeals[key] is Map<String, dynamic>) {
+                      mealData = dayMeals[key] as Map<String, dynamic>;
+                      foundKey = key;
+                      break;
                     }
+                  }
+                  
+                  if (mealData != null && foundKey != null) {
+                    print('🤖 API generateMealPlan - Found meal: $foundKey = ${mealData['recipe_name']}');
 
                     final meal = MealSlot(
-                      id: 'generated-${DateTime.now().millisecondsSinceEpoch}-$mealType-$date',
+                      id: 'generated-${DateTime.now().millisecondsSinceEpoch}-$foundKey-$date',
                       mealPlanId:
                           'generated-${DateTime.now().millisecondsSinceEpoch}',
                       date: date,
@@ -840,6 +857,8 @@ class ApiService {
                 }
               }
             }
+            
+            print('🤖 API generateMealPlan - Total meals parsed: ${meals.length}');
           }
 
           // Convert the backend response to our model format
