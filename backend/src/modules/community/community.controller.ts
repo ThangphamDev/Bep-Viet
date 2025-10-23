@@ -146,7 +146,7 @@ export class CommunityController {
   @ApiResponse({ status: 403, description: 'Forbidden - Not the author' })
   @ApiResponse({ status: 404, description: 'Recipe not found' })
   async deleteRecipe(@Param('id') id: string, @Request() req) {
-    return this.communityService.deleteCommunityRecipe(id, req.user.id);
+    return this.communityService.deleteCommunityRecipe(id, req.user.id, req.user.role);
   }
 
   @Post('upload-image')

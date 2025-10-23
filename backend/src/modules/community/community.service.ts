@@ -572,7 +572,7 @@ export class CommunityService {
     for (const ing of (ingredients as any[])) {
       // Try to find matching ingredient in ingredients table
       const [matchedIngredients] = await this.db.execute(
-        `SELECT id FROM ingredients WHERE name_vi = ? LIMIT 1`,
+        `SELECT id FROM ingredients WHERE name = ? LIMIT 1`,
         [ing.ingredient_name]
       );
 
@@ -773,7 +773,7 @@ export class CommunityService {
     return this.getCommunityRecipeById(recipeId);
   }
 
-  async deleteCommunityRecipe(recipeId: string, userId: string) {
+  async deleteCommunityRecipe(recipeId: string, userId: string, userRole?: string) {
     // Check if recipe exists and belongs to user
     const [recipes] = await this.db.execute(
       'SELECT id, author_user_id FROM community_recipes WHERE id = ?',
@@ -785,7 +785,8 @@ export class CommunityService {
       throw new NotFoundException('Community recipe not found');
     }
 
-    if (recipe.author_user_id !== userId) {
+    // Allow deletion if user is the author OR if user is an admin
+    if (recipe.author_user_id !== userId && userRole !== 'ADMIN') {
       throw new Error('You are not authorized to delete this recipe');
     }
 
