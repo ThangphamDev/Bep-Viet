@@ -41,7 +41,6 @@ export class CommunityService {
         cr.id,
         cr.title,
         cr.region,
-        cr.description_md,
         cr.difficulty,
         cr.time_min,
         cr.cost_hint,
@@ -82,7 +81,7 @@ export class CommunityService {
       params.push(`%${filters.search}%`, `%${filters.search}%`);
     }
 
-    query += ' GROUP BY cr.id, cr.title, cr.region, cr.description_md, cr.difficulty, cr.time_min, cr.cost_hint, cr.image_url, cr.status, cr.created_at, cr.updated_at, u.name ORDER BY cr.created_at DESC';
+    query += ' GROUP BY cr.id ORDER BY cr.created_at DESC';
 
     if (filters.limit) {
       query += ' LIMIT ?';
