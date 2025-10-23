@@ -1200,7 +1200,9 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
         title: const Text('Lưu vào tủ lạnh'),
         content: Text(
           'Bạn muốn lưu ${checkedItems.length} món đã mua vào tủ lạnh?\n\n'
-          'Các món này sẽ được thêm vào tủ lạnh với số lượng mặc định.',
+          '📅 Ngày mua: Hôm nay\n'
+          '⏰ Hạn sử dụng: 7 ngày\n'
+          '📦 Vị trí: Tủ lạnh',
         ),
         actions: [
           TextButton(
@@ -1259,12 +1261,16 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       // Add each item to pantry
       for (final item in checkedItems) {
         try {
+          // Calculate expiry date: purchase date + 7 days (max usage period)
+          final purchaseDate = DateTime.now();
+          final expiryDate = purchaseDate.add(const Duration(days: 7));
+          
           final dto = AddPantryItemDto(
             ingredientId: item.ingredientId,
             quantity: item.quantity,
             unit: item.unit,
-            expiryDate: null, // User can update later
-            purchaseDate: DateTime.now(),
+            expiryDate: expiryDate, // Auto-calculate: today + 7 days
+            purchaseDate: purchaseDate, // Today (will use created_at from backend)
             location: PantryLocation.fridge.value,
             notes: null, // Don't set notes to allow merging duplicate items
           );

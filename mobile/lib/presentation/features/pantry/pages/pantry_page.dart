@@ -19,6 +19,10 @@ class _PantryPageState extends State<PantryPage>
   final _searchController = TextEditingController();
   String _searchQuery = '';
   
+  // Multi-select state
+  bool _isSelectionMode = false;
+  final Set<String> _selectedItemIds = {};
+  
   @override
   void initState() {
     super.initState();
@@ -43,34 +47,56 @@ class _PantryPageState extends State<PantryPage>
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Tủ lạnh',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: _isSelectionMode 
+            ? Text(
+                'Đã chọn ${_selectedItemIds.length}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              )
+            : const Text(
+                'Tủ lạnh',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
         backgroundColor: AppTheme.primaryGreen,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showAddItemDialog(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () => _showFilterDialog(),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'Tất cả'),
-            Tab(text: 'Cần chú ý'),
-            Tab(text: 'Thống kê'),
-          ],
-        ),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+              )
+            : null,
+        actions: _isSelectionMode
+            ? [
+                if (_selectedItemIds.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: _deleteSelectedItems,
+                    tooltip: 'Xóa đã chọn',
+                  ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () => _showAddItemDialog(),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: () => _showFilterDialog(),
+                ),
+              ],
+        bottom: _isSelectionMode 
+            ? null
+            : TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.white,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                tabs: const [
+                  Tab(text: 'Tất cả'),
+                  Tab(text: 'Cần chú ý'),
+                  Tab(text: 'Thống kê'),
+                ],
+              ),
       ),
       body: BlocConsumer<PantryCubit, PantryState>(
         listener: (context, state) {
@@ -213,30 +239,104 @@ class _PantryPageState extends State<PantryPage>
       statusText = 'Sắp hết';
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _showItemDetailsDialog(item),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            statusColor.withOpacity(0.03),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: statusColor.withOpacity(0.25),
+          width: 1.5,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            if (_isSelectionMode) {
+              _toggleItemSelection(item.id);
+            } else {
+              _showItemDetailsDialog(item);
+            }
+          },
+          onLongPress: () {
+            if (!_isSelectionMode) {
+              _enterSelectionMode(item.id);
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Selection checkbox
+                if (_isSelectionMode) ...[
+                  Checkbox(
+                    value: _selectedItemIds.contains(item.id),
+                    onChanged: (value) => _toggleItemSelection(item.id),
+                    activeColor: AppTheme.primaryGreen,
+                  ),
+                  const SizedBox(width: 8),
+                ],
               // Item image placeholder
+              // Image or Icon with background
               Container(
-                width: 60,
-                height: 60,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  gradient: LinearGradient(
+                    colors: [
+                      statusColor.withOpacity(0.2),
+                      statusColor.withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: statusColor.withOpacity(0.3),
+                    width: 2,
+                  ),
                 ),
-                child: Icon(
-                  _getLocationIcon(item.location),
-                  color: AppTheme.primaryGreen,
-                  size: 28,
-                ),
+                child: item.ingredientImage != null && item.ingredientImage!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          item.ingredientImage!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              _getLocationIcon(item.location),
+                              color: statusColor,
+                              size: 32,
+                            );
+                          },
+                        ),
+                      )
+                    : Icon(
+                        _getLocationIcon(item.location),
+                        color: statusColor,
+                        size: 32,
+                      ),
               ),
               const SizedBox(width: 12),
               
@@ -288,64 +388,94 @@ class _PantryPageState extends State<PantryPage>
                 ),
               ),
 
-              // Status and actions
-              Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      statusText,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
+              // Status and actions (hide in selection mode)
+              if (!_isSelectionMode)
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        statusText,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                      // Consume button
                       InkWell(
                         onTap: () => _showConsumeDialog(item),
                         child: Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
+                            color: AppTheme.primaryGreen.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppTheme.primaryGreen.withOpacity(0.3),
+                            ),
                           ),
                           child: Icon(
-                            Icons.remove,
-                            size: 16,
+                            Icons.remove_circle_outline,
+                            size: 18,
                             color: AppTheme.primaryGreen,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
+                      // Edit button
                       InkWell(
                         onTap: () => _showEditItemDialog(item),
                         child: Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
+                            color: Colors.blue.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.blue.withOpacity(0.3),
+                            ),
                           ),
                           child: const Icon(
-                            Icons.edit,
-                            size: 16,
+                            Icons.edit_outlined,
+                            size: 18,
                             color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Delete button
+                      InkWell(
+                        onTap: () => _showDeleteItemDialog(item),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.red.withOpacity(0.3),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: Colors.red,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -652,6 +782,85 @@ class _PantryPageState extends State<PantryPage>
     }
   }
 
+  // Selection mode methods
+  void _enterSelectionMode(String itemId) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedItemIds.add(itemId);
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedItemIds.clear();
+    });
+  }
+
+  void _toggleItemSelection(String itemId) {
+    setState(() {
+      if (_selectedItemIds.contains(itemId)) {
+        _selectedItemIds.remove(itemId);
+        // Exit selection mode if no items selected
+        if (_selectedItemIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedItemIds.add(itemId);
+      }
+    });
+  }
+
+  void _deleteSelectedItems() async {
+    if (_selectedItemIds.isEmpty) return;
+
+    final itemCount = _selectedItemIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text(
+          'Bạn có chắc muốn xóa $itemCount nguyên liệu đã chọn?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final cubit = context.read<PantryCubit>();
+      
+      // Delete all selected items without reloading after each one
+      for (final itemId in _selectedItemIds) {
+        await cubit.deletePantryItem(itemId, reloadAfter: false);
+      }
+      
+      // Exit selection mode
+      _exitSelectionMode();
+      
+      // Reload data only once at the end
+      _loadPantryData();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã xóa $itemCount nguyên liệu'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
   // Dialog methods
   void _showAddItemDialog() {
     showDialog(
@@ -678,6 +887,64 @@ class _PantryPageState extends State<PantryPage>
     showDialog(
       context: context,
       builder: (context) => _ConsumeItemDialog(item: item),
+    );
+  }
+
+  void _showDeleteItemDialog(PantryItemModel item) {
+    // Extract real name from notes if it's a manual entry
+    String displayName = item.ingredientName;
+    if (item.ingredientName == 'Khác' && item.notes != null) {
+      final match = RegExp(r'^Tên:\s*(.+?)(?:\.\s*(.*))?$').firstMatch(item.notes!);
+      if (match != null) {
+        displayName = match.group(1)!.trim();
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa nguyên liệu'),
+        content: Text(
+          'Bạn có chắc muốn xóa "$displayName" khỏi tủ lạnh?\n\n'
+          'Hành động này không thể hoàn tác.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await context.read<PantryCubit>().deletePantryItem(item.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✓ Đã xóa "$displayName"'),
+                      backgroundColor: AppTheme.successColor,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Lỗi khi xóa: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1133,8 +1400,16 @@ class _EditItemDialogState extends State<_EditItemDialog> {
       (loc) => loc.value == widget.item.location,
       orElse: () => PantryLocation.fridge,
     );
-    _expiryDate = widget.item.expiryDate;
+    
+    // Auto-calculate expiry date if not set: purchase date + 7 days
     _purchaseDate = widget.item.purchaseDate;
+    if (widget.item.expiryDate != null) {
+      _expiryDate = widget.item.expiryDate;
+    } else if (_purchaseDate != null) {
+      // Auto-calculate: purchase date + 7 days
+      _expiryDate = _purchaseDate!.add(const Duration(days: 7));
+    }
+    
     _notesController.text = widget.item.notes ?? '';
   }
 

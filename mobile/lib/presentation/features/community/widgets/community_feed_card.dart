@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import '../../../../data/models/community_recipe.dart';
 
@@ -464,7 +463,9 @@ ${recipe.descriptionMd ?? 'Công thức nấu ăn ngon từ cộng đồng Bếp
 Tải ứng dụng Bếp Việt để xem chi tiết công thức!
     ''';
     
-    Share.share(shareText, subject: 'Công thức: ${recipe.title}');
+    // TODO: Implement share using platform channels or native code
+    debugPrint('Share: $shareText');
+    // For now, just show a snackbar
   }
 
   void _handleSave() {

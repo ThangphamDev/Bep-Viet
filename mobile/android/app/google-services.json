@@ -1,0 +1,44 @@
+{
+  "project_info": {
+    "project_number": "823375731447",
+    "project_id": "bepviet-mobile",
+    "storage_bucket": "bepviet-mobile.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:823375731447:android:bepviet",
+        "android_client_info": {
+          "package_name": "com.bepviet.app.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "823375731447-5c6ihm72td3vfil639r4is13h8fjcvq1.apps.googleusercontent.com",
+          "client_type": 1
+        },
+        {
+          "client_id": "823375731447-5c6ihm72td3vfil639r4is13h8fjcvq1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDummyKeyForGoogleCloudConsole"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "823375731447-5c6ihm72td3vfil639r4is13h8fjcvq1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+
