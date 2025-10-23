@@ -125,19 +125,36 @@ class AdminCommunityPage extends StatelessWidget {
   void _showPromoteDialog(BuildContext context, recipe) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Promote Recipe'),
         content: Text('Bạn có chắc muốn promote công thức "${recipe.title}" thành công thức chính thức?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<AdminCubit>().promoteRecipe(recipe.id);
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final success = await context.read<AdminCubit>().promoteRecipe(recipe.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success 
+                        ? 'Đã promote công thức "${recipe.title}" thành công!' 
+                        : 'Không thể promote công thức. Vui lòng thử lại.'
+                    ),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Promote'),
           ),
         ],
@@ -148,18 +165,31 @@ class AdminCommunityPage extends StatelessWidget {
   void _showDeleteDialog(BuildContext context, recipe) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Recipe'),
-        content: Text('Bạn có chắc muốn xóa công thức "${recipe.title}"?'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa công thức'),
+        content: Text('Bạn có chắc muốn xóa công thức "${recipe.title}"? Hành động này không thể hoàn tác.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<AdminCubit>().deleteRecipe(recipe.id);
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final success = await context.read<AdminCubit>().deleteRecipe(recipe.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success 
+                        ? 'Đã xóa công thức "${recipe.title}" thành công!' 
+                        : 'Không thể xóa công thức. Vui lòng thử lại.'
+                    ),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
