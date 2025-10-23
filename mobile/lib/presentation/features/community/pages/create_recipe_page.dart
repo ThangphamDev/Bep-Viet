@@ -413,9 +413,6 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                             Expanded(
                               child: TextFormField(
                                 controller: _ingredientQuantityControllers[index],
-
-                                initialValue: ingredient.quantity,
-
                                 decoration: InputDecoration(
                                   labelText: 'Số lượng',
                                   border: OutlineInputBorder(
@@ -423,7 +420,6 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 ),
-
                                 onChanged: (value) {
                                   _ingredients[index] = CreateIngredientRequest(
                                     name: ingredient.name,
@@ -490,7 +486,6 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                   children: [
                     ..._steps.asMap().entries.map((entry) {
                       final index = entry.key;
-                      final step = entry.value;
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
