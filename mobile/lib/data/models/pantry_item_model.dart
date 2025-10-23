@@ -41,6 +41,24 @@ class PantryItemModel {
     // Backend returns: quantity (not current_quantity), expire_date (not expiry_date), batch_code (not notes)
     final quantity = double.tryParse(json['quantity']?.toString() ?? json['current_quantity']?.toString() ?? '0') ?? 0.0;
     
+    // Parse expiry date
+    final expiryDate = json['expire_date'] != null || json['expiry_date'] != null
+        ? DateTime.tryParse(json['expire_date']?.toString() ?? json['expiry_date']?.toString() ?? '')
+        : null;
+    
+    // Calculate isExpired and daysUntilExpiry on frontend (more accurate than backend)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day); // Strip time for accurate comparison
+    
+    int calculatedDaysUntilExpiry = 0;
+    bool calculatedIsExpired = false;
+    
+    if (expiryDate != null) {
+      final expiryDay = DateTime(expiryDate.year, expiryDate.month, expiryDate.day);
+      calculatedDaysUntilExpiry = expiryDay.difference(today).inDays;
+      calculatedIsExpired = calculatedDaysUntilExpiry < 0;
+    }
+    
     return PantryItemModel(
       id: json['id']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? '',
@@ -50,17 +68,17 @@ class PantryItemModel {
       currentQuantity: quantity,
       originalQuantity: double.tryParse(json['original_quantity']?.toString() ?? '') ?? quantity,
       unit: json['unit']?.toString() ?? json['default_unit']?.toString() ?? 'g',
-      expiryDate: json['expire_date'] != null || json['expiry_date'] != null
-          ? DateTime.tryParse(json['expire_date']?.toString() ?? json['expiry_date']?.toString() ?? '')
-          : null,
+      expiryDate: expiryDate,
+      // Use purchase_date if available, otherwise use created_at as purchase date
       purchaseDate: json['purchase_date'] != null 
           ? DateTime.tryParse(json['purchase_date']?.toString() ?? '')
-          : null,
+          : DateTime.tryParse(json['created_at']?.toString() ?? ''),
       location: json['location']?.toString() ?? 'fridge',
       notes: json['batch_code']?.toString() ?? json['notes']?.toString(),
       isLowStock: json['is_low_stock'] == true || (json['status']?.toString() == 'low'),
-      isExpired: json['is_expired'] == true || (json['status']?.toString() == 'expired'),
-      daysUntilExpiry: int.tryParse(json['days_until_expiry']?.toString() ?? '') ?? 0,
+      // Use calculated values instead of backend values for accuracy
+      isExpired: calculatedIsExpired,
+      daysUntilExpiry: calculatedDaysUntilExpiry,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ?? DateTime.now(),
     );

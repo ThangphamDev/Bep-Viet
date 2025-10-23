@@ -208,8 +208,10 @@ class PantryCubit extends Cubit<PantryState> {
     }
   }
 
-  Future<void> deletePantryItem(String itemId) async {
-    emit(state.copyWith(isLoading: true, error: null));
+  Future<void> deletePantryItem(String itemId, {bool reloadAfter = true}) async {
+    if (reloadAfter) {
+      emit(state.copyWith(isLoading: true, error: null));
+    }
     
     try {
       final token = _authService.accessToken;
@@ -223,17 +225,19 @@ class PantryCubit extends Cubit<PantryState> {
 
       await _apiService.deletePantryItem(token, itemId);
       
-      final updatedItems = state.pantryItems
-          .where((item) => item.id != itemId)
-          .toList();
-      
-      emit(state.copyWith(
-        isLoading: false,
-        pantryItems: updatedItems,
-      ));
+      if (reloadAfter) {
+        final updatedItems = state.pantryItems
+            .where((item) => item.id != itemId)
+            .toList();
+        
+        emit(state.copyWith(
+          isLoading: false,
+          pantryItems: updatedItems,
+        ));
 
-      // Reload stats
-      await loadPantryStats();
+        // Reload stats
+        await loadPantryStats();
+      }
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
