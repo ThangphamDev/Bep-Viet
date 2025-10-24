@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Requ
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { FamilyService } from './family.service';
+import { CheckAllergensDto } from './dto/check-allergens.dto';
 
 @ApiTags('Family')
 @Controller('family')
@@ -54,5 +55,40 @@ export class FamilyController {
     @Param('id') memberId: string
   ) {
     return this.familyService.deleteFamilyMember(memberId);
+  }
+
+  @Post('check-allergens')
+  @ApiOperation({ 
+    summary: 'Check recipe allergens against family members (Premium Family feature)',
+    description: 'Returns conflicts if recipe ingredients match family members allergens'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Allergen check completed',
+    schema: {
+      example: {
+        success: true,
+        hasConflicts: true,
+        conflicts: [
+          {
+            memberId: 'uuid',
+            memberName: 'Bé Minh',
+            memberAgeGroup: 'KID',
+            conflictingIngredients: [
+              {
+                ingredientId: 'uuid',
+                ingredientName: 'Tôm'
+              }
+            ]
+          }
+        ]
+      }
+    }
+  })
+  async checkRecipeAllergens(
+    @Request() req,
+    @Body() dto: CheckAllergensDto
+  ) {
+    return this.familyService.checkRecipeAllergens(req.user.id, dto.recipeId);
   }
 }

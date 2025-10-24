@@ -6,6 +6,7 @@ import 'package:bepviet_mobile/data/models/user_model.dart';
 import 'package:bepviet_mobile/data/models/meal_plan_model.dart';
 import 'package:bepviet_mobile/data/models/shopping_list_model.dart';
 import 'package:bepviet_mobile/data/models/pantry_item_model.dart';
+import 'package:bepviet_mobile/data/models/family_model.dart';
 
 class ApiService {
   final Dio _dio;
@@ -791,9 +792,13 @@ class ApiService {
 
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        print('🤖 API generateMealPlan - responseData["success"]: ${responseData['success']}');
-        print('🤖 API generateMealPlan - responseData["data"] type: ${responseData['data']?.runtimeType}');
-        
+        print(
+          '🤖 API generateMealPlan - responseData["success"]: ${responseData['success']}',
+        );
+        print(
+          '🤖 API generateMealPlan - responseData["data"] type: ${responseData['data']?.runtimeType}',
+        );
+
         if (responseData['success'] == true &&
             responseData['data'] is Map<String, dynamic>) {
           final data = responseData['data'] as Map<String, dynamic>;
@@ -811,7 +816,9 @@ class ApiService {
                 final date = day['date']?.toString() ?? '';
 
                 print('🤖 API generateMealPlan - Processing date: $date');
-                print('🤖 API generateMealPlan - dayMeals keys: ${dayMeals.keys}');
+                print(
+                  '🤖 API generateMealPlan - dayMeals keys: ${dayMeals.keys}',
+                );
 
                 // Parse each meal slot (breakfast, lunch, dinner)
                 // Check both uppercase and lowercase keys
@@ -824,11 +831,11 @@ class ApiService {
                 for (var entry in mealTypesMap.entries) {
                   final mealTypeEnum = entry.key;
                   final possibleKeys = entry.value;
-                  
+
                   // Try to find meal data with either uppercase or lowercase key
                   Map<String, dynamic>? mealData;
                   String? foundKey;
-                  
+
                   for (var key in possibleKeys) {
                     if (dayMeals[key] is Map<String, dynamic>) {
                       mealData = dayMeals[key] as Map<String, dynamic>;
@@ -836,9 +843,11 @@ class ApiService {
                       break;
                     }
                   }
-                  
+
                   if (mealData != null && foundKey != null) {
-                    print('🤖 API generateMealPlan - Found meal: $foundKey = ${mealData['recipe_name']}');
+                    print(
+                      '🤖 API generateMealPlan - Found meal: $foundKey = ${mealData['recipe_name']}',
+                    );
 
                     final meal = MealSlot(
                       id: 'generated-${DateTime.now().millisecondsSinceEpoch}-$foundKey-$date',
@@ -857,8 +866,10 @@ class ApiService {
                 }
               }
             }
-            
-            print('🤖 API generateMealPlan - Total meals parsed: ${meals.length}');
+
+            print(
+              '🤖 API generateMealPlan - Total meals parsed: ${meals.length}',
+            );
           }
 
           // Convert the backend response to our model format
@@ -1299,6 +1310,36 @@ class ApiService {
       );
     } catch (e) {
       throw Exception('Failed to delete pantry item: $e');
+    }
+  }
+
+  // ⚠️ ALLERGEN CHECK - Premium Family Feature
+  Future<CheckAllergensResponse> checkRecipeAllergens(
+    String token,
+    String recipeId,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/api/family/check-allergens',
+        data: {'recipeId': recipeId},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        return CheckAllergensResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      }
+
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      // If API fails, return no conflicts (fail-safe)
+      return const CheckAllergensResponse(
+        success: false,
+        hasConflicts: false,
+        conflicts: [],
+        message: 'Failed to check allergens',
+      );
     }
   }
 }

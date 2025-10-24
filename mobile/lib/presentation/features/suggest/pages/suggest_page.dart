@@ -11,6 +11,7 @@ import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:bepviet_mobile/data/models/suggestion_model.dart';
 import 'package:bepviet_mobile/data/models/meal_plan_model.dart';
+import 'package:bepviet_mobile/data/models/family_model.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/cubit/suggest_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/widgets/suggest_filters.dart';
 import 'package:bepviet_mobile/presentation/features/suggest/widgets/suggestion_card.dart';
@@ -163,9 +164,262 @@ class _SuggestPageViewState extends State<SuggestPageView> {
       // Delay nhỏ để đảm bảo dialog chọn bữa đã đóng hoàn toàn
       await Future.delayed(const Duration(milliseconds: 100));
       if (mounted) {
+        // ⚠️ CHECK ALLERGENS FIRST (Premium Family feature)
+        await _checkAllergensAndAdd(suggestion, mealSlot);
+      }
+    }
+  }
+
+  /// ⚠️ Check allergens before adding meal (Premium Family feature)
+  Future<void> _checkAllergensAndAdd(
+    SuggestionModel suggestion,
+    String mealSlot,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConfig.tokenKey);
+
+      if (token == null) {
+        await _addToToday(suggestion, mealSlot);
+        return;
+      }
+
+      // Create API service
+      final dio = Dio();
+      dio.options.baseUrl = AppConfig.ngrokBaseUrl;
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+      final apiService = ApiService(dio);
+
+      // Check allergens
+      final allergenResponse = await apiService.checkRecipeAllergens(
+        token,
+        suggestion.recipeId,
+      );
+
+      if (!mounted) return;
+
+      // If has conflicts → Show warning dialog
+      if (allergenResponse.hasConflicts &&
+          allergenResponse.conflicts.isNotEmpty) {
+        final shouldAdd = await _showAllergenWarningDialog(
+          suggestion,
+          allergenResponse.conflicts,
+        );
+
+        if (shouldAdd == true && mounted) {
+          await _addToToday(suggestion, mealSlot);
+        }
+      } else {
+        // No conflicts → Add directly
+        await _addToToday(suggestion, mealSlot);
+      }
+    } catch (e) {
+      // If allergen check fails → Add directly (fail-safe)
+      if (mounted) {
         await _addToToday(suggestion, mealSlot);
       }
     }
+  }
+
+  /// ⚠️ Show allergen warning dialog
+  Future<bool?> _showAllergenWarningDialog(
+    SuggestionModel suggestion,
+    List<AllergenConflict> conflicts,
+  ) async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B6B).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFFF6B6B),
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Cảnh báo dị ứng',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Color(0xFFFF6B6B),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6B6B).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFFF6B6B).withOpacity(0.2),
+                  ),
+                ),
+                child: Text(
+                  'Món "${suggestion.recipeName}" có nguyên liệu mà thành viên trong gia đình bị dị ứng:',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // List conflicts
+              ...conflicts.map(
+                (conflict) => Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryGreen.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.person,
+                              size: 16,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              conflict.memberName,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Dị ứng với:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: conflict.conflictingIngredients.map((ing) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6B6B).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFFFF6B6B).withOpacity(0.3),
+                              ),
+                            ),
+                            child: Text(
+                              ing.ingredientName,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFFF6B6B),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Bạn có chắc chắn muốn thêm món này?',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B6B),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Vẫn thêm',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildMealSlotOption(

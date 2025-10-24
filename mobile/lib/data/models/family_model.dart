@@ -245,3 +245,73 @@ class FamilyProfilesResponse {
     };
   }
 }
+
+// ⚠️ ALLERGEN CHECK MODELS
+class ConflictingIngredient {
+  final String ingredientId;
+  final String ingredientName;
+
+  const ConflictingIngredient({
+    required this.ingredientId,
+    required this.ingredientName,
+  });
+
+  factory ConflictingIngredient.fromJson(Map<String, dynamic> json) {
+    return ConflictingIngredient(
+      ingredientId: json['ingredientId'] as String,
+      ingredientName: json['ingredientName'] as String,
+    );
+  }
+}
+
+class AllergenConflict {
+  final String memberId;
+  final String memberName;
+  final String memberAgeGroup;
+  final List<ConflictingIngredient> conflictingIngredients;
+
+  const AllergenConflict({
+    required this.memberId,
+    required this.memberName,
+    required this.memberAgeGroup,
+    required this.conflictingIngredients,
+  });
+
+  factory AllergenConflict.fromJson(Map<String, dynamic> json) {
+    return AllergenConflict(
+      memberId: json['memberId'] as String,
+      memberName: json['memberName'] as String,
+      memberAgeGroup: json['memberAgeGroup'] as String,
+      conflictingIngredients: (json['conflictingIngredients'] as List<dynamic>)
+          .map((e) => ConflictingIngredient.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class CheckAllergensResponse {
+  final bool success;
+  final bool hasConflicts;
+  final List<AllergenConflict> conflicts;
+  final String? message;
+
+  const CheckAllergensResponse({
+    required this.success,
+    required this.hasConflicts,
+    this.conflicts = const [],
+    this.message,
+  });
+
+  factory CheckAllergensResponse.fromJson(Map<String, dynamic> json) {
+    return CheckAllergensResponse(
+      success: json['success'] as bool,
+      hasConflicts: json['hasConflicts'] as bool,
+      conflicts:
+          (json['conflicts'] as List<dynamic>?)
+              ?.map((e) => AllergenConflict.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      message: json['message'] as String?,
+    );
+  }
+}
