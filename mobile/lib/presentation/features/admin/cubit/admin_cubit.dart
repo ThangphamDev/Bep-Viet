@@ -65,19 +65,22 @@ class AdminCubit extends Cubit<AdminState> {
     }
   }
 
-  Future<void> promoteRecipe(String recipeId) async {
+  Future<bool> promoteRecipe(String recipeId) async {
     try {
       final success = await _adminRepository.promoteRecipe(recipeId);
       if (success) {
         // Reload recipes to reflect changes
         await loadCommunityRecipes(refresh: true);
+        return true;
       }
+      return false;
     } catch (e) {
       emit(AdminState.error('Failed to promote recipe: $e'));
+      return false;
     }
   }
 
-  Future<void> deleteRecipe(String recipeId) async {
+  Future<bool> deleteRecipe(String recipeId) async {
     try {
       final success = await _adminRepository.deleteCommunityRecipe(recipeId);
       if (success) {
@@ -89,9 +92,12 @@ class AdminCubit extends Cubit<AdminState> {
               .toList();
           emit(currentState.copyWith(recipes: updatedRecipes));
         }
+        return true;
       }
+      return false;
     } catch (e) {
       emit(AdminState.error('Failed to delete recipe: $e'));
+      return false;
     }
   }
 

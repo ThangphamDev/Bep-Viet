@@ -34,7 +34,6 @@ class AppRoutes {
   static const String planner = '/planner';
   static const String pantry = '/pantry';
   static const String community = '/community';
-  static const String shopping = '/shopping';
 
   // Admin routes
   static const String admin = '/admin';
@@ -53,6 +52,7 @@ class AppRoutes {
 
   // Detail routes
   static const String recipeDetail = '/recipes/:id';
+  static const String shopping = '/shopping';
   static const String shoppingList = '/shopping/:id';
 }
 
@@ -67,7 +67,7 @@ class AuthNotifier extends ChangeNotifier {
   }
 
   bool get isAuthenticated => _authCubit.state is AuthAuthenticated;
-
+  
   bool get isAdmin {
     if (_authCubit.state is AuthAuthenticated) {
       final state = _authCubit.state as AuthAuthenticated;
@@ -75,7 +75,7 @@ class AuthNotifier extends ChangeNotifier {
     }
     return false;
   }
-
+  
   UserModel? get currentUser {
     if (_authCubit.state is AuthAuthenticated) {
       final state = _authCubit.state as AuthAuthenticated;
@@ -110,12 +110,23 @@ class AppRouter {
           return AppRoutes.login;
         }
 
-        // REMOVED: Auto-redirect when authenticated on login page
-        // Now users can stay on login page to use biometric authentication
+        // If authenticated and on auth pages, redirect based on role
+        if (isAuthenticated && (isLoggingIn || isRegistering)) {
+          if (authNotifier.isAdmin) {
+            return AppRoutes.admin;
+          } else {
+            return AppRoutes.home;
+          }
+        }
 
         // If trying to access admin routes but not admin, redirect to home
         if (isAuthenticated && isAdminRoute && !authNotifier.isAdmin) {
           return AppRoutes.home;
+        }
+
+        // If admin trying to access user routes, redirect to admin
+        if (isAuthenticated && !isAdminRoute && authNotifier.isAdmin) {
+          return AppRoutes.admin;
         }
 
         // Allow access to the requested route

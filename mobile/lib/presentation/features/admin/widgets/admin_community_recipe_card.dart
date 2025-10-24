@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
@@ -35,30 +36,62 @@ class AdminCommunityRecipeCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Recipe Image placeholder for now
-          Container(
-            width: double.infinity,
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+          // Recipe Image - only show if imageUrl exists
+          if (recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              height: 160,
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
               ),
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.primaryGreen.withOpacity(0.1),
-                  AppTheme.primaryGreen.withOpacity(0.3),
-                ],
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+                child: recipe.imageUrl!.startsWith('data:image')
+                    ? Image.memory(
+                        base64Decode(recipe.imageUrl!.split(',')[1]),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 160,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: AppTheme.primaryGreen.withOpacity(0.1),
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                size: 50,
+                                color: AppTheme.primaryGreen,
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : Image.network(
+                        recipe.imageUrl!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 160,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: AppTheme.primaryGreen.withOpacity(0.1),
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                size: 50,
+                                color: AppTheme.primaryGreen,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
               ),
             ),
-            child: const Center(
-              child: Icon(
-                Icons.restaurant_menu,
-                size: 50,
-                color: AppTheme.primaryGreen,
-              ),
-            ),
-          ),
+          ],
           
           Padding(
             padding: const EdgeInsets.all(16),
@@ -165,7 +198,7 @@ class AdminCommunityRecipeCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${recipe.avgRating.toStringAsFixed(1)} (${recipe.ratingCount} đánh giá)',
+                          '${recipe.avgRating?.toStringAsFixed(1) ?? '0.0'} (${recipe.ratingCount} đánh giá)',
                           style: const TextStyle(
                             color: AppTheme.textSecondary,
                             fontSize: 14,
@@ -288,11 +321,15 @@ class AdminCommunityRecipeCard extends StatelessWidget {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'APPROVED':
-        return Colors.green;
+        return Colors.orange; // Pending
+      case 'PROMOTED':
+        return Colors.blue; // Official
       case 'PENDING':
         return Colors.orange;
       case 'REJECTED':
         return Colors.red;
+      case 'FEATURED':
+        return Colors.purple;
       default:
         return Colors.grey;
     }
@@ -301,11 +338,15 @@ class AdminCommunityRecipeCard extends StatelessWidget {
   String _getStatusText(String status) {
     switch (status) {
       case 'APPROVED':
-        return 'Đã duyệt';
+        return 'Pending';
+      case 'PROMOTED':
+        return 'Official';
       case 'PENDING':
         return 'Chờ duyệt';
       case 'REJECTED':
         return 'Từ chối';
+      case 'FEATURED':
+        return 'Nổi bật';
       default:
         return status;
     }

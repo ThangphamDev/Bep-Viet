@@ -63,7 +63,12 @@ class AdminRepository {
       final response = await _apiService.deleteCommunityRecipe(recipeId);
       return response['success'] == true;
     } catch (e) {
-      throw Exception('Failed to delete recipe: $e');
+      print('Delete community recipe error: $e');
+      // Re-throw với message rõ ràng hơn
+      if (e.toString().contains('500')) {
+        throw Exception('Server error: Không thể xóa công thức. Vui lòng kiểm tra quyền admin hoặc thử lại sau.');
+      }
+      throw Exception('Failed to delete recipe: ${e.toString()}');
     }
   }
 

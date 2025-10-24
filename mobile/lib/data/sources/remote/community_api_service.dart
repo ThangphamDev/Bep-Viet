@@ -46,17 +46,39 @@ class CommunityApiService {
   }
 
   Future<Map<String, dynamic>> getUserCommunityRecipes() async {
-    final response = await _dio.get('/api/community/recipes/my');
+    final response = await _dio.get('/api/community/my-recipes');
     return response.data;
   }
 
   Future<Map<String, dynamic>> getPendingRecipes() async {
-    final response = await _dio.get('/api/community/recipes/pending');
+    final response = await _dio.get('/api/community/moderation/pending');
     return response.data;
   }
 
   Future<Map<String, dynamic>> moderateRecipe(String recipeId, Map<String, dynamic> request) async {
-    final response = await _dio.patch('/api/community/recipes/$recipeId/moderate', data: request);
+    final response = await _dio.put('/api/community/moderation/$recipeId', data: request);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> updateCommunityRecipe(String recipeId, Map<String, dynamic> request) async {
+    final response = await _dio.put('/api/community/recipes/$recipeId', data: request);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> deleteCommunityRecipe(String recipeId) async {
+    final response = await _dio.delete('/api/community/recipes/$recipeId');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> uploadImage(List<int> imageBytes, String mimeType) async {
+    final formData = FormData.fromMap({
+      'image': MultipartFile.fromBytes(
+        imageBytes,
+        filename: 'image.${mimeType.split('/').last}',
+      ),
+    });
+    
+    final response = await _dio.post('/api/community/upload-image', data: formData);
     return response.data;
   }
 }

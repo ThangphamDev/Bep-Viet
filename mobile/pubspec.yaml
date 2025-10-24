@@ -63,6 +63,7 @@ dependencies:
   # Animations
   lottie: ^3.0.0
   flutter_animate: ^4.3.0
+
   google_sign_in: 6.2.1
   
   # Biometric Authentication

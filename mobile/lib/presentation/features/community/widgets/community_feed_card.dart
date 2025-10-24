@@ -23,6 +23,8 @@ class CommunityFeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Render nothing; this file is deprecated.
+    // return const SizedBox.shrink();
     return GestureDetector(
       onTap: onTap,
       child: Container(
