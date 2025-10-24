@@ -4,6 +4,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
+import { RedisModule } from './modules/redis/redis.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { RegionsModule } from './modules/regions/regions.module';
@@ -28,6 +30,8 @@ import { GeminiModule } from './modules/gemini/gemini.module';
   imports: [
     AppConfigModule,
     DatabaseModule,
+    RedisModule,
+    StorageModule,
     AuthModule,
     UsersModule,
     RegionsModule,

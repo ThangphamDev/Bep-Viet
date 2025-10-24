@@ -1,9 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class RecipesService {
-  constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
+  private readonly logger = new Logger(RecipesService.name);
+  private readonly CACHE_TTL = 600; // 10 minutes for recipes (longer than suggestions)
+
+  constructor(
+    @Inject('DATABASE_CONNECTION') private db: any,
+    private redisService: RedisService,
+  ) {}
 
   async getAllRecipes(filters: any = {}) {
     try {
@@ -82,38 +89,54 @@ export class RecipesService {
   }
 
   async getRecipeById(id: string, userId?: string) {
-    const [recipes] = await this.db.execute(
-      `SELECT 
-        r.id,
-        r.name_vi,
-        r.name_en,
-        r.meal_type,
-        r.difficulty,
-        r.cook_time_min,
-        r.region,
-        r.base_region,
-        r.authenticity,
-        r.spice_level,
-        r.saltiness,
-        r.hardness,
-        r.image_url,
-        r.instructions_md,
-        r.nutrition_json,
-        r.rating_avg,
-        r.rating_count,
-        r.created_at,
-        r.updated_at
-      FROM recipes r
-      WHERE r.id = ?`,
-      [id]
-    );
+    // Try cache first (without user-specific data)
+    const cacheKey = `recipe:${id}`;
+    let recipe: any;
 
-    const recipe = (recipes as any[])[0];
-    if (!recipe) {
-      throw new NotFoundException('Recipe not found');
+    if (this.redisService.isReady()) {
+      const cached = await this.redisService.getJson(cacheKey);
+      if (cached) {
+        this.logger.log(`Cache HIT for recipe: ${id}`);
+        recipe = cached;
+      }
     }
 
-    // Check if recipe is in user's favorites
+    if (!recipe) {
+      this.logger.log(`Cache MISS for recipe: ${id}`);
+      
+      const [recipes] = await this.db.execute(
+        `SELECT 
+          r.id,
+          r.name_vi,
+          r.name_en,
+          r.meal_type,
+          r.difficulty,
+          r.cook_time_min,
+          r.region,
+          r.base_region,
+          r.authenticity,
+          r.spice_level,
+          r.saltiness,
+          r.hardness,
+          r.image_url,
+          r.instructions_md,
+          r.nutrition_json,
+          r.rating_avg,
+          r.rating_count,
+          r.created_at,
+          r.updated_at
+        FROM recipes r
+        WHERE r.id = ?`,
+        [id]
+      );
+
+      recipe = (recipes as any[])[0];
+      if (!recipe) {
+        throw new NotFoundException('Recipe not found');
+      }
+    }
+
+    // Check if recipe is in user's favorites (always fresh, not cached)
     if (userId) {
       const [favoriteCheck] = await this.db.execute(
         'SELECT 1 FROM favorites WHERE user_id = ? AND recipe_id = ?',
@@ -124,54 +147,65 @@ export class RecipesService {
       recipe.is_favorite = false;
     }
 
-    // Get ingredients
-    const [ingredients] = await this.db.execute(
-      `SELECT 
-        ri.id,
-        ri.ingredient_id,
-        i.name as ingredient_name,
-        ri.quantity,
-        ri.unit,
-        ri.note
-      FROM recipe_ingredients ri
-      JOIN ingredients i ON ri.ingredient_id = i.id
-      WHERE ri.recipe_id = ?
-      ORDER BY ri.id`,
-      [id]
-    );
+    // If not cached, get all related data
+    if (!recipe.ingredients) {
+      // Get ingredients
+      const [ingredients] = await this.db.execute(
+        `SELECT 
+          ri.id,
+          ri.ingredient_id,
+          i.name as ingredient_name,
+          ri.quantity,
+          ri.unit,
+          ri.note
+        FROM recipe_ingredients ri
+        JOIN ingredients i ON ri.ingredient_id = i.id
+        WHERE ri.recipe_id = ?
+        ORDER BY ri.id`,
+        [id]
+      );
 
-    // Get tags
-    const [tags] = await this.db.execute(
-      `SELECT 
-        t.id,
-        t.name,
-        t.type
-      FROM recipe_tags rt
-      JOIN tags t ON rt.tag_id = t.id
-      WHERE rt.recipe_id = ?`,
-      [id]
-    );
+      // Get tags
+      const [tags] = await this.db.execute(
+        `SELECT 
+          t.id,
+          t.name,
+          t.type
+        FROM recipe_tags rt
+        JOIN tags t ON rt.tag_id = t.id
+        WHERE rt.recipe_id = ?`,
+        [id]
+      );
 
-    // Get variants
-    const [variants] = await this.db.execute(
-      `SELECT 
-        rv.id,
-        rv.region,
-        rv.title,
-        rv.notes
-      FROM recipe_variants rv
-      WHERE rv.recipe_id = ?`,
-      [id]
-    );
+      // Get variants
+      const [variants] = await this.db.execute(
+        `SELECT 
+          rv.id,
+          rv.region,
+          rv.title,
+          rv.notes
+        FROM recipe_variants rv
+        WHERE rv.recipe_id = ?`,
+        [id]
+      );
+
+      // Add to recipe object
+      recipe.ingredients = ingredients;
+      recipe.tags = tags;
+      recipe.variants = variants;
+
+      // Cache the complete recipe (without is_favorite)
+      if (this.redisService.isReady()) {
+        const recipeToCache = { ...recipe };
+        delete recipeToCache.is_favorite; // Don't cache user-specific data
+        await this.redisService.setJson(cacheKey, recipeToCache, this.CACHE_TTL);
+        this.logger.log(`Cached recipe: ${id}`);
+      }
+    }
 
     return {
       success: true,
-      data: {
-        ...recipe,
-        ingredients,
-        tags,
-        variants,
-      },
+      data: recipe,
     };
   }
 

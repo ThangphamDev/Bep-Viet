@@ -5,12 +5,16 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators';
 import { CommunityService } from './community.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateCommunityRecipeDto, UpdateCommunityRecipeDto, AddCommentDto, AddRatingDto } from './dto/community.dto';
 
 @ApiTags('Community')
 @Controller('community')
 export class CommunityController {
-  constructor(private readonly communityService: CommunityService) {}
+  constructor(
+    private readonly communityService: CommunityService,
+    private readonly storageService: StorageService,
+  ) {}
 
   @Get('recipes')
   @ApiOperation({ summary: 'Get all community recipes' })
@@ -181,7 +185,7 @@ export class CommunityController {
   @Post('upload-image')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Upload image for community recipe' })
+  @ApiOperation({ summary: 'Upload image for community recipe to Cloudflare R2' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -195,11 +199,35 @@ export class CommunityController {
       }
     }
   })
-  @ApiResponse({ status: 200, description: 'Image uploaded successfully' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Image uploaded successfully', 
+    schema: {
+      example: {
+        success: true,
+        data: {
+          key: 'community/uuid-here.jpg',
+          imageUrl: 'https://bepviet-images.r2.dev/community/uuid-here.jpg',
+          publicUrl: 'https://bepviet-images.r2.dev/community/uuid-here.jpg'
+        },
+        message: 'Image uploaded successfully to R2'
+      }
+    }
+  })
   @ApiResponse({ status: 400, description: 'Invalid image file' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @UseInterceptors(FileInterceptor('image'))
-  async uploadImage(@UploadedFile() file: any) {
+  @UseInterceptors(FileInterceptor('image', {
+    limits: {
+      fileSize: 5 * 1024 * 1024, // 5MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+        return cb(new Error('Only image files are allowed!'), false);
+      }
+      cb(null, true);
+    },
+  }))
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       return {
         success: false,
@@ -207,18 +235,24 @@ export class CommunityController {
       };
     }
 
-    // Convert to base64 for easy storage/transmission
-    const base64Image = file.buffer.toString('base64');
-    const imageUrl = `data:${file.mimetype};base64,${base64Image}`;
+    try {
+      // Upload to R2 Storage
+      const result = await this.storageService.uploadImage(file, 'community');
 
-    return {
-      success: true,
-      data: {
-        imageUrl: imageUrl,
-        mimetype: file.mimetype,
-        size: file.size
-      },
-      message: 'Image uploaded successfully'
-    };
+      return {
+        success: true,
+        data: {
+          key: result.key,
+          imageUrl: result.publicUrl,
+          publicUrl: result.publicUrl,
+        },
+        message: 'Image uploaded successfully to R2'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to upload image',
+      };
+    }
   }
 }

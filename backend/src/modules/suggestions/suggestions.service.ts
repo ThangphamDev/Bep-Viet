@@ -1,12 +1,54 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
+import { RedisService } from '../redis/redis.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class SuggestionsService {
-  constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
+  private readonly logger = new Logger(SuggestionsService.name);
+  private readonly CACHE_TTL = 300; // 5 minutes
+
+  constructor(
+    @Inject('DATABASE_CONNECTION') private db: any,
+    private redisService: RedisService,
+  ) {}
+
+  /**
+   * Generate cache key from search parameters
+   */
+  private generateCacheKey(params: any): string {
+    const normalized = {
+      region: params.region || 'all',
+      season: params.season || 'auto',
+      servings: params.servings || 2,
+      budget: params.budget || 'all',
+      spice_preference: params.spice_preference || 'all',
+      pantry_ids: (params.pantry_ids || []).sort().join(','),
+      exclude_allergens: (params.exclude_allergens || []).sort().join(','),
+      max_time: params.max_time || 'all',
+      meal_type: params.meal_type || 'all',
+    };
+    
+    const keyString = JSON.stringify(normalized);
+    const hash = crypto.createHash('md5').update(keyString).digest('hex');
+    return `suggestions:${hash}`;
+  }
 
   async searchSuggestions(searchParams: any) {
     try {
+      // Generate cache key
+      const cacheKey = this.generateCacheKey(searchParams);
+
+      // Try to get from cache
+      if (this.redisService.isReady()) {
+        const cachedResult = await this.redisService.getJson(cacheKey);
+        if (cachedResult) {
+          this.logger.log(`Cache HIT for key: ${cacheKey}`);
+          return cachedResult;
+        }
+        this.logger.log(`Cache MISS for key: ${cacheKey}`);
+      }
+
       const {
         region,
         season,
@@ -93,10 +135,19 @@ export class SuggestionsService {
     // Sort by final score
     suggestions.sort((a, b) => b.final_score - a.final_score);
 
-    return {
+    const result = {
       success: true,
       data: suggestions.slice(0, 20), // Return top 20
+      cached: false,
     };
+
+    // Save to cache
+    if (this.redisService.isReady()) {
+      await this.redisService.setJson(cacheKey, result, this.CACHE_TTL);
+      this.logger.log(`Cached result for key: ${cacheKey}`);
+    }
+
+    return result;
     } catch (error) {
       console.error('SuggestionsService error:', error);
       return {
