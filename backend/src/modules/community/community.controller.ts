@@ -151,31 +151,31 @@ export class CommunityController {
   @Put('recipes/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update community recipe' })
+  @ApiOperation({ summary: 'Update community recipe (Author or Admin)' })
   @ApiParam({ name: 'id', description: 'Recipe ID' })
   @ApiResponse({ status: 200, description: 'Recipe updated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Not the author' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not the author or admin' })
   @ApiResponse({ status: 404, description: 'Recipe not found' })
   async updateRecipe(
     @Param('id') id: string,
     @Request() req,
     @Body() updateCommunityRecipeDto: UpdateCommunityRecipeDto
   ) {
-    return this.communityService.updateCommunityRecipe(id, req.user.id, updateCommunityRecipeDto);
+    return this.communityService.updateCommunityRecipe(id, req.user.id, updateCommunityRecipeDto, req.user.role);
   }
 
   @Delete('recipes/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete community recipe' })
+  @ApiOperation({ summary: 'Delete community recipe (Author or Admin)' })
   @ApiParam({ name: 'id', description: 'Recipe ID' })
   @ApiResponse({ status: 200, description: 'Recipe deleted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Not the author' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not the author or admin' })
   @ApiResponse({ status: 404, description: 'Recipe not found' })
   async deleteRecipe(@Param('id') id: string, @Request() req) {
-    return this.communityService.deleteCommunityRecipe(id, req.user.id);
+    return this.communityService.deleteCommunityRecipe(id, req.user.id, req.user.role);
   }
 
   @Post('upload-image')

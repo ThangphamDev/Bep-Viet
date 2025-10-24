@@ -56,7 +56,7 @@ export class CommunityService {
       JOIN users u ON cr.author_user_id = u.id
       LEFT JOIN recipe_comments rc ON cr.id = rc.recipe_id AND rc.recipe_type = 'COMMUNITY'
       LEFT JOIN recipe_ratings rr ON cr.id = rr.recipe_id AND rr.recipe_type = 'COMMUNITY'
-      WHERE cr.status = 'APPROVED'
+      WHERE cr.status IN ('APPROVED', 'PROMOTED')
     `;
     
     let params: any[] = [];
@@ -487,7 +487,7 @@ export class CommunityService {
     for (const ing of (ingredients as any[])) {
       // Try to find matching ingredient in ingredients table
       const [matchedIngredients] = await this.db.execute(
-        `SELECT id FROM ingredients WHERE name_vi = ? LIMIT 1`,
+        `SELECT id FROM ingredients WHERE name = ? LIMIT 1`,
         [ing.ingredient_name]
       );
 
@@ -580,8 +580,8 @@ export class CommunityService {
     };
   }
 
-  async updateCommunityRecipe(recipeId: string, userId: string, updateData: any) {
-    // Check if recipe exists and belongs to user
+  async updateCommunityRecipe(recipeId: string, userId: string, updateData: any, userRole?: string) {
+    // Check if recipe exists
     const [recipes] = await this.db.execute(
       'SELECT id, author_user_id FROM community_recipes WHERE id = ?',
       [recipeId]
@@ -592,7 +592,11 @@ export class CommunityService {
       throw new NotFoundException('Community recipe not found');
     }
 
-    if (recipe.author_user_id !== userId) {
+    // Check authorization: must be author OR admin
+    const isAuthor = recipe.author_user_id === userId;
+    const isAdmin = userRole === 'ADMIN';
+
+    if (!isAuthor && !isAdmin) {
       throw new Error('You are not authorized to update this recipe');
     }
 
@@ -688,10 +692,10 @@ export class CommunityService {
     return this.getCommunityRecipeById(recipeId);
   }
 
-  async deleteCommunityRecipe(recipeId: string, userId: string) {
-    // Check if recipe exists and belongs to user
+  async deleteCommunityRecipe(recipeId: string, userId: string, userRole?: string) {
+    // Check if recipe exists
     const [recipes] = await this.db.execute(
-      'SELECT id, author_user_id FROM community_recipes WHERE id = ?',
+      'SELECT id, author_user_id, title FROM community_recipes WHERE id = ?',
       [recipeId]
     );
 
@@ -700,7 +704,11 @@ export class CommunityService {
       throw new NotFoundException('Community recipe not found');
     }
 
-    if (recipe.author_user_id !== userId) {
+    // Check authorization: must be author OR admin
+    const isAuthor = recipe.author_user_id === userId;
+    const isAdmin = userRole === 'ADMIN';
+
+    if (!isAuthor && !isAdmin) {
       throw new Error('You are not authorized to delete this recipe');
     }
 
