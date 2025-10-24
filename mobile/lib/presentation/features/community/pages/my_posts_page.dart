@@ -128,7 +128,11 @@ class _MyPostsPageState extends State<MyPostsPage> {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, size: 24, color: AppTheme.textPrimary),
+            icon: const Icon(
+              Icons.arrow_back,
+              size: 24,
+              color: AppTheme.textPrimary,
+            ),
           ),
           const SizedBox(width: 8),
           const Text(
@@ -143,7 +147,11 @@ class _MyPostsPageState extends State<MyPostsPage> {
           const Spacer(),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined, size: 26, color: AppTheme.textPrimary),
+            icon: const Icon(
+              Icons.notifications_outlined,
+              size: 26,
+              color: AppTheme.textPrimary,
+            ),
           ),
         ],
       ),
@@ -212,7 +220,6 @@ class _MyPostsPageState extends State<MyPostsPage> {
 
   void _handleShare(String recipeId) {
     // Handle share functionality
-    print('Shared recipe: $recipeId');
     // Share functionality is already handled in the widget
   }
 }
@@ -300,9 +307,7 @@ class _MyEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Không có bài viết nào'),
-    );
+    return const Center(child: Text('Không có bài viết nào'));
   }
 }
 

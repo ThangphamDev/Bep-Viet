@@ -49,7 +49,6 @@ class FamilyService {
     String? allergies,
   }) async {
     try {
-      print('🔍 Adding family member: $name to family $familyId');
 
       final response = await _apiService.addFamilyMember(familyId, {
         'name': name,
@@ -58,7 +57,6 @@ class FamilyService {
         'allergies': allergies,
       });
 
-      print('✅ API Response: $response');
 
       // Handle backend response structure
       final memberData = response['data'] ?? response;
@@ -74,7 +72,6 @@ class FamilyService {
         allergies: allergies,
       );
     } catch (e) {
-      print('❌ Error adding family member: $e');
       throw Exception('Failed to add family member: $e');
     }
   }
@@ -120,12 +117,9 @@ class FamilyService {
   /// Test kết nối API
   Future<bool> testConnection() async {
     try {
-      print('🔍 Testing API connection...');
       await _apiService.getUserFamilyProfiles();
-      print('✅ API connection successful');
       return true;
     } catch (e) {
-      print('❌ API connection failed: $e');
       return false;
     }
   }

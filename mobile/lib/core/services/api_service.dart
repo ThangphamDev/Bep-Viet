@@ -27,11 +27,6 @@ class ApiService {
         '$_baseUrl/api$endpoint',
       ).replace(queryParameters: queryParams);
 
-      print('🌐 API Request: $method ${uri.toString()}');
-      if (body != null) {
-        print('📤 Request Body: $body');
-      }
-
       http.Response response;
       switch (method.toUpperCase()) {
         case 'GET':
@@ -65,33 +60,23 @@ class ApiService {
           throw Exception('Unsupported HTTP method: $method');
       }
 
-      print('📥 Response Status: ${response.statusCode}');
-      print('📥 Response Body: ${response.body}');
-
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final responseData = jsonDecode(response.body);
         // Handle backend response structure: {success: true, data: {...}}
         if (responseData is Map && responseData.containsKey('success')) {
           if (responseData['success'] == true) {
-            print(
-              '✅ API Success: ${responseData['message'] ?? 'Request successful'}',
-            );
             return Map<String, dynamic>.from(responseData);
           } else {
-            print('❌ API Error: ${responseData['message'] ?? 'Unknown error'}');
             throw Exception(
               'API Error: ${responseData['message'] ?? 'Unknown error'}',
             );
           }
         }
-        print('✅ API Response: Success');
         return Map<String, dynamic>.from(responseData);
       } else {
-        print('❌ HTTP Error: ${response.statusCode} - ${response.body}');
         throw Exception('HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      print('❌ API Request Error: $e');
       if (e.toString().contains('SocketException')) {
         throw Exception('Network error: Please check your internet connection');
       } else if (e.toString().contains('TimeoutException')) {

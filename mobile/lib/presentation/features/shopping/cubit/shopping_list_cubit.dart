@@ -325,8 +325,7 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
         );
       }
     } catch (e) {
-      // Silently fail or show a subtle error
-      print('Failed to sync check state: $e');
+      // Silently fail
     }
   }
 

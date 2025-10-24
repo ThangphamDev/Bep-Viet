@@ -297,7 +297,10 @@ export class SuggestionsService {
       [userId]
     );
 
-    const pantryIds = (pantryItems as any[]).map(item => item.ingredient_id);
+    // Filter out null/undefined ingredient IDs and ensure they are valid
+    const pantryIds = (pantryItems as any[])
+      .map(item => item.ingredient_id)
+      .filter(id => id != null);
 
     if (pantryIds.length === 0) {
       return {
@@ -308,10 +311,10 @@ export class SuggestionsService {
     }
 
     // Find recipes that use pantry ingredients
-    // Build query with dynamic placeholders for IN clause
+    // Simplified query to avoid sort memory issues
     const placeholders = pantryIds.map(() => '?').join(',');
     const query = 
-      'SELECT DISTINCT ' +
+      'SELECT ' +
       '  r.id as recipe_id, ' +
       '  r.name_vi, ' +
       '  r.name_en, ' +
@@ -321,8 +324,7 @@ export class SuggestionsService {
       '  r.spice_level, ' +
       '  r.rating_avg, ' +
       '  r.image_url, ' +
-      '  COUNT(ri.ingredient_id) as pantry_match_count, ' +
-      '  COUNT(DISTINCT ri.ingredient_id) as total_ingredients ' +
+      '  COUNT(ri.ingredient_id) as pantry_match_count ' +
       'FROM recipes r ' +
       'JOIN recipe_ingredients ri ON r.id = ri.recipe_id ' +
       'WHERE r.is_public = 1 AND ri.ingredient_id IN (' + placeholders + ') ' +
@@ -331,7 +333,12 @@ export class SuggestionsService {
       'ORDER BY pantry_match_count DESC, r.rating_avg DESC ' +
       'LIMIT ?';
     
-    const [recipes] = await this.db.execute(query, [...pantryIds, limit]);
+    // Ensure limit is a number, but keep ingredient_ids as-is (they might be strings/UUIDs)
+    const safeLimit = Number(limit) || 10;
+    const params = [...pantryIds, safeLimit];
+    
+    // Use query() instead of execute() for dynamic queries
+    const [recipes] = await this.db.query(query, params);
 
     return {
       success: true,

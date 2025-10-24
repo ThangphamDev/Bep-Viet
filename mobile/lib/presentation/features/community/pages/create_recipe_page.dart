@@ -18,9 +18,8 @@ import 'package:bepviet_mobile/data/sources/remote/auth_service.dart';
 
 class CreateRecipePage extends StatefulWidget {
   final CommunityRecipe? editingRecipe;
-  
-  const CreateRecipePage({super.key, this.editingRecipe});
 
+  const CreateRecipePage({super.key, this.editingRecipe});
 
   @override
   State<CreateRecipePage> createState() => _CreateRecipePageState();
@@ -32,22 +31,22 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
   final _descriptionController = TextEditingController();
   final _timeController = TextEditingController();
   final _costController = TextEditingController();
-  
+
   String? _selectedRegion;
   String? _selectedDifficulty;
-  
+
   final List<CreateIngredientRequest> _ingredients = [];
   final List<CreateStepRequest> _steps = [];
-  
+
   // Controllers for ingredients and steps
   final List<TextEditingController> _ingredientNameControllers = [];
   final List<TextEditingController> _ingredientQuantityControllers = [];
   final List<TextEditingController> _stepControllers = [];
-  
+
   // Image picker
   final ImagePicker _imagePicker = ImagePicker();
   XFile? _selectedImage;
-  
+
   bool _isLoading = false;
 
   @override
@@ -60,7 +59,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
 
   void _initializeEditingData() {
     final recipe = widget.editingRecipe!;
-    
+
     // Set basic fields
     _titleController.text = recipe.title;
     _descriptionController.text = recipe.descriptionMd ?? '';
@@ -68,54 +67,58 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
     _costController.text = recipe.costHint?.toString() ?? '';
     _selectedRegion = recipe.region;
     _selectedDifficulty = recipe.difficulty;
-    
+
     // Set image if available
     if (recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty) {
       // Note: We can't directly set the image from URL, user would need to re-select
     }
-    
+
     // Set ingredients
     if (recipe.ingredients != null) {
       _ingredients.clear();
       _ingredientNameControllers.clear();
       _ingredientQuantityControllers.clear();
-      
+
       for (var ingredient in recipe.ingredients!) {
-        _ingredients.add(CreateIngredientRequest(
-          name: ingredient.ingredientName,
-          quantity: ingredient.quantity ?? '1 phần', // Default if null
-          note: ingredient.note,
-        ));
-        
-        _ingredientNameControllers.add(TextEditingController(text: ingredient.ingredientName));
-        _ingredientQuantityControllers.add(TextEditingController(text: ingredient.quantity ?? ''));
+        _ingredients.add(
+          CreateIngredientRequest(
+            name: ingredient.ingredientName,
+            quantity: ingredient.quantity ?? '1 phần', // Default if null
+            note: ingredient.note,
+          ),
+        );
+
+        _ingredientNameControllers.add(
+          TextEditingController(text: ingredient.ingredientName),
+        );
+        _ingredientQuantityControllers.add(
+          TextEditingController(text: ingredient.quantity ?? ''),
+        );
       }
     }
-    
+
     // Set steps
     if (recipe.steps != null) {
       _steps.clear();
       _stepControllers.clear();
-      
+
       for (var step in recipe.steps!) {
-        _steps.add(CreateStepRequest(
-          orderNo: step.orderNo,
-          contentMd: step.contentMd,
-        ));
-        
+        _steps.add(
+          CreateStepRequest(orderNo: step.orderNo, contentMd: step.contentMd),
+        );
+
         _stepControllers.add(TextEditingController(text: step.contentMd));
       }
     }
   }
 
   @override
-
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     _timeController.dispose();
     _costController.dispose();
-    
+
     // Dispose ingredient controllers
     for (var controller in _ingredientNameControllers) {
       controller.dispose();
@@ -126,7 +129,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
     for (var controller in _stepControllers) {
       controller.dispose();
     }
-    
+
     super.dispose();
   }
 
@@ -138,16 +141,16 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
         maxHeight: 1024,
         imageQuality: 80,
       );
-      
+
       if (image != null) {
         setState(() {
           _selectedImage = image;
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi chọn hình ảnh: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi chọn hình ảnh: $e')));
     }
   }
 
@@ -156,8 +159,11 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-
-        title: Text(widget.editingRecipe != null ? 'Chỉnh sửa công thức' : 'Tạo công thức'),
+        title: Text(
+          widget.editingRecipe != null
+              ? 'Chỉnh sửa công thức'
+              : 'Tạo công thức',
+        ),
 
         backgroundColor: AppTheme.surfaceColor,
         elevation: 0,
@@ -168,7 +174,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
               widget.editingRecipe != null ? 'Cập nhật' : 'Lưu',
 
               style: TextStyle(
-                color: _isLoading ? AppTheme.textSecondary : AppTheme.primaryGreen,
+                color: _isLoading
+                    ? AppTheme.textSecondary
+                    : AppTheme.primaryGreen,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -198,7 +206,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                          borderSide: const BorderSide(
+                            color: AppTheme.primaryGreen,
+                          ),
                         ),
                       ),
                       validator: (value) {
@@ -208,9 +218,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                         return null;
                       },
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     TextFormField(
                       controller: _descriptionController,
                       decoration: InputDecoration(
@@ -221,7 +231,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                          borderSide: const BorderSide(
+                            color: AppTheme.primaryGreen,
+                          ),
                         ),
                       ),
                       maxLines: 3,
@@ -232,14 +244,14 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                         return null;
                       },
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Image upload section
                     _buildImageUpload(),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     Row(
                       children: [
                         Expanded(
@@ -252,13 +264,24 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                                borderSide: const BorderSide(
+                                  color: AppTheme.primaryGreen,
+                                ),
                               ),
                             ),
                             items: const [
-                              DropdownMenuItem(value: 'BAC', child: Text('Bắc')),
-                              DropdownMenuItem(value: 'TRUNG', child: Text('Trung')),
-                              DropdownMenuItem(value: 'NAM', child: Text('Nam')),
+                              DropdownMenuItem(
+                                value: 'BAC',
+                                child: Text('Bắc'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'TRUNG',
+                                child: Text('Trung'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'NAM',
+                                child: Text('Nam'),
+                              ),
                             ],
                             onChanged: (value) {
                               setState(() {
@@ -273,9 +296,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                             },
                           ),
                         ),
-                        
+
                         const SizedBox(width: 16),
-                        
+
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             value: _selectedDifficulty,
@@ -286,13 +309,21 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                                borderSide: const BorderSide(
+                                  color: AppTheme.primaryGreen,
+                                ),
                               ),
                             ),
                             items: const [
                               DropdownMenuItem(value: 'DE', child: Text('Dễ')),
-                              DropdownMenuItem(value: 'TRUNG_BINH', child: Text('Trung bình')),
-                              DropdownMenuItem(value: 'KHO', child: Text('Khó')),
+                              DropdownMenuItem(
+                                value: 'TRUNG_BINH',
+                                child: Text('Trung bình'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'KHO',
+                                child: Text('Khó'),
+                              ),
                             ],
                             onChanged: (value) {
                               setState(() {
@@ -309,9 +340,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     Row(
                       children: [
                         Expanded(
@@ -325,7 +356,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                                borderSide: const BorderSide(
+                                  color: AppTheme.primaryGreen,
+                                ),
                               ),
                             ),
                             keyboardType: TextInputType.number,
@@ -340,9 +373,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                             },
                           ),
                         ),
-                        
+
                         const SizedBox(width: 16),
-                        
+
                         Expanded(
                           child: TextFormField(
                             controller: _costController,
@@ -354,7 +387,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                                borderSide: const BorderSide(
+                                  color: AppTheme.primaryGreen,
+                                ),
                               ),
                             ),
                             keyboardType: TextInputType.number,
@@ -365,7 +400,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                   ],
                 ),
               ),
-              
+
               // Ingredients section
               _buildSection(
                 title: 'Nguyên liệu',
@@ -397,7 +432,10 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
                                 ),
                                 onChanged: (value) {
                                   _ingredients[index] = CreateIngredientRequest(
@@ -406,19 +444,22 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                                     note: ingredient.note,
                                   );
                                 },
-
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
-                                controller: _ingredientQuantityControllers[index],
+                                controller:
+                                    _ingredientQuantityControllers[index],
                                 decoration: InputDecoration(
                                   labelText: 'Số lượng',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
                                 ),
                                 onChanged: (value) {
                                   _ingredients[index] = CreateIngredientRequest(
@@ -435,9 +476,12 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                                 setState(() {
                                   _ingredients.removeAt(index);
                                   _ingredientNameControllers[index].dispose();
-                                  _ingredientQuantityControllers[index].dispose();
+                                  _ingredientQuantityControllers[index]
+                                      .dispose();
                                   _ingredientNameControllers.removeAt(index);
-                                  _ingredientQuantityControllers.removeAt(index);
+                                  _ingredientQuantityControllers.removeAt(
+                                    index,
+                                  );
                                 });
                               },
                               icon: const Icon(Icons.delete, color: Colors.red),
@@ -446,21 +490,27 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                         ),
                       );
                     }),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () {
                           setState(() {
-                            _ingredients.add(CreateIngredientRequest(
-                              name: '',
-                              quantity: '',
-                              note: '',
-                            ));
-                            _ingredientNameControllers.add(TextEditingController());
-                            _ingredientQuantityControllers.add(TextEditingController());
+                            _ingredients.add(
+                              CreateIngredientRequest(
+                                name: '',
+                                quantity: '',
+                                note: '',
+                              ),
+                            );
+                            _ingredientNameControllers.add(
+                              TextEditingController(),
+                            );
+                            _ingredientQuantityControllers.add(
+                              TextEditingController(),
+                            );
                           });
                         },
                         icon: const Icon(Icons.add),
@@ -477,7 +527,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                   ],
                 ),
               ),
-              
+
               // Steps section
               _buildSection(
                 title: 'Cách làm',
@@ -526,7 +576,10 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
                                 ),
                                 maxLines: 3,
                               ),
@@ -553,18 +606,20 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                         ),
                       );
                     }),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () {
                           setState(() {
-                            _steps.add(CreateStepRequest(
-                              orderNo: _steps.length + 1,
-                              contentMd: '',
-                            ));
+                            _steps.add(
+                              CreateStepRequest(
+                                orderNo: _steps.length + 1,
+                                contentMd: '',
+                              ),
+                            );
                             _stepControllers.add(TextEditingController());
                           });
                         },
@@ -582,9 +637,9 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Save button
               SizedBox(
                 width: double.infinity,
@@ -603,11 +658,15 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : Text(
-                          widget.editingRecipe != null ? 'Cập nhật công thức' : 'Tạo công thức',
+                          widget.editingRecipe != null
+                              ? 'Cập nhật công thức'
+                              : 'Tạo công thức',
 
                           style: TextStyle(
                             fontSize: 16,
@@ -617,7 +676,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                         ),
                 ),
               ),
-              
+
               const SizedBox(height: 20),
             ],
           ),
@@ -718,25 +777,24 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
     for (int i = 0; i < _ingredientNameControllers.length; i++) {
       final name = _ingredientNameControllers[i].text.trim();
       final quantity = _ingredientQuantityControllers[i].text.trim();
-      
+
       if (name.isNotEmpty) {
-        ingredients.add(CreateIngredientRequest(
-          name: name,
-          quantity: quantity.isNotEmpty ? quantity : '1 phần',
-          note: '',
-        ));
+        ingredients.add(
+          CreateIngredientRequest(
+            name: name,
+            quantity: quantity.isNotEmpty ? quantity : '1 phần',
+            note: '',
+          ),
+        );
       }
     }
-    
+
     final steps = <CreateStepRequest>[];
     for (int i = 0; i < _stepControllers.length; i++) {
       final content = _stepControllers[i].text.trim();
-      
+
       if (content.isNotEmpty) {
-        steps.add(CreateStepRequest(
-          orderNo: i + 1,
-          contentMd: content,
-        ));
+        steps.add(CreateStepRequest(orderNo: i + 1, contentMd: content));
       }
     }
 
@@ -794,13 +852,10 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
       if (_selectedImage != null) {
         try {
           final bytes = await _selectedImage!.readAsBytes();
-          print('Uploading image, size: ${bytes.length} bytes');
-          
+
           // Upload image using the upload endpoint
           imageUrl = await communityService.uploadImage(bytes, 'image/jpeg');
-          print('Image uploaded successfully: $imageUrl');
         } catch (e) {
-          print('Failed to upload image: $e');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -826,8 +881,8 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
         descriptionMd: _descriptionController.text.trim(),
         difficulty: _selectedDifficulty!,
         timeMin: int.parse(_timeController.text.trim()),
-        costHint: _costController.text.trim().isNotEmpty 
-            ? int.tryParse(_costController.text.trim()) 
+        costHint: _costController.text.trim().isNotEmpty
+            ? int.tryParse(_costController.text.trim())
             : null,
         imageUrl: imageUrl,
         ingredients: ingredients,
@@ -850,8 +905,11 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
 
       if (widget.editingRecipe != null) {
         // Update existing recipe
-        await communityService.updateCommunityRecipe(widget.editingRecipe!.id, request);
-        
+        await communityService.updateCommunityRecipe(
+          widget.editingRecipe!.id,
+          request,
+        );
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -864,7 +922,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
       } else {
         // Create new recipe
         await communityService.createCommunityRecipe(request);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -878,10 +936,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -906,7 +961,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
           ),
         ),
         const SizedBox(height: 8),
-        
+
         GestureDetector(
           onTap: _pickImage,
           child: Container(
@@ -935,16 +990,12 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                 : _buildImagePlaceholder(),
           ),
         ),
-        
+
         if (_selectedImage != null) ...[
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(
-                Icons.check_circle,
-                color: AppTheme.primaryGreen,
-                size: 16,
-              ),
+              Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 16),
               const SizedBox(width: 4),
               Text(
                 'Đã chọn hình ảnh',
@@ -963,10 +1014,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
                 },
                 child: const Text(
                   'Xóa',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.red, fontSize: 12),
                 ),
               ),
             ],

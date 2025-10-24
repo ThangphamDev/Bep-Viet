@@ -9,6 +9,7 @@ import 'package:bepviet_mobile/data/models/pantry_item_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/auth_service.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import 'nearby_stores_page.dart';
 
 class ShoppingListPage extends StatefulWidget {
   const ShoppingListPage({Key? key}) : super(key: key);
@@ -80,6 +81,17 @@ class _ShoppingListPageState extends State<ShoppingListPage>
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.location_on),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const NearbyStoresPage(),
+                ),
+              );
+            },
+            tooltip: 'Cửa hàng gần đây',
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showCreateListDialog(),
@@ -1302,7 +1314,6 @@ class _ShoppingListPageState extends State<ShoppingListPage>
           await context.read<PantryCubit>().addPantryItem(dto);
           successCount++;
         } catch (e) {
-          print('Failed to add ${item.ingredientName} to pantry: $e');
           errorCount++;
         }
       }
@@ -1430,7 +1441,7 @@ class _ShoppingListPageState extends State<ShoppingListPage>
         try {
           await apiService.addItemToShoppingList(token, newListId, addItemDto);
         } catch (e) {
-          print('Failed to add ${ingredientData['ingredient_name']}: $e');
+          // Silent fail
         }
       }
 

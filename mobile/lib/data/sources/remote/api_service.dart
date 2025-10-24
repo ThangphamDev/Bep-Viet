@@ -690,7 +690,6 @@ class ApiService {
 
       throw Exception('Invalid API response format');
     } catch (e) {
-      print('Create meal plan error: $e');
       throw Exception('Không thể tạo kế hoạch bữa ăn: ${e.toString()}');
     }
   }
@@ -752,7 +751,6 @@ class ApiService {
 
       throw Exception('Invalid API response format');
     } catch (e) {
-      print('Quick add meal error: $e');
       throw Exception('Không thể thêm món ăn: ${e.toString()}');
     }
   }
@@ -785,38 +783,22 @@ class ApiService {
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
-      print('🤖 API generateMealPlan - Status: ${response.statusCode}');
-      print('🤖 API generateMealPlan - Response: ${response.data}');
-
       if (response.data is Map<String, dynamic>) {
         final responseData = response.data as Map<String, dynamic>;
-        print(
-          '🤖 API generateMealPlan - responseData["success"]: ${responseData['success']}',
-        );
-        print(
-          '🤖 API generateMealPlan - responseData["data"] type: ${responseData['data']?.runtimeType}',
-        );
 
         if (responseData['success'] == true &&
             responseData['data'] is Map<String, dynamic>) {
           final data = responseData['data'] as Map<String, dynamic>;
-          print('🤖 API generateMealPlan - data keys: ${data.keys}');
 
           // Parse meals from the response
           List<MealSlot> meals = [];
           if (data['days'] is List) {
             final days = data['days'] as List;
-            print('🤖 API generateMealPlan - days count: ${days.length}');
             for (var day in days) {
               if (day is Map<String, dynamic> &&
                   day['meals'] is Map<String, dynamic>) {
                 final dayMeals = day['meals'] as Map<String, dynamic>;
                 final date = day['date']?.toString() ?? '';
-
-                print('🤖 API generateMealPlan - Processing date: $date');
-                print(
-                  '🤖 API generateMealPlan - dayMeals keys: ${dayMeals.keys}',
-                );
 
                 // Parse each meal slot (breakfast, lunch, dinner)
                 // Check both uppercase and lowercase keys
@@ -843,10 +825,6 @@ class ApiService {
                   }
 
                   if (mealData != null && foundKey != null) {
-                    print(
-                      '🤖 API generateMealPlan - Found meal: $foundKey = ${mealData['recipe_name']}',
-                    );
-
                     final meal = MealSlot(
                       id: 'generated-${DateTime.now().millisecondsSinceEpoch}-$foundKey-$date',
                       mealPlanId:
@@ -864,10 +842,6 @@ class ApiService {
                 }
               }
             }
-
-            print(
-              '🤖 API generateMealPlan - Total meals parsed: ${meals.length}',
-            );
           }
 
           // Convert the backend response to our model format
@@ -888,7 +862,6 @@ class ApiService {
 
       throw Exception('Invalid API response format');
     } catch (e) {
-      print('Generate meal plan error: $e');
       throw Exception('Không thể tạo kế hoạch tự động: ${e.toString()}');
     }
   }
@@ -916,7 +889,6 @@ class ApiService {
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
     } catch (e) {
-      print('Remove meal from plan error: $e');
       throw Exception('Không thể xóa món ăn: ${e.toString()}');
     }
   }
@@ -946,7 +918,6 @@ class ApiService {
 
       return [];
     } catch (e) {
-      print('Get shopping lists error: $e');
       throw Exception('Không thể tải danh sách mua sắm: ${e.toString()}');
     }
   }
