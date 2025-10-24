@@ -27,18 +27,22 @@ class ShoppingListModel {
       userId: json['user_id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Danh sách mua sắm',
       description: json['description']?.toString(),
-      items: (json['items'] as List<dynamic>?)
-          ?.map((item) => ShoppingItem.fromJson(item))
-          .toList() ?? [],
+      items:
+          (json['items'] as List<dynamic>?)
+              ?.map((item) => ShoppingItem.fromJson(item))
+              .toList() ??
+          [],
       isShared: _parseBool(json['is_shared']),
-      sharedWith: (json['shared_with'] as List<dynamic>?)
-          ?.map((user) => SharedUser.fromJson(user))
-          .toList() ?? [],
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at']) 
+      sharedWith:
+          (json['shared_with'] as List<dynamic>?)
+              ?.map((user) => SharedUser.fromJson(user))
+              .toList() ??
+          [],
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
           : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at']) 
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
           : DateTime.now(),
     );
   }
@@ -107,8 +111,12 @@ class ShoppingItem {
       notes: json['notes']?.toString(),
       storeSectionId: json['store_section_id']?.toString(),
       storeSectionName: json['store_section_name']?.toString(),
-      estimatedPrice: json['estimated_price']?.toDouble(),
-      priority: json['priority'] ?? 0,
+      estimatedPrice: json['estimated_price'] != null
+          ? double.tryParse(json['estimated_price'].toString())
+          : null,
+      priority: json['priority'] != null
+          ? int.tryParse(json['priority'].toString()) ?? 0
+          : 0,
     );
   }
 
@@ -199,15 +207,13 @@ class CreateShoppingListDto {
   final String name;
   final String? description;
 
-  CreateShoppingListDto({
-    required this.name,
-    this.description,
-  });
+  CreateShoppingListDto({required this.name, this.description});
 
   Map<String, dynamic> toJson() {
     return {
       'title': name, // Backend expects 'title', not 'name'
-      if (description != null) 'week_range': description, // Backend uses 'week_range' for description
+      if (description != null)
+        'week_range': description, // Backend uses 'week_range' for description
     };
   }
 }
@@ -236,8 +242,10 @@ class AddShoppingItemDto {
       'ingredient_id': ingredientId,
       'quantity': quantity.toInt(), // Backend expects int, not double
       'unit': unit,
-      if (notes != null) 'note': notes, // Backend uses 'note' (singular), not 'notes'
-      if (section != null) 'store_section': section, // Backend uses 'store_section'
+      if (notes != null)
+        'note': notes, // Backend uses 'note' (singular), not 'notes'
+      if (section != null)
+        'store_section': section, // Backend uses 'store_section'
     };
   }
 }
@@ -269,7 +277,9 @@ class UpdateShoppingItemDto {
     if (section != null) json['section'] = section;
     if (estimatedPrice != null) json['estimated_price'] = estimatedPrice;
     if (actualPrice != null) json['actual_price'] = actualPrice;
-    if (isPurchased != null) json['checked'] = isPurchased; // Backend expects 'checked', not 'is_purchased'
+    if (isPurchased != null)
+      json['checked'] =
+          isPurchased; // Backend expects 'checked', not 'is_purchased'
     return json;
   }
 }
@@ -310,15 +320,9 @@ class ShareListDto {
   final String email;
   final String permission; // 'view' or 'edit'
 
-  ShareListDto({
-    required this.email,
-    required this.permission,
-  });
+  ShareListDto({required this.email, required this.permission});
 
   Map<String, dynamic> toJson() {
-    return {
-      'email': email,
-      'permission': permission,
-    };
+    return {'email': email, 'permission': permission};
   }
 }

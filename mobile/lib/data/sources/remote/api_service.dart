@@ -627,7 +627,6 @@ class ApiService {
       }
       return [];
     } catch (e) {
-      print('Get meal plans error: $e');
       throw Exception('Không thể tải kế hoạch bữa ăn: ${e.toString()}');
     }
   }
@@ -654,7 +653,6 @@ class ApiService {
       }
       return null;
     } catch (e) {
-      print('Get meal plan by week error: $e');
       return null; // Return null instead of throwing for not found
     }
   }
@@ -945,6 +943,7 @@ class ApiService {
             .map((e) => ShoppingListModel.fromJson(e as Map<String, dynamic>))
             .toList();
       }
+
       return [];
     } catch (e) {
       print('Get shopping lists error: $e');

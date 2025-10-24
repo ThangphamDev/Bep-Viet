@@ -17,31 +17,54 @@ class ShoppingListPage extends StatefulWidget {
   State<ShoppingListPage> createState() => _ShoppingListPageState();
 }
 
-class _ShoppingListPageState extends State<ShoppingListPage> {
+class _ShoppingListPageState extends State<ShoppingListPage>
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   bool _disposed = false;
+  bool _isInitialized = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadData();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Reload data when app resumes (comes back to foreground)
+    if (state == AppLifecycleState.resumed && _isInitialized) {
+      _loadData();
+    }
+  }
+
+  void _loadData() {
+    if (!mounted || _disposed) return;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_disposed) {
         context.read<ShoppingListCubit>().loadShoppingLists();
         // Load current week's meal plan so we can generate shopping list from it
         context.read<MealPlanCubit>().loadMealPlans();
+        // Also load pantry items to show availability info
+        context.read<PantryCubit>().loadPantryItems();
+        _isInitialized = true;
       }
     });
-    // Also load pantry items to show availability info
-    context.read<PantryCubit>().loadPantryItems();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _disposed = true;
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -1264,13 +1287,14 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
           // Calculate expiry date: purchase date + 7 days (max usage period)
           final purchaseDate = DateTime.now();
           final expiryDate = purchaseDate.add(const Duration(days: 7));
-          
+
           final dto = AddPantryItemDto(
             ingredientId: item.ingredientId,
             quantity: item.quantity,
             unit: item.unit,
             expiryDate: expiryDate, // Auto-calculate: today + 7 days
-            purchaseDate: purchaseDate, // Today (will use created_at from backend)
+            purchaseDate:
+                purchaseDate, // Today (will use created_at from backend)
             location: PantryLocation.fridge.value,
             notes: null, // Don't set notes to allow merging duplicate items
           );
@@ -1284,7 +1308,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
       }
 
       // Remove overlay
-      if (mounted && overlayEntry != null) {
+      if (mounted) {
         overlayEntry.remove();
       }
 

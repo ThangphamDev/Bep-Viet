@@ -934,15 +934,15 @@ class _SuggestPageViewState extends State<SuggestPageView> {
               child: BlocBuilder<SuggestCubit, SuggestState>(
                 builder: (context, state) {
                   return Container(
-                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                     decoration: BoxDecoration(
                       gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryGreen.withOpacity(0.4),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
+                          color: AppTheme.primaryGreen.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -956,9 +956,9 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                         backgroundColor: Colors.transparent,
                         foregroundColor: Colors.white,
                         shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                       child: Row(
@@ -966,10 +966,10 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                         children: [
                           if (state.isSearching)
                             const SizedBox(
-                              width: 22,
-                              height: 22,
+                              width: 20,
+                              height: 20,
                               child: CircularProgressIndicator(
-                                strokeWidth: 3,
+                                strokeWidth: 2.5,
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   Colors.white,
                                 ),
@@ -977,22 +977,22 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                             )
                           else
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.search, size: 20),
+                              child: const Icon(Icons.search, size: 18),
                             ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 12),
                           Text(
                             state.isSearching
                                 ? 'Đang tìm kiếm...'
                                 : 'Tìm gợi ý phù hợp',
                             style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.3,
                             ),
                           ),
                         ],

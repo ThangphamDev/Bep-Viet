@@ -308,28 +308,30 @@ export class SuggestionsService {
     }
 
     // Find recipes that use pantry ingredients
-    const [recipes] = await this.db.execute(
-      `SELECT DISTINCT
-        r.id as recipe_id,
-        r.name_vi,
-        r.name_en,
-        r.meal_type,
-        r.difficulty,
-        r.cook_time_min,
-        r.spice_level,
-        r.rating_avg,
-        r.image_url,
-        COUNT(ri.ingredient_id) as pantry_match_count,
-        COUNT(DISTINCT ri.ingredient_id) as total_ingredients
-      FROM recipes r
-      JOIN recipe_ingredients ri ON r.id = ri.recipe_id
-      WHERE r.is_public = 1 AND ri.ingredient_id IN (${pantryIds.map(() => '?').join(',')})
-      GROUP BY r.id
-      HAVING pantry_match_count >= 2
-      ORDER BY pantry_match_count DESC, r.rating_avg DESC
-      LIMIT ?`,
-      [...pantryIds, limit]
-    );
+    // Build query with dynamic placeholders for IN clause
+    const placeholders = pantryIds.map(() => '?').join(',');
+    const query = 
+      'SELECT DISTINCT ' +
+      '  r.id as recipe_id, ' +
+      '  r.name_vi, ' +
+      '  r.name_en, ' +
+      '  r.meal_type, ' +
+      '  r.difficulty, ' +
+      '  r.cook_time_min, ' +
+      '  r.spice_level, ' +
+      '  r.rating_avg, ' +
+      '  r.image_url, ' +
+      '  COUNT(ri.ingredient_id) as pantry_match_count, ' +
+      '  COUNT(DISTINCT ri.ingredient_id) as total_ingredients ' +
+      'FROM recipes r ' +
+      'JOIN recipe_ingredients ri ON r.id = ri.recipe_id ' +
+      'WHERE r.is_public = 1 AND ri.ingredient_id IN (' + placeholders + ') ' +
+      'GROUP BY r.id ' +
+      'HAVING pantry_match_count >= 2 ' +
+      'ORDER BY pantry_match_count DESC, r.rating_avg DESC ' +
+      'LIMIT ?';
+    
+    const [recipes] = await this.db.execute(query, [...pantryIds, limit]);
 
     return {
       success: true,

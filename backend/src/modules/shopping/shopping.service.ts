@@ -29,6 +29,7 @@ export class ShoppingService {
       throw new NotFoundException('User ID is required');
     }
 
+    // Get all shopping lists for user
     const [lists] = await this.db.execute(
       `SELECT 
         sl.id,
@@ -36,20 +37,56 @@ export class ShoppingService {
         sl.week_range,
         sl.is_shared,
         sl.created_at,
-        sl.updated_at,
-        COUNT(sli.id) as item_count,
-        COUNT(CASE WHEN sli.is_checked = 1 THEN 1 END) as checked_count
+        sl.updated_at
       FROM shopping_lists sl
-      LEFT JOIN shopping_list_items sli ON sl.id = sli.list_id
       WHERE sl.owner_id = ?
-      GROUP BY sl.id, sl.title, sl.week_range, sl.is_shared, sl.created_at, sl.updated_at
       ORDER BY sl.created_at DESC`,
       [userId]
     );
 
+    // For each list, get its items
+    const listsWithItems = await Promise.all(
+      (lists as any[]).map(async (list) => {
+        const [items] = await this.db.execute(
+          `SELECT 
+            sli.id,
+            sli.list_id as shopping_list_id,
+            sli.ingredient_id,
+            i.name as ingredient_name,
+            sli.quantity,
+            sli.unit,
+            sli.store_section as store_section_id,
+            ss.name as store_section_name,
+            sli.is_checked,
+            sli.note as notes,
+            sli.source_recipe_id,
+            r.name_vi as recipe_name,
+            ip.price_per_unit as estimated_price,
+            ip.currency,
+            (sli.quantity * COALESCE(ip.price_per_unit, 0)) as estimated_cost,
+            0 as priority
+          FROM shopping_list_items sli
+          JOIN ingredients i ON sli.ingredient_id = i.id
+          LEFT JOIN store_sections ss ON sli.store_section = ss.code
+          LEFT JOIN recipes r ON sli.source_recipe_id = r.id
+          LEFT JOIN ingredient_prices ip ON sli.ingredient_id = ip.ingredient_id AND ip.region = (
+            SELECT region FROM users WHERE id = ?
+          )
+          WHERE sli.list_id = ?
+          ORDER BY ss.name, i.name`,
+          [userId, list.id]
+        );
+
+        return {
+          ...list,
+          items: items,
+        };
+      })
+    );
+
     return {
       success: true,
-      data: lists,
+      data: listsWithItems,
     };
   }
 
@@ -76,19 +113,21 @@ export class ShoppingService {
     const [items] = await this.db.execute(
       `SELECT 
         sli.id,
+        sli.list_id as shopping_list_id,
         sli.ingredient_id,
         i.name as ingredient_name,
         sli.quantity,
         sli.unit,
-        sli.store_section,
-        ss.name as section_name,
+        sli.store_section as store_section_id,
+        ss.name as store_section_name,
         sli.is_checked,
-        sli.note,
+        sli.note as notes,
         sli.source_recipe_id,
         r.name_vi as recipe_name,
-        ip.price_per_unit,
+        ip.price_per_unit as estimated_price,
         ip.currency,
-        (sli.quantity * COALESCE(ip.price_per_unit, 0)) as estimated_cost
+        (sli.quantity * COALESCE(ip.price_per_unit, 0)) as estimated_cost,
+        0 as priority
       FROM shopping_list_items sli
       JOIN ingredients i ON sli.ingredient_id = i.id
       LEFT JOIN store_sections ss ON sli.store_section = ss.code
@@ -125,6 +164,7 @@ export class ShoppingService {
       success: true,
       data: {
         ...list,
+        items: items, // Add items array for mobile compatibility
         groups: Object.values(groupedItems),
         total_cost: totalCost,
         total_items: items.length,

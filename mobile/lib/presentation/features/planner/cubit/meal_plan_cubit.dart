@@ -43,142 +43,166 @@ class MealPlanCubit extends Cubit<MealPlanState> {
   MealPlanCubit(this._apiService, this._authService) : super(MealPlanState());
 
   Future<void> loadMealPlans({String? date}) async {
-    print('MealPlanCubit: Starting loadMealPlans with date: $date');
     emit(state.copyWith(isLoading: true, error: null));
-    
+
     try {
       final token = _authService.accessToken;
       if (token == null) {
-        print('MealPlanCubit: No access token found');
-        emit(state.copyWith(
-          isLoading: false,
-          error: 'Bạn cần đăng nhập để xem kế hoạch bữa ăn',
-        ));
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Bạn cần đăng nhập để xem kế hoạch bữa ăn',
+          ),
+        );
         return;
       }
 
       final userId = _authService.currentUser?.id;
       if (userId == null) {
-        print('MealPlanCubit: No user ID found');
-        emit(state.copyWith(
-          isLoading: false,
-          error: 'Không tìm thấy thông tin người dùng',
-        ));
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Không tìm thấy thông tin người dùng',
+          ),
+        );
         return;
       }
 
-      // Use the specific API to get meal plan by week with full details
-      final weekStartDate = date ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
-      print('MealPlanCubit: Loading meal plan for week: $weekStartDate, userId: $userId');
-      
-      final mealPlan = await _apiService.getMealPlanByWeek(token, userId, weekStartDate);
-      
-      if (mealPlan != null) {
-        print('MealPlanCubit: Loaded meal plan successfully with ${mealPlan.meals.length} meals');
-        emit(state.copyWith(
-          isLoading: false,
-          mealPlans: [mealPlan],
-          currentPlan: mealPlan,
-        ));
+      // Calculate Monday of the current week (week starts on Monday)
+      DateTime targetDate;
+      if (date != null) {
+        targetDate = DateFormat('yyyy-MM-dd').parse(date);
       } else {
-        print('MealPlanCubit: No meal plan found for this week');
-        emit(state.copyWith(
-          isLoading: false,
-          mealPlans: [],
-          currentPlan: null,
-        ));
+        targetDate = DateTime.now();
+      }
+
+      // Get Monday of the week (ISO 8601: Monday = 1, Sunday = 7)
+      final mondayOfWeek = targetDate.subtract(
+        Duration(days: targetDate.weekday - 1),
+      );
+      final weekStartDate = DateFormat('yyyy-MM-dd').format(mondayOfWeek);
+
+      final mealPlan = await _apiService.getMealPlanByWeek(
+        token,
+        userId,
+        weekStartDate,
+      );
+
+      if (mealPlan != null) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            mealPlans: [mealPlan],
+            currentPlan: mealPlan,
+          ),
+        );
+      } else {
+        emit(
+          state.copyWith(isLoading: false, mealPlans: [], currentPlan: null),
+        );
       }
     } catch (e) {
-      print('MealPlanCubit: Error loading meal plans: $e');
-      emit(state.copyWith(
-        isLoading: false,
-        error: 'Không thể tải kế hoạch bữa ăn: ${e.toString()}',
-      ));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Không thể tải kế hoạch bữa ăn: ${e.toString()}',
+        ),
+      );
     }
   }
 
   Future<void> createMealPlan(String weekStartDate, {String? note}) async {
     emit(state.copyWith(isLoading: true, error: null));
-    
+
     try {
       final token = _authService.accessToken;
       if (token == null) {
-        emit(state.copyWith(
-          isLoading: false,
-          error: 'Bạn cần đăng nhập để tạo kế hoạch bữa ăn',
-        ));
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Bạn cần đăng nhập để tạo kế hoạch bữa ăn',
+          ),
+        );
         return;
       }
 
-      final dto = CreateMealPlanDto(
-        weekStartDate: weekStartDate,
-        note: note,
-      );
+      final dto = CreateMealPlanDto(weekStartDate: weekStartDate, note: note);
 
       final mealPlan = await _apiService.createMealPlan(token, dto);
       final updatedPlans = [...state.mealPlans, mealPlan];
-      
-      emit(state.copyWith(
-        isLoading: false,
-        mealPlans: updatedPlans,
-        currentPlan: mealPlan,
-      ));
+
+      emit(
+        state.copyWith(
+          isLoading: false,
+          mealPlans: updatedPlans,
+          currentPlan: mealPlan,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        error: 'Không thể tạo kế hoạch bữa ăn: ${e.toString()}',
-      ));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Không thể tạo kế hoạch bữa ăn: ${e.toString()}',
+        ),
+      );
     }
   }
 
   Future<void> addMealToPlan(String planId, AddMealDto dto) async {
     emit(state.copyWith(isLoading: true, error: null));
-    
+
     try {
       final token = _authService.accessToken;
       if (token == null) {
-        emit(state.copyWith(
-          isLoading: false,
-          error: 'Bạn cần đăng nhập để thêm món ăn',
-        ));
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Bạn cần đăng nhập để thêm món ăn',
+          ),
+        );
         return;
       }
 
       // Call API to add meal (this just returns success, not full plan)
       await _apiService.addMealToPlan(token, planId, dto);
-      
+
       // Instead of trying to use the response, reload all meal plans
       await loadMealPlans();
-      
     } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        error: 'Không thể thêm món ăn: ${e.toString()}',
-      ));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Không thể thêm món ăn: ${e.toString()}',
+        ),
+      );
     }
   }
 
   Future<void> quickAddMealToToday(QuickAddMealDto dto) async {
     emit(state.copyWith(isLoading: true, error: null));
-    
+
     try {
       final token = _authService.accessToken;
       if (token == null) {
-        emit(state.copyWith(
-          isLoading: false,
-          error: 'Bạn cần đăng nhập để thêm món ăn',
-        ));
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Bạn cần đăng nhập để thêm món ăn',
+          ),
+        );
         return;
       }
 
       final updatedPlan = await _apiService.quickAddMealToToday(token, dto);
-      
+
       // Update or add the plan for today
       final today = DateTime.now();
-      final todayString = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-      final existingPlanIndex = state.mealPlans.indexWhere((plan) => 
-        plan.weekStartDate == todayString || 
-        plan.meals.any((meal) => meal.date == todayString)
+      final todayString =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final existingPlanIndex = state.mealPlans.indexWhere(
+        (plan) =>
+            plan.weekStartDate == todayString ||
+            plan.meals.any((meal) => meal.date == todayString),
       );
 
       List<MealPlanModel> updatedPlans;
@@ -188,17 +212,21 @@ class MealPlanCubit extends Cubit<MealPlanState> {
       } else {
         updatedPlans = [...state.mealPlans, updatedPlan];
       }
-      
-      emit(state.copyWith(
-        isLoading: false,
-        mealPlans: updatedPlans,
-        currentPlan: updatedPlan,
-      ));
+
+      emit(
+        state.copyWith(
+          isLoading: false,
+          mealPlans: updatedPlans,
+          currentPlan: updatedPlan,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        error: 'Không thể thêm món ăn hôm nay: ${e.toString()}',
-      ));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Không thể thêm món ăn hôm nay: ${e.toString()}',
+        ),
+      );
     }
   }
 
@@ -209,14 +237,16 @@ class MealPlanCubit extends Cubit<MealPlanState> {
     int servings = 2,
   }) async {
     emit(state.copyWith(isLoading: true, error: null));
-    
+
     try {
       final token = _authService.accessToken;
       if (token == null) {
-        emit(state.copyWith(
-          isLoading: false,
-          error: 'Bạn cần đăng nhập để tạo kế hoạch tự động',
-        ));
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Bạn cần đăng nhập để tạo kế hoạch tự động',
+          ),
+        );
         return;
       }
 
@@ -227,92 +257,109 @@ class MealPlanCubit extends Cubit<MealPlanState> {
         region: region,
         servings: servings,
       );
-      
+
       final updatedPlans = [...state.mealPlans, mealPlan];
-      
-      emit(state.copyWith(
-        isLoading: false,
-        mealPlans: updatedPlans,
-        currentPlan: mealPlan,
-      ));
+
+      emit(
+        state.copyWith(
+          isLoading: false,
+          mealPlans: updatedPlans,
+          currentPlan: mealPlan,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        error: 'Không thể tạo kế hoạch tự động: ${e.toString()}',
-      ));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Không thể tạo kế hoạch tự động: ${e.toString()}',
+        ),
+      );
     }
   }
 
   Future<void> deleteMealPlan(String planId) async {
     emit(state.copyWith(isLoading: true, error: null));
-    
+
     try {
       final token = _authService.accessToken;
       if (token == null) {
-        emit(state.copyWith(
-          isLoading: false,
-          error: 'Bạn cần đăng nhập để xóa kế hoạch',
-        ));
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Bạn cần đăng nhập để xóa kế hoạch',
+          ),
+        );
         return;
       }
 
       await _apiService.deleteMealPlan(token, planId);
-      
+
       final updatedPlans = state.mealPlans
           .where((plan) => plan.id != planId)
           .toList();
-      
-      emit(state.copyWith(
-        isLoading: false,
-        mealPlans: updatedPlans,
-        currentPlan: state.currentPlan?.id == planId ? null : state.currentPlan,
-      ));
+
+      emit(
+        state.copyWith(
+          isLoading: false,
+          mealPlans: updatedPlans,
+          currentPlan: state.currentPlan?.id == planId
+              ? null
+              : state.currentPlan,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        error: 'Không thể xóa kế hoạch: ${e.toString()}',
-      ));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Không thể xóa kế hoạch: ${e.toString()}',
+        ),
+      );
     }
   }
 
   Future<void> removeMealFromPlan(
-    String planId, 
-    String date, 
+    String planId,
+    String date,
     String mealSlot, {
     bool reloadAfter = true,
   }) async {
     if (reloadAfter) {
       emit(state.copyWith(isLoading: true, error: null));
     }
-    
+
     try {
       final token = _authService.accessToken;
       if (token == null) {
-        emit(state.copyWith(
-          isLoading: false,
-          error: 'Bạn cần đăng nhập để xóa món ăn',
-        ));
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Bạn cần đăng nhập để xóa món ăn',
+          ),
+        );
         return;
       }
 
       await _apiService.removeMealFromPlan(token, planId, date, mealSlot);
-      
+
       // Reload meal plans to get updated data (only if requested)
       if (reloadAfter) {
         await loadMealPlans();
       }
     } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        error: 'Không thể xóa món ăn: ${e.toString()}',
-      ));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Không thể xóa món ăn: ${e.toString()}',
+        ),
+      );
     }
   }
 
   void selectDate(DateTime date) {
     emit(state.copyWith(selectedDate: date));
     // Load meal plans for the selected date
-    final dateString = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final dateString =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     loadMealPlans(date: dateString);
   }
 
@@ -326,8 +373,9 @@ class MealPlanCubit extends Cubit<MealPlanState> {
 
   // Helper methods
   MealPlanModel? getMealPlanForDate(DateTime date) {
-    final dateString = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    
+    final dateString =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
     for (final plan in state.mealPlans) {
       if (plan.meals.any((meal) => meal.date == dateString)) {
         return plan;
@@ -339,11 +387,12 @@ class MealPlanCubit extends Cubit<MealPlanState> {
   List<MealSlot> getMealsForSlot(MealType mealType) {
     final todayPlan = getMealPlanForDate(state.selectedDate);
     if (todayPlan == null) return [];
-    
-    final dateString = '${state.selectedDate.year}-${state.selectedDate.month.toString().padLeft(2, '0')}-${state.selectedDate.day.toString().padLeft(2, '0')}';
-    return todayPlan.meals.where((meal) => 
-      meal.date == dateString && meal.mealType == mealType
-    ).toList();
+
+    final dateString =
+        '${state.selectedDate.year}-${state.selectedDate.month.toString().padLeft(2, '0')}-${state.selectedDate.day.toString().padLeft(2, '0')}';
+    return todayPlan.meals
+        .where((meal) => meal.date == dateString && meal.mealType == mealType)
+        .toList();
   }
 
   bool hasMealsForDate(DateTime date) {
