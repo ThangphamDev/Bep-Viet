@@ -61,7 +61,7 @@ class _CommunityPageState extends State<CommunityPage>
 
   void _loadRecipes({bool refresh = true}) {
     if (_communityCubit == null) return;
-    
+
     if (refresh) {
       _communityCubit!.loadRecipes(
         region: _selectedRegion,
@@ -95,7 +95,7 @@ class _CommunityPageState extends State<CommunityPage>
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
@@ -120,8 +120,12 @@ class _CommunityPageState extends State<CommunityPage>
                         showMyRecipes: _showMyRecipes,
                         onLoadMore: () => _loadRecipes(refresh: false),
                         onRecipeTap: (recipe) => _navigateToDetail(recipe),
-                        onEditRecipe: _showMyRecipes ? (recipe) => _navigateToEdit(recipe) : null,
-                        onDeleteRecipe: _showMyRecipes ? (recipe) => _showDeleteDialog(recipe) : null,
+                        onEditRecipe: _showMyRecipes
+                            ? (recipe) => _navigateToEdit(recipe)
+                            : null,
+                        onDeleteRecipe: _showMyRecipes
+                            ? (recipe) => _showDeleteDialog(recipe)
+                            : null,
                         onComment: _handleComment,
                         onRating: _handleRating,
                         onShare: _handleShare,
@@ -150,10 +154,7 @@ class _CommunityPageState extends State<CommunityPage>
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.shade200,
-            width: 0.5,
-          ),
+          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
         ),
       ),
       child: Row(
@@ -172,15 +173,9 @@ class _CommunityPageState extends State<CommunityPage>
           const Spacer(),
 
           // Action buttons - threads style
-          _buildIconButton(
-            icon: Icons.notifications_outlined,
-            onTap: () {},
-          ),
+          _buildIconButton(icon: Icons.notifications_outlined, onTap: () {}),
           const SizedBox(width: 4),
-          _buildIconButton(
-            icon: Icons.chat_bubble_outline,
-            onTap: () {},
-          ),
+          _buildIconButton(icon: Icons.chat_bubble_outline, onTap: () {}),
         ],
       ),
     );
@@ -204,10 +199,7 @@ class _CommunityPageState extends State<CommunityPage>
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.shade200,
-            width: 0.5,
-          ),
+          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
         ),
       ),
       child: TabBar(
@@ -268,7 +260,14 @@ class _CommunityPageState extends State<CommunityPage>
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CreateRecipePage()),
-    );
+    ).then((_) {
+      // Refresh the recipes list after creating
+      if (_showMyRecipes) {
+        _loadMyRecipes();
+      } else {
+        _loadRecipes();
+      }
+    });
   }
 
   void _navigateToEdit(CommunityRecipe recipe) {
@@ -291,9 +290,7 @@ class _CommunityPageState extends State<CommunityPage>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Icon(
@@ -425,7 +422,6 @@ class _CommunityPageState extends State<CommunityPage>
     // Share functionality is already handled in the widget
   }
 
-
   // Legacy search dialog removed (unused)
 
   // Legacy filter bottom sheet removed (unused)
@@ -479,8 +475,12 @@ class _FeedView extends StatelessWidget {
                     return CommunityFeedCardNew(
                           recipe: recipes[index],
                           onTap: () => onRecipeTap(recipes[index]),
-                          onEdit: showMyRecipes ? () => onEditRecipe?.call(recipes[index]) : null,
-                          onDelete: showMyRecipes ? () => onDeleteRecipe?.call(recipes[index]) : null,
+                          onEdit: showMyRecipes
+                              ? () => onEditRecipe?.call(recipes[index])
+                              : null,
+                          onDelete: showMyRecipes
+                              ? () => onDeleteRecipe?.call(recipes[index])
+                              : null,
                           showEditOptions: showMyRecipes,
                           onComment: onComment,
                           onRating: onRating,
@@ -512,7 +512,6 @@ class _FeedView extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _EmptyState extends StatelessWidget {
