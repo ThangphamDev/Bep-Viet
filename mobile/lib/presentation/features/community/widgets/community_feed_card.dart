@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import '../../../../data/models/community_recipe.dart';
 
