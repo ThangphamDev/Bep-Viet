@@ -22,10 +22,7 @@ class CommunityRecipeCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            AppTheme.primaryGreen.withOpacity(0.03),
-          ],
+          colors: [Colors.white, AppTheme.primaryGreen.withOpacity(0.03)],
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
@@ -72,9 +69,9 @@ class CommunityRecipeCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Author and time info
                 Row(
                   children: [
@@ -109,9 +106,9 @@ class CommunityRecipeCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Description
                 if (recipe.descriptionMd != null) ...[
                   Text(
@@ -126,7 +123,7 @@ class CommunityRecipeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                 ],
-                
+
                 // Stats row
                 Row(
                   children: [
@@ -137,8 +134,8 @@ class CommunityRecipeCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     _buildStatChip(
                       icon: Icons.star_outline,
-                      label: recipe.avgRating > 0 
-                          ? recipe.avgRating.toStringAsFixed(1)
+                      label: (recipe.avgRating ?? 0) > 0
+                          ? (recipe.avgRating ?? 0).toStringAsFixed(1)
                           : 'Chưa đánh giá',
                     ),
                     const SizedBox(width: 12),
@@ -150,7 +147,9 @@ class CommunityRecipeCard extends StatelessWidget {
                         onPressed: onFavorite,
                         icon: Icon(
                           isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: isFavorite ? Colors.red : AppTheme.textSecondary,
+                          color: isFavorite
+                              ? Colors.red
+                              : AppTheme.textSecondary,
                         ),
                       ),
                   ],
@@ -166,7 +165,7 @@ class CommunityRecipeCard extends StatelessWidget {
   Widget _buildRegionBadge(String region) {
     String regionText;
     Color regionColor;
-    
+
     switch (region) {
       case 'BAC':
         regionText = 'Bắc';
@@ -239,7 +238,7 @@ class CommunityRecipeCard extends StatelessWidget {
   Widget _buildDifficultyChip(String difficulty) {
     String difficultyText;
     Color difficultyColor;
-    
+
     switch (difficulty) {
       case 'DE':
         difficultyText = 'Dễ';

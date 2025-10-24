@@ -79,9 +79,9 @@ class CommunityFeedCard extends StatelessWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // User info
           Expanded(
             child: Column(
@@ -106,7 +106,7 @@ class CommunityFeedCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // More options
           IconButton(
             onPressed: () => _showMoreOptions(),
@@ -157,7 +157,7 @@ class CommunityFeedCard extends StatelessWidget {
                 ),
               ),
             ),
-          
+
           // Difficulty badge
           if (recipe.difficulty != null)
             Positioned(
@@ -212,9 +212,9 @@ class CommunityFeedCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Description
           if (recipe.descriptionMd != null && recipe.descriptionMd!.isNotEmpty)
             Text(
@@ -227,9 +227,9 @@ class CommunityFeedCard extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Recipe info
           Row(
             children: [
@@ -249,7 +249,8 @@ class CommunityFeedCard extends StatelessWidget {
               ],
               _buildInfoChip(
                 icon: Icons.star,
-                text: '${recipe.avgRating.toStringAsFixed(1)} (${recipe.ratingCount})',
+                text:
+                    '${(recipe.avgRating ?? 0).toStringAsFixed(1)} (${recipe.ratingCount})',
               ),
             ],
           ),
@@ -258,10 +259,7 @@ class CommunityFeedCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoChip({
-    required IconData icon,
-    required String text,
-  }) {
+  Widget _buildInfoChip({required IconData icon, required String text}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -271,11 +269,7 @@ class CommunityFeedCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: AppTheme.textSecondary,
-          ),
+          Icon(icon, size: 14, color: AppTheme.textSecondary),
           const SizedBox(width: 4),
           Text(
             text,
@@ -302,22 +296,19 @@ class CommunityFeedCard extends StatelessWidget {
             onTap: () => _handleLike(),
           ),
           const SizedBox(width: 16),
-          
+
           // Comment button
           _buildActionButton(
             icon: Icons.chat_bubble_outline,
             onTap: () => _handleComment(),
           ),
           const SizedBox(width: 16),
-          
+
           // Share button
-          _buildActionButton(
-            icon: Icons.share,
-            onTap: () => _handleShare(),
-          ),
-          
+          _buildActionButton(icon: Icons.share, onTap: () => _handleShare()),
+
           const Spacer(),
-          
+
           // Save button
           _buildActionButton(
             icon: Icons.bookmark_border,
@@ -341,21 +332,17 @@ class CommunityFeedCard extends StatelessWidget {
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
-          icon,
-          size: 24,
-          color: color ?? AppTheme.textSecondary,
-        ),
+        child: Icon(icon, size: 24, color: color ?? AppTheme.textSecondary),
       ),
     );
   }
 
   String _formatTimeAgo(DateTime? dateTime) {
     if (dateTime == null) return 'Vừa xong';
-    
+
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays} ngày trước';
     } else if (difference.inHours > 0) {
@@ -452,7 +439,8 @@ class CommunityFeedCard extends StatelessWidget {
   }
 
   void _handleShare() {
-    final shareText = '''
+    final shareText =
+        '''
 🍽️ ${recipe.title}
 
 ${recipe.descriptionMd ?? 'Công thức nấu ăn ngon từ cộng đồng Bếp Việt'}
@@ -464,7 +452,7 @@ ${recipe.descriptionMd ?? 'Công thức nấu ăn ngon từ cộng đồng Bếp
 
 Tải ứng dụng Bếp Việt để xem chi tiết công thức!
     ''';
-    
+
     // TODO: Implement share using platform channels or native code
     debugPrint('Share: $shareText');
     // For now, just show a snackbar
