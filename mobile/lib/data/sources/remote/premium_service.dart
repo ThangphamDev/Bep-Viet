@@ -129,6 +129,58 @@ class PremiumService {
     }
   }
 
+  // VNPay Payment APIs
+  Future<Map<String, dynamic>> createVNPayPayment(
+    String token, {
+    required String planId,
+    required int durationMonths,
+    String? bankCode,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/payments/vnpay/create',
+        data: {
+          'plan_id': planId,
+          'duration_months': durationMonths,
+          if (bankCode != null) 'bank_code': bankCode,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] != null) {
+          return map['data'] as Map<String, dynamic>;
+        }
+      }
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to create VNPay payment: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> checkPaymentStatus(
+    String token,
+    String transactionId,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/api/payments/vnpay/status/$transactionId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data as Map<String, dynamic>;
+        if (map['success'] == true && map['data'] != null) {
+          return map['data'] as Map<String, dynamic>;
+        }
+      }
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to check payment status: $e');
+    }
+  }
+
   // Family APIs
   Future<List<FamilyProfileModel>> getUserFamilyProfiles(String token) async {
     try {

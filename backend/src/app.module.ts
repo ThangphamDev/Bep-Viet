@@ -25,6 +25,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { GeminiModule } from './modules/gemini/gemini.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { GeminiModule } from './modules/gemini/gemini.module';
     AnalyticsModule,
     ModerationModule,
     SubscriptionsModule,
+    PaymentsModule,
     GeminiModule,
   ],
   controllers: [AppController],

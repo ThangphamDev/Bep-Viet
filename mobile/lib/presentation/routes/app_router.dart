@@ -67,7 +67,7 @@ class AuthNotifier extends ChangeNotifier {
   }
 
   bool get isAuthenticated => _authCubit.state is AuthAuthenticated;
-  
+
   bool get isAdmin {
     if (_authCubit.state is AuthAuthenticated) {
       final state = _authCubit.state as AuthAuthenticated;
@@ -75,7 +75,7 @@ class AuthNotifier extends ChangeNotifier {
     }
     return false;
   }
-  
+
   UserModel? get currentUser {
     if (_authCubit.state is AuthAuthenticated) {
       final state = _authCubit.state as AuthAuthenticated;
@@ -92,7 +92,26 @@ class AppRouter {
     return GoRouter(
       initialLocation: AppRoutes.login,
       refreshListenable: authNotifier,
+      // Hide default error page for unknown routes (prevents "Page Not Found")
+      errorBuilder: (context, state) => const SizedBox.shrink(),
       redirect: (context, state) {
+        final uri = state.uri;
+
+        // Intercept VNPay deep link and redirect to subscription page
+        // This prevents "Page Not Found" error while app_links handles payment
+        final isVnpayDeepLink =
+            uri.scheme == 'bepviet' &&
+            uri.host == 'vnpay' &&
+            uri.path == '/return';
+
+        if (isVnpayDeepLink) {
+          print(
+            '✅ VNPay deep link intercepted - redirecting to subscription page',
+          );
+          // Redirect to valid route, app_links listener will handle payment result
+          return AppRoutes.premiumSubscription;
+        }
+
         final authState = authCubit.state;
 
         // Show splash (stay on current route) while checking auth
