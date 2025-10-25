@@ -251,13 +251,26 @@ class UpdatePantryItemDto {
   });
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> json = {};
-    if (quantity != null) json['quantity'] = quantity!.toInt(); // Backend expects integer
-    if (unit != null) json['unit'] = unit;
-    if (expiryDate != null) json['expire_date'] = expiryDate!.toIso8601String().split('T')[0];
-    if (location != null) json['location'] = location;
-    final noteValue = notes;
-    if (noteValue != null && noteValue.isNotEmpty) json['batch_code'] = noteValue;
+    // IMPORTANT: Backend UPDATE requires ALL fields (doesn't support partial updates)
+    // Always send all fields with actual values from the dialog
+    final json = <String, dynamic>{
+      'quantity': quantity?.toInt() ?? 0,  // Backend requires integer
+      'unit': unit ?? 'g',  // Provide default if somehow null
+      'location': location ?? 'fridge',  // Provide default if somehow null
+    };
+    
+    // Optional field expire_date - send as formatted date string or null
+    if (expiryDate != null) {
+      json['expire_date'] = expiryDate!.toIso8601String().split('T')[0];
+    } else {
+      // Don't send the field if null (let backend keep existing value)
+      // Or send null explicitly if you want to clear it
+      json['expire_date'] = null;
+    }
+    
+    // batch_code - send the notes value (empty string is ok, preserves manual entry info)
+    json['batch_code'] = notes ?? '';
+    
     return json;
   }
 }

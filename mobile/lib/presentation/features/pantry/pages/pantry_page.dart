@@ -992,6 +992,12 @@ class _AddItemDialogState extends State<_AddItemDialog> {
   @override
   void initState() {
     super.initState();
+    
+    // Auto-fill purchase date to today
+    _purchaseDate = DateTime.now();
+    // Auto-fill expiry date to 7 days from now
+    _expiryDate = DateTime.now().add(const Duration(days: 7));
+    
     // Listen to search text changes for autocomplete
     _searchController.addListener(() {
       final text = _searchController.text.trim();
@@ -1048,6 +1054,27 @@ class _AddItemDialogState extends State<_AddItemDialog> {
     });
   }
 
+  Widget _buildQuickAddChip(String name) {
+    return ActionChip(
+      label: Text(name),
+      avatar: const Icon(Icons.add, size: 16),
+      onPressed: () {
+        setState(() {
+          _searchController.text = name;
+          _selectedIngredientId = null;
+        });
+        // Trigger search for this ingredient
+        _searchIngredients(name);
+      },
+      backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+      labelStyle: const TextStyle(
+        fontSize: 12,
+        color: AppTheme.primaryGreen,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+
   Future<void> _addItem() async {
     if (_formKey.currentState!.validate()) {
       final ingredientName = _searchController.text.trim();
@@ -1057,75 +1084,83 @@ class _AddItemDialogState extends State<_AddItemDialog> {
         String actualIngredientName = ingredientName;
         String? additionalNotes;
         
-        // Common ingredient IDs as fallback (in case search fails)
-        const Map<String, String> commonIngredients = {
-          'cà chua': 'dc03d9f1c0917264ffa0665ba9ebc5d604fa4425',
-          'thịt gà': 'a1234567890abcdef1234567890abcdef1234567', // Will be replaced with actual search
-          'khác': '21edf513abbc3a5a90be6ae55935d8794a13c261',
-        };
-        
-        const String defaultIngredientId = '21edf513abbc3a5a90be6ae55935d8794a13c261'; // "Khác"
-        
         // Check if user selected from autocomplete suggestions
         if (_selectedIngredientId != null && _selectedIngredientId!.isNotEmpty) {
           ingredientId = _selectedIngredientId!;
-          print('Using selected ingredient: $actualIngredientName with ID: $ingredientId');
+          print('✅ Using selected ingredient: $actualIngredientName with ID: $ingredientId');
         } else {
-          // Try to search for existing ingredient
+          // Search for existing ingredient - use fuzzy search
           try {
             final apiService = context.read<ApiService>();
+            // Try searching with the name (backend will do fuzzy match)
             final searchResults = await apiService.searchIngredients(ingredientName);
             
             if (searchResults.isNotEmpty) {
               // Try to find exact match first
-              Map<String, dynamic>? exactMatch;
+              Map<String, dynamic>? bestMatch;
               try {
-                exactMatch = searchResults.firstWhere(
+                bestMatch = searchResults.firstWhere(
                   (ingredient) => ingredient['name'].toString().toLowerCase() == ingredientName.toLowerCase(),
                 );
+                print('✅ Found exact match: ${bestMatch['name']}');
               } catch (e) {
-                // No exact match found, use first result
-                exactMatch = searchResults.first;
+                // No exact match, use first result as best match
+                bestMatch = searchResults.first;
+                print('ℹ️ Using fuzzy match: ${bestMatch['name']} for "$ingredientName"');
               }
               
-              ingredientId = exactMatch['id'].toString();
-              actualIngredientName = exactMatch['name'].toString();
-              print('Found existing ingredient: $actualIngredientName with ID: $ingredientId');
-            } else {
-              // No ingredients found, try common ingredients map first
-              final lowerName = ingredientName.toLowerCase();
-              if (commonIngredients.containsKey(lowerName)) {
-                ingredientId = commonIngredients[lowerName]!;
-                print('Using common ingredient ID for: $ingredientName');
+              ingredientId = bestMatch['id'].toString();
+              
+              // Check if it's a fuzzy match - save original name in notes
+              if (bestMatch['name'].toString().toLowerCase() != ingredientName.toLowerCase()) {
+                actualIngredientName = bestMatch['name'].toString();
+                final userNotes = _notesController.text.trim();
+                additionalNotes = userNotes.isNotEmpty 
+                    ? 'Tên gốc: $ingredientName. $userNotes'
+                    : 'Tên gốc: $ingredientName';
+                print('💡 Fuzzy match - saving original name "$ingredientName" in notes');
               } else {
-                // Use default "Khác" ID and save real name in notes
-                ingredientId = defaultIngredientId;
-                additionalNotes = 'Tên: $ingredientName';
-                print('No ingredient found, using default ID for: $ingredientName');
+                actualIngredientName = bestMatch['name'].toString();
               }
+            } else {
+              // No results at all - try finding a generic ingredient
+              print('⚠️ No search results for: $ingredientName');
+              
+              // Try to get any ingredient as fallback (search for common ones)
+              final fallbackResults = await apiService.searchIngredients('rau');
+              if (fallbackResults.isEmpty) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Lỗi: Không thể kết nối đến danh sách nguyên liệu. Vui lòng thử lại sau.'),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 4),
+                    ),
+                  );
+                }
+                return;
+              }
+              
+              // Use first fallback ingredient and save real name in notes
+              ingredientId = fallbackResults.first['id'].toString();
+              actualIngredientName = fallbackResults.first['name'].toString();
+              final userNotes = _notesController.text.trim();
+              additionalNotes = userNotes.isNotEmpty 
+                  ? 'Tên: $ingredientName. $userNotes'
+                  : 'Tên: $ingredientName';
+              
+              print('🔄 Using fallback ingredient with original name "$ingredientName" in notes');
             }
           } catch (searchError) {
-            // Search API failed, try common ingredients map first
-            print('Search failed: $searchError, trying common ingredients');
-            final lowerName = ingredientName.toLowerCase();
-            if (commonIngredients.containsKey(lowerName)) {
-              ingredientId = commonIngredients[lowerName]!;
-              print('Using common ingredient ID for: $ingredientName');
-            } else {
-              // Use default "Khác" ID and save real name in notes
-              ingredientId = defaultIngredientId;
-              additionalNotes = 'Tên: $ingredientName';
-              print('Using default ID after search failed for: $ingredientName');
-            }
+            print('❌ Search error: $searchError');
+            rethrow;
           }
         }
         
         // Combine user notes with ingredient name if needed
         String finalNotes = _notesController.text.trim();
         if (additionalNotes != null) {
-          finalNotes = finalNotes.isNotEmpty 
-              ? '$additionalNotes. $finalNotes' 
-              : additionalNotes;
+          finalNotes = additionalNotes;
         }
         
         final dto = AddPantryItemDto(
@@ -1183,11 +1218,39 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                   children: [
                     TextFormField(
                       controller: _searchController,
-                      decoration: const InputDecoration(
+                      autofocus: true,
+                      decoration: InputDecoration(
                         labelText: 'Tên nguyên liệu',
-                        border: OutlineInputBorder(),
-                        hintText: 'Nhập tên nguyên liệu...',
-                        prefixIcon: Icon(Icons.search),
+                        border: const OutlineInputBorder(),
+                        hintText: 'Nhập tên bất kỳ hoặc chọn từ gợi ý...',
+                        prefixIcon: const Icon(Icons.add_circle_outline),
+                        suffixIcon: _searchController.text.isNotEmpty && _selectedIngredientId == null
+                            ? Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryGreen.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    'Tùy chỉnh',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppTheme.primaryGreen,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : _selectedIngredientId != null
+                                ? const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 20),
+                                  )
+                                : null,
+                        helperText: '✅ Nhập tên tùy chỉnh hoặc chọn từ gợi ý',
+                        helperMaxLines: 2,
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -1195,7 +1258,48 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                         }
                         return null;
                       },
+                      onChanged: (value) {
+                        // Clear selected ingredient when user types
+                        setState(() {
+                          if (_selectedIngredientId != null) {
+                            _selectedIngredientId = null;
+                          }
+                        });
+                      },
                     ),
+                    // Quick add common ingredients (when no search)
+                    if (!_showSuggestions && _searchController.text.isEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Nguyên liệu phổ biến:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                _buildQuickAddChip('Cà chua'),
+                                _buildQuickAddChip('Thịt gà'),
+                                _buildQuickAddChip('Thịt heo'),
+                                _buildQuickAddChip('Cá'),
+                                _buildQuickAddChip('Trứng'),
+                                _buildQuickAddChip('Sữa'),
+                                _buildQuickAddChip('Rau xanh'),
+                                _buildQuickAddChip('Khoai tây'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     // Autocomplete suggestions
                     if (_showSuggestions && _ingredientSuggestions.isNotEmpty)
                       Container(
@@ -1205,14 +1309,15 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                           borderRadius: BorderRadius.circular(8),
                           color: Colors.white,
                         ),
+                        constraints: const BoxConstraints(maxHeight: 200),
                         child: ListView.builder(
                           shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
                           itemCount: _ingredientSuggestions.length,
                           itemBuilder: (context, index) {
                             final ingredient = _ingredientSuggestions[index];
                             return ListTile(
                               dense: true,
+                              leading: const Icon(Icons.check_circle_outline, size: 20, color: AppTheme.primaryGreen),
                               title: Text(ingredient['name'] ?? ''),
                               subtitle: ingredient['category_name'] != null 
                                   ? Text(ingredient['category_name'], style: const TextStyle(fontSize: 12))
@@ -1394,6 +1499,7 @@ class _EditItemDialogState extends State<_EditItemDialog> {
   @override
   void initState() {
     super.initState();
+    // Initialize ALL fields from current item to ensure backend receives all values
     _quantityController.text = widget.item.currentQuantity.toString();
     _selectedUnit = widget.item.unit;
     _selectedLocation = PantryLocation.values.firstWhere(
@@ -1410,6 +1516,7 @@ class _EditItemDialogState extends State<_EditItemDialog> {
       _expiryDate = _purchaseDate!.add(const Duration(days: 7));
     }
     
+    // Preserve original notes/batch_code (IMPORTANT for backend duplicate check)
     _notesController.text = widget.item.notes ?? '';
   }
 
@@ -1422,16 +1529,21 @@ class _EditItemDialogState extends State<_EditItemDialog> {
 
   Future<void> _updateItem() async {
     if (_formKey.currentState!.validate()) {
-      final dto = UpdatePantryItemDto(
-        quantity: double.parse(_quantityController.text),
-        unit: _selectedUnit,
-        expiryDate: _expiryDate,
-        purchaseDate: _purchaseDate,
-        location: _selectedLocation.value,
-        notes: _notesController.text.isNotEmpty ? _notesController.text : null,
-      );
-
       try {
+        final quantity = double.parse(_quantityController.text);
+        
+        // IMPORTANT: Backend UPDATE requires ALL fields, not just changed ones
+        final dto = UpdatePantryItemDto(
+          quantity: quantity,
+          unit: _selectedUnit,
+          expiryDate: _expiryDate,
+          purchaseDate: _purchaseDate,  // Not sent to backend, but kept for consistency
+          location: _selectedLocation.value,
+          notes: _notesController.text.trim(),  // Send even if empty
+        );
+        
+        print('📝 Update DTO: ${dto.toJson()}');
+
         await context.read<PantryCubit>().updatePantryItem(widget.item.id, dto);
         if (mounted) {
           Navigator.pop(context);
@@ -1443,11 +1555,13 @@ class _EditItemDialogState extends State<_EditItemDialog> {
           );
         }
       } catch (e) {
+        print('❌ Update error: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Lỗi: $e'),
+              content: Text('Lỗi cập nhật: ${e.toString()}'),
               backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -1526,6 +1640,29 @@ class _EditItemDialogState extends State<_EditItemDialog> {
                       ),
                     ),
                   ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Location dropdown
+                DropdownButtonFormField<PantryLocation>(
+                  value: _selectedLocation,
+                  decoration: const InputDecoration(
+                    labelText: 'Vị trí lưu trữ',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.location_on),
+                  ),
+                  items: PantryLocation.values.map((location) {
+                    return DropdownMenuItem(
+                      value: location,
+                      child: Text(location.displayName),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedLocation = value);
+                    }
+                  },
                 ),
                 
                 const SizedBox(height: 16),
