@@ -14,10 +14,7 @@ import 'create_recipe_page.dart';
 class CommunityDetailPage extends StatefulWidget {
   final CommunityRecipe recipe;
 
-  const CommunityDetailPage({
-    super.key,
-    required this.recipe,
-  });
+  const CommunityDetailPage({super.key, required this.recipe});
 
   @override
   State<CommunityDetailPage> createState() => _CommunityDetailPageState();
@@ -43,20 +40,20 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     final communityApiService = CommunityApiService(dio);
     final communityService = CommunityService(communityApiService);
     _detailCubit = CommunityDetailCubit(communityService);
-    
+
     // Add authentication token
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConfig.tokenKey);
     if (token != null) {
       dio.options.headers['Authorization'] = 'Bearer $token';
     }
-    
+
     // Load recipe detail
     _detailCubit.loadRecipe(widget.recipe.id);
-    
+
     // Check if user has already rated this recipe
     _checkUserRating();
-    
+
     if (mounted) {
       setState(() {
         _isInitialized = true;
@@ -92,7 +89,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         actions: [
           BlocBuilder<AuthCubit, AuthState>(
             builder: (context, state) {
-              if (state is AuthAuthenticated && 
+              if (state is AuthAuthenticated &&
                   state.user.id == widget.recipe.authorId) {
                 return PopupMenuButton<String>(
                   onSelected: (value) {
@@ -110,7 +107,11 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                       value: 'edit',
                       child: Row(
                         children: [
-                          Icon(Icons.edit, size: 20, color: AppTheme.textPrimary),
+                          Icon(
+                            Icons.edit,
+                            size: 20,
+                            color: AppTheme.textPrimary,
+                          ),
                           SizedBox(width: 8),
                           Text('Sửa bài viết'),
                         ],
@@ -122,7 +123,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                         children: [
                           Icon(Icons.delete, size: 20, color: Colors.red),
                           SizedBox(width: 8),
-                          Text('Xóa bài viết', style: TextStyle(color: Colors.red)),
+                          Text(
+                            'Xóa bài viết',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ],
                       ),
                     ),
@@ -146,49 +150,50 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
           ),
         ],
       ),
-      body: !_isInitialized 
-        ? Center(child: CircularProgressIndicator())
-        : BlocProvider.value(
-            value: _detailCubit,
-            child: BlocBuilder<CommunityDetailCubit, CommunityDetailState>(
-              builder: (context, state) {
-                if (state is CommunityDetailLoaded) {
-              return _RecipeDetailContent(
-                recipe: state.recipe,
-                onAddComment: _addComment,
-                onAddRating: _addRating,
-                commentController: _commentController,
-                selectedRating: _selectedRating,
-                onRatingChanged: (rating) {
-                  setState(() {
-                    _selectedRating = rating;
-                  });
+      body: !_isInitialized
+          ? Center(child: CircularProgressIndicator())
+          : BlocProvider.value(
+              value: _detailCubit,
+              child: BlocBuilder<CommunityDetailCubit, CommunityDetailState>(
+                builder: (context, state) {
+                  if (state is CommunityDetailLoaded) {
+                    return _RecipeDetailContent(
+                      recipe: state.recipe,
+                      onAddComment: _addComment,
+                      onAddRating: _addRating,
+                      commentController: _commentController,
+                      selectedRating: _selectedRating,
+                      onRatingChanged: (rating) {
+                        setState(() {
+                          _selectedRating = rating;
+                        });
+                      },
+                      hasUserRated: _hasUserRated,
+                      userRating: _userRating,
+                    );
+                  } else if (state is CommunityDetailError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error, size: 64, color: Colors.red),
+                          SizedBox(height: 16),
+                          Text('Lỗi: ${state.message}'),
+                          SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () =>
+                                _detailCubit.loadRecipe(widget.recipe.id),
+                            child: Text('Thử lại'),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    return Center(child: CircularProgressIndicator());
+                  }
                 },
-                hasUserRated: _hasUserRated,
-                userRating: _userRating,
-              );
-            } else if (state is CommunityDetailError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error, size: 64, color: Colors.red),
-                    SizedBox(height: 16),
-                    Text('Lỗi: ${state.message}'),
-                    SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => _detailCubit.loadRecipe(widget.recipe.id),
-                      child: Text('Thử lại'),
-                    ),
-                  ],
-                ),
-              );
-                } else {
-                  return Center(child: CircularProgressIndicator());
-                }
-              },
+              ),
             ),
-          ),
     );
   }
 
@@ -226,9 +231,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Icon(
@@ -341,9 +344,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
       final dio = Dio();
       final communityApiService = CommunityApiService(dio);
       final communityService = CommunityService(communityApiService);
-      
+
       await communityService.deleteCommunityRecipe(widget.recipe.id);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -356,10 +359,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -420,10 +420,7 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Colors.white,
-                  AppTheme.primaryGreen.withOpacity(0.03),
-                ],
+                colors: [Colors.white, AppTheme.primaryGreen.withOpacity(0.03)],
               ),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
@@ -438,7 +435,8 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Recipe image
-                if (widget.recipe.imageUrl != null && widget.recipe.imageUrl!.isNotEmpty) ...[
+                if (widget.recipe.imageUrl != null &&
+                    widget.recipe.imageUrl!.isNotEmpty) ...[
                   Container(
                     width: double.infinity,
                     height: 200,
@@ -450,7 +448,9 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                       borderRadius: BorderRadius.circular(16),
                       child: widget.recipe.imageUrl!.startsWith('data:image')
                           ? Image.memory(
-                              Uri.parse(widget.recipe.imageUrl!).data!.contentAsBytes(),
+                              Uri.parse(
+                                widget.recipe.imageUrl!,
+                              ).data!.contentAsBytes(),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
@@ -479,21 +479,27 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                           : Image.network(
                               widget.recipe.imageUrl!,
                               fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  color: Colors.grey.shade100,
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      value: loadingProgress.expectedTotalBytes != null
-                                          ? loadingProgress.cumulativeBytesLoaded /
-                                              loadingProgress.expectedTotalBytes!
-                                          : null,
-                                      color: AppTheme.primaryGreen,
-                                    ),
-                                  ),
-                                );
-                              },
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      color: Colors.grey.shade100,
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          value:
+                                              loadingProgress
+                                                      .expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                        .cumulativeBytesLoaded /
+                                                    loadingProgress
+                                                        .expectedTotalBytes!
+                                              : null,
+                                          color: AppTheme.primaryGreen,
+                                        ),
+                                      ),
+                                    );
+                                  },
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   color: Colors.grey.shade100,
@@ -522,7 +528,7 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                
+
                 // Title and region
                 Row(
                   children: [
@@ -542,9 +548,9 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                     ],
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Author and stats
                 Row(
                   children: [
@@ -579,9 +585,9 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                     ],
                   ],
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // Difficulty and cost
                 Row(
                   children: [
@@ -618,62 +624,73 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                     ],
                   ],
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Rating and stats
                 Row(
                   children: [
                     // Rating display
-                    Row(
-                      children: [
-                        // Display stars based on rating
-                        if (widget.recipe.avgRating != null && widget.recipe.avgRating! > 0) ...[
-                          ...List.generate(5, (index) {
-                            return Icon(
-                              index < widget.recipe.avgRating!.round() ? Icons.star : Icons.star_border,
-                              color: Colors.amber,
-                              size: 18,
-                            );
-                          }),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.recipe.avgRating!.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          // Display stars based on rating
+                          if (widget.recipe.avgRating != null &&
+                              widget.recipe.avgRating! > 0) ...[
+                            ...List.generate(5, (index) {
+                              return Icon(
+                                index < widget.recipe.avgRating!.round()
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: Colors.amber,
+                                size: 18,
+                              );
+                            }),
+                            const SizedBox(width: 6),
+                            Text(
+                              widget.recipe.avgRating!.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '(${widget.recipe.ratingCount} đánh giá)',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textSecondary,
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                '(${widget.recipe.ratingCount} đánh giá)',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                        ] else ...[
-                          // Display empty stars when no rating
-                          ...List.generate(5, (index) {
-                            return Icon(
-                              Icons.star_border,
-                              color: Colors.grey.shade400,
-                              size: 18,
-                            );
-                          }),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Chưa có đánh giá',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: AppTheme.textSecondary,
+                          ] else ...[
+                            // Display empty stars when no rating
+                            ...List.generate(5, (index) {
+                              return Icon(
+                                Icons.star_border,
+                                color: Colors.grey.shade400,
+                                size: 18,
+                              );
+                            }),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Chưa có đánh giá',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 12),
                     // Comment count
                     Icon(
                       Icons.comment_outlined,
@@ -682,15 +699,16 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${widget.recipe.commentCount} bình luận',
+                      '${widget.recipe.commentCount}',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-                
+
                 // Description
                 if (widget.recipe.descriptionMd != null) ...[
                   const SizedBox(height: 16),
@@ -706,12 +724,14 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
               ],
             ),
           ),
-          
+
           // Ingredients section
           _buildSection(
             title: 'Nguyên liệu',
             icon: Icons.shopping_cart_outlined,
-            child: widget.recipe.ingredients != null && widget.recipe.ingredients!.isNotEmpty
+            child:
+                widget.recipe.ingredients != null &&
+                    widget.recipe.ingredients!.isNotEmpty
                 ? ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -782,12 +802,13 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                     ),
                   ),
           ),
-          
+
           // Steps section
           _buildSection(
             title: 'Cách làm',
             icon: Icons.list_alt_outlined,
-            child: widget.recipe.steps != null && widget.recipe.steps!.isNotEmpty
+            child:
+                widget.recipe.steps != null && widget.recipe.steps!.isNotEmpty
                 ? ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -864,7 +885,7 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                     ),
                   ),
           ),
-          
+
           // Rating section
           _buildSection(
             title: 'Đánh giá',
@@ -896,10 +917,16 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(5, (index) {
                           return IconButton(
-                            onPressed: widget.hasUserRated ? null : () => widget.onRatingChanged(index + 1),
+                            onPressed: widget.hasUserRated
+                                ? null
+                                : () => widget.onRatingChanged(index + 1),
                             icon: Icon(
-                              index < widget.selectedRating ? Icons.star : Icons.star_border,
-                              color: index < widget.selectedRating ? Colors.amber : AppTheme.textSecondary,
+                              index < widget.selectedRating
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: index < widget.selectedRating
+                                  ? Colors.amber
+                                  : AppTheme.textSecondary,
                               size: 32,
                             ),
                           );
@@ -939,7 +966,11 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: (!widget.hasUserRated && widget.selectedRating > 0) ? widget.onAddRating : null,
+                          onPressed:
+                              (!widget.hasUserRated &&
+                                  widget.selectedRating > 0)
+                              ? widget.onAddRating
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryGreen,
                             shape: RoundedRectangleBorder(
@@ -955,57 +986,64 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Existing ratings
-                if (widget.recipe.ratings?.details != null && widget.recipe.ratings!.details!.isNotEmpty) ...[
-                  ...widget.recipe.ratings!.details!.map((rating) => Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryGreen.withOpacity(0.1),
+                if (widget.recipe.ratings?.details != null &&
+                    widget.recipe.ratings!.details!.isNotEmpty) ...[
+                  ...widget.recipe.ratings!.details!.map(
+                    (rating) => Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.primaryGreen.withOpacity(0.1),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Row(
+                            children: List.generate(5, (index) {
+                              return Icon(
+                                index < rating.stars
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: index < rating.stars
+                                    ? Colors.amber
+                                    : AppTheme.textSecondary,
+                                size: 16,
+                              );
+                            }),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            rating.authorName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            _formatDate(rating.createdAt),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Row(
-                          children: List.generate(5, (index) {
-                            return Icon(
-                              index < rating.stars ? Icons.star : Icons.star_border,
-                              color: index < rating.stars ? Colors.amber : AppTheme.textSecondary,
-                              size: 16,
-                            );
-                          }),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          rating.authorName,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          _formatDate(rating.createdAt),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
+                  ),
                 ],
               ],
             ),
           ),
-          
+
           // Comments section
           _buildSection(
             title: 'Bình luận',
@@ -1036,7 +1074,9 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppTheme.primaryGreen),
+                            borderSide: const BorderSide(
+                              color: AppTheme.primaryGreen,
+                            ),
                           ),
                           contentPadding: const EdgeInsets.all(12),
                         ),
@@ -1046,7 +1086,10 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: widget.commentController.text.trim().isNotEmpty ? widget.onAddComment : null,
+                          onPressed:
+                              widget.commentController.text.trim().isNotEmpty
+                              ? widget.onAddComment
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryGreen,
                             shape: RoundedRectangleBorder(
@@ -1062,56 +1105,59 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Existing comments
-                if (widget.recipe.comments != null && widget.recipe.comments!.isNotEmpty) ...[
-                  ...widget.recipe.comments!.map((comment) => Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryGreen.withOpacity(0.1),
+                if (widget.recipe.comments != null &&
+                    widget.recipe.comments!.isNotEmpty) ...[
+                  ...widget.recipe.comments!.map(
+                    (comment) => Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.primaryGreen.withOpacity(0.1),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                comment.authorName,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                _formatDate(comment.createdAt),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            comment.content,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.textPrimary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              comment.authorName,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              _formatDate(comment.createdAt),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          comment.content,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textPrimary,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
+                  ),
                 ] else ...[
                   Container(
                     padding: const EdgeInsets.all(20),
@@ -1135,7 +1181,7 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 20),
         ],
       ),
@@ -1176,7 +1222,7 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
   Widget _buildRegionBadge(String region) {
     String regionText;
     Color regionColor;
-    
+
     switch (region) {
       case 'BAC':
         regionText = 'Bắc';
@@ -1224,7 +1270,7 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays} ngày trước';
     } else if (difference.inHours > 0) {
