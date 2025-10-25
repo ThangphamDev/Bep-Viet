@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class CommunityService {
-  constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
+  constructor(
+    @Inject('DATABASE_CONNECTION') private db: any,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   // Helper method to get ingredients and steps for a recipe
   private async getRecipeDetails(recipeId: string) {
@@ -544,6 +547,18 @@ export class CommunityService {
        VALUES (?, 'COMMUNITY_RECIPE', ?, ?, 'PROMOTE', ?)`,
       [actionId, communityRecipeId, adminUserId, `Promoted to official recipe: ${newRecipeId}`]
     );
+
+    // 11. Send notification to recipe author
+    try {
+      await this.notificationsService.notifyRecipePromotedToOfficial(
+        communityRecipe.author_user_id,
+        communityRecipe.title,
+        newRecipeId
+      );
+    } catch (notifError) {
+      // Log but don't fail the promotion
+      console.error('Failed to send promotion notification:', notifError);
+    }
 
     return {
       success: true,

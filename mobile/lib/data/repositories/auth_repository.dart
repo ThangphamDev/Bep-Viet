@@ -112,9 +112,14 @@ class AuthRepository {
   }
 
   // Login with Google
-  Future<AuthResponse> loginWithGoogle() async {
+  /// Set [forceAccountSelection] to true to always show account chooser
+  Future<AuthResponse> loginWithGoogle({
+    bool forceAccountSelection = false,
+  }) async {
     try {
-      final authData = await _googleAuthService.signInAndAuthenticate();
+      final authData = await _googleAuthService.signInAndAuthenticate(
+        forceAccountSelection: forceAccountSelection,
+      );
 
       if (authData == null) {
         throw Exception('Google Sign-In failed');
@@ -144,7 +149,22 @@ class AuthRepository {
       );
     } catch (error) {
       print('Google login error in repository: $error');
-      throw Exception('Đăng nhập Google thất bại: ${error.toString()}');
+
+      // If account is blocked, sign out to allow user to choose different account
+      final errorString = error.toString();
+      if (errorString.toLowerCase().contains('blocked') ||
+          errorString.toLowerCase().contains('khóa')) {
+        try {
+          await _googleAuthService.signOut();
+          print('Signed out from Google due to blocked account');
+        } catch (signOutError) {
+          print('Error signing out: $signOutError');
+        }
+      }
+
+      // Re-throw the error as-is to preserve backend message
+      final cleanError = errorString.replaceFirst('Exception: ', '');
+      throw Exception(cleanError);
     }
   }
 

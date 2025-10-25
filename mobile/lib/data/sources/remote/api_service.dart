@@ -35,14 +35,20 @@ class ApiService {
       }
       throw Exception('Invalid API response format');
     } on DioException catch (e) {
+      // Parse error message from backend response
+      if (e.response?.data != null && e.response?.data is Map) {
+        final errorMessage =
+            e.response?.data['message'] ?? e.response?.data['error'];
+        if (errorMessage != null) {
+          throw Exception(errorMessage);
+        }
+      }
+
+      // Fallback to status code messages
       if (e.response?.statusCode == 401) {
         throw Exception('Email hoặc mật khẩu không đúng');
       } else if (e.response?.statusCode == 404) {
         throw Exception('Tài khoản không tồn tại');
-      } else if (e.response?.data != null && e.response?.data is Map) {
-        final errorMessage =
-            e.response?.data['message'] ?? 'Đăng nhập thất bại';
-        throw Exception(errorMessage);
       } else {
         throw Exception('Không thể kết nối đến server');
       }

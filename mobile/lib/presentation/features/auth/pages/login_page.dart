@@ -106,7 +106,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           child: BlocListener<AuthCubit, AuthState>(
             listener: (context, state) async {
               if (state is AuthError) {
-                _showErrorSnackBar(state.message);
+                // Check if account is blocked
+                if (state.message.toLowerCase().contains('blocked') ||
+                    state.message.toLowerCase().contains('khóa')) {
+                  _showAccountBlockedDialog(state.message);
+                } else {
+                  _showErrorSnackBar(state.message);
+                }
               } else if (state is AuthAuthenticated) {
                 // Get user name for welcome message
                 final userName = state.user.name;
@@ -581,6 +587,77 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         backgroundColor: AppTheme.infoColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _showAccountBlockedDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.block, color: AppTheme.errorColor, size: 28),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Tài khoản bị khóa',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message, style: const TextStyle(fontSize: 16, height: 1.5)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.infoColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.infoColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppTheme.infoColor, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Vui lòng liên hệ quản trị viên để biết thêm chi tiết.',
+                      style: TextStyle(fontSize: 14, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Đóng'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Force account selection dialog to show
+              context.read<AuthCubit>().loginWithGoogle(
+                forceAccountSelection: true,
+              );
+            },
+            icon: const Icon(Icons.account_circle, size: 20),
+            label: const Text('Chọn tài khoản khác'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }

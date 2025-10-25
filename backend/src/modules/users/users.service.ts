@@ -1,11 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { UpdateProfileDto, UserProfileDto, ChangePasswordDto } from './dto/users.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
-  constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
+  constructor(
+    @Inject('DATABASE_CONNECTION') private db: any,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async getProfile(userId: string): Promise<UserProfileDto> {
     if (!userId) {
@@ -287,8 +290,13 @@ export class UsersService {
         [userId]
       );
 
-      // Note: moderation_actions table doesn't support USER target_type yet
-      // Skip logging for now
+      // Send notification to user
+      try {
+        await this.notificationsService.notifyAccountBlocked(userId);
+      } catch (notifError) {
+        // Log but don't fail the block operation
+        console.error('Failed to send block notification:', notifError);
+      }
 
       return {
         success: true,
@@ -326,8 +334,13 @@ export class UsersService {
         [userId]
       );
 
-      // Note: moderation_actions table doesn't support USER target_type yet
-      // Skip logging for now
+      // Send notification to user
+      try {
+        await this.notificationsService.notifyAccountUnblocked(userId);
+      } catch (notifError) {
+        // Log but don't fail the unblock operation
+        console.error('Failed to send unblock notification:', notifError);
+      }
 
       return {
         success: true,

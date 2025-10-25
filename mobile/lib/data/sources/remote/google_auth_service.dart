@@ -19,13 +19,24 @@ class GoogleAuthService {
   }
 
   /// Sign in with Google and get account
-  Future<GoogleSignInAccount?> signIn() async {
+  /// Set [forceAccountSelection] to true to always show account chooser
+  Future<GoogleSignInAccount?> signIn({
+    bool forceAccountSelection = false,
+  }) async {
     try {
-      // Try to sign in silently first
-      GoogleSignInAccount? account = await _googleSignIn.signInSilently();
+      GoogleSignInAccount? account;
 
-      // If silent sign-in fails, prompt user
-      account ??= await _googleSignIn.signIn();
+      if (forceAccountSelection) {
+        // Force account selection by signing out first
+        await signOut();
+        // Then prompt user to select account
+        account = await _googleSignIn.signIn();
+      } else {
+        // Try to sign in silently first
+        account = await _googleSignIn.signInSilently();
+        // If silent sign-in fails, prompt user
+        account ??= await _googleSignIn.signIn();
+      }
 
       return account;
     } catch (error) {
@@ -85,6 +96,14 @@ class GoogleAuthService {
       } else {
         throw Exception('Google login failed');
       }
+    } on DioException catch (e) {
+      print('Backend Google login error: $e');
+      // Parse error message from backend
+      final errorMessage =
+          e.response?.data?['message'] ??
+          e.response?.data?['error'] ??
+          'Đăng nhập Google thất bại';
+      throw Exception(errorMessage);
     } catch (e) {
       print('Backend Google login error: $e');
       throw Exception('Đăng nhập Google thất bại');
@@ -92,10 +111,15 @@ class GoogleAuthService {
   }
 
   /// Complete Google Sign-In flow
-  Future<Map<String, dynamic>?> signInAndAuthenticate() async {
+  /// Set [forceAccountSelection] to true to always show account chooser
+  Future<Map<String, dynamic>?> signInAndAuthenticate({
+    bool forceAccountSelection = false,
+  }) async {
     try {
       // Step 1: Sign in with Google
-      final account = await signIn();
+      final account = await signIn(
+        forceAccountSelection: forceAccountSelection,
+      );
       if (account == null) {
         throw Exception('Google Sign-In was cancelled');
       }

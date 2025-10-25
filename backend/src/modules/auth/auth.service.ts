@@ -93,14 +93,20 @@ export class AuthService {
 
     const user = (users as any[])[0];
 
-    if (!user || !user.is_active) {
-      throw new UnauthorizedException('Invalid credentials');
+    // Check if user exists
+    if (!user) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // Check if account is active
+    if (!user.is_active || user.is_active === 0) {
+      throw new UnauthorizedException('Your account has been blocked by administrator. Please contact support for assistance.');
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     // Generate tokens
@@ -143,8 +149,12 @@ export class AuthService {
 
       const user = (users as any[])[0];
 
-      if (!user || !user.is_active) {
-        throw new UnauthorizedException('User not found or inactive');
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      if (!user.is_active || user.is_active === 0) {
+        throw new UnauthorizedException('Your account has been blocked by administrator. Please contact support for assistance.');
       }
 
       // Generate new access token
@@ -191,9 +201,9 @@ export class AuthService {
       let user = (users as any[])[0];
 
       if (user) {
-        // User exists - just login
-        if (!user.is_active) {
-          throw new UnauthorizedException('Account is disabled');
+        // User exists - check if active
+        if (!user.is_active || user.is_active === 0) {
+          throw new UnauthorizedException('Your account has been blocked by administrator. Please contact support for assistance.');
         }
       } else {
         // User doesn't exist - create new account

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 
 @Injectable()
@@ -49,10 +49,16 @@ export class NotificationsService {
     }
   }
 
-  async getUserNotifications(userId: string, limit: number = 20, offset: number = 0) {
+  async getUserNotifications(
+    userId: string,
+    limit: number = 20,
+    offset: number = 0,
+    type?: string,
+    read?: string // 'true', 'false', or 'all'
+  ) {
     try {
-      const [notifications] = await this.db.execute(
-        `SELECT 
+      let query = `
+        SELECT 
           id,
           type,
           title,
@@ -62,53 +68,80 @@ export class NotificationsService {
           read_at,
           CASE WHEN read_at IS NULL THEN 0 ELSE 1 END as is_read
         FROM notifications 
-        WHERE user_id = ? 
-        ORDER BY delivered_at DESC 
-        LIMIT ? OFFSET ?`,
-        [userId, limit, offset]
-      );
+        WHERE user_id = ?
+      `;
+      const params: any[] = [userId];
+
+      // Filter by type
+      if (type) {
+        query += ' AND type = ?';
+        params.push(type);
+      }
+
+      // Filter by read status
+      if (read === 'true') {
+        query += ' AND read_at IS NOT NULL';
+      } else if (read === 'false') {
+        query += ' AND read_at IS NULL';
+      }
+      // If read === 'all', don't add filter
+
+      query += ' ORDER BY delivered_at DESC LIMIT ? OFFSET ?';
+      params.push(limit, offset);
+
+      const [notifications] = await this.db.execute(query, params);
 
       return {
         success: true,
-        data: notifications.map((notif: any) => ({
+        data: (notifications as any[]).map((notif: any) => ({
           ...notif,
           payload: notif.payload_json ? JSON.parse(notif.payload_json) : null,
         })),
       };
     } catch (error) {
-      console.error('Error fetching notifications:', error);
-      return {
-        success: false,
-        error: error.message,
-      };
+      throw new BadRequestException(`Failed to fetch notifications: ${error.message}`);
     }
   }
 
   async markAsRead(notificationId: string, userId: string) {
     try {
-      await this.db.execute(
-        'UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ?',
+      const [result] = await this.db.execute(
+        'UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ? AND read_at IS NULL',
         [notificationId, userId]
       );
 
-      return { success: true };
+      if ((result as any).affectedRows === 0) {
+        throw new NotFoundException('Notification not found or already read');
+      }
+
+      return {
+        success: true,
+        message: 'Notification marked as read',
+      };
     } catch (error) {
-      console.error('Error marking notification as read:', error);
-      return { success: false, error: error.message };
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to mark notification as read: ${error.message}`);
     }
   }
 
   async markAllAsRead(userId: string) {
     try {
-      await this.db.execute(
+      const [result] = await this.db.execute(
         'UPDATE notifications SET read_at = NOW() WHERE user_id = ? AND read_at IS NULL',
         [userId]
       );
 
-      return { success: true };
+      return {
+        success: true,
+        message: 'All notifications marked as read',
+        data: {
+          updated: (result as any).affectedRows,
+        },
+      };
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-      return { success: false, error: error.message };
+      throw new BadRequestException(`Failed to mark all notifications as read: ${error.message}`);
     }
   }
 
@@ -126,15 +159,95 @@ export class NotificationsService {
         },
       };
     } catch (error) {
-      console.error('Error getting unread count:', error);
-      return {
-        success: false,
-        error: error.message,
-      };
+      throw new BadRequestException(`Failed to get unread count: ${error.message}`);
     }
   }
 
-  // Specific notification types
+  async deleteNotification(notificationId: string, userId: string) {
+    try {
+      const [result] = await this.db.execute(
+        'DELETE FROM notifications WHERE id = ? AND user_id = ?',
+        [notificationId, userId]
+      );
+
+      if ((result as any).affectedRows === 0) {
+        throw new NotFoundException('Notification not found');
+      }
+
+      return {
+        success: true,
+        message: 'Notification deleted',
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to delete notification: ${error.message}`);
+    }
+  }
+
+  async deleteAllNotifications(userId: string) {
+    try {
+      const [result] = await this.db.execute(
+        'DELETE FROM notifications WHERE user_id = ?',
+        [userId]
+      );
+
+      return {
+        success: true,
+        message: 'All notifications deleted',
+        data: {
+          deleted: (result as any).affectedRows,
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to delete all notifications: ${error.message}`);
+    }
+  }
+
+  // ============ SYSTEM NOTIFICATION TYPES ============
+
+  // Account notifications
+  async notifyAccountBlocked(userId: string, reason?: string) {
+    return this.createNotification(
+      userId,
+      'ACCOUNT_BLOCKED',
+      '🚫 Tài khoản đã bị khóa',
+      `Tài khoản của bạn đã bị khóa bởi quản trị viên.${reason ? ` Lý do: ${reason}` : ' Vui lòng liên hệ để biết thêm chi tiết.'}`,
+      {
+        reason,
+        action: 'contact_support',
+      }
+    );
+  }
+
+  async notifyAccountUnblocked(userId: string) {
+    return this.createNotification(
+      userId,
+      'ACCOUNT_UNBLOCKED',
+      '✅ Tài khoản đã được mở khóa',
+      `Tài khoản của bạn đã được quản trị viên mở khóa. Bạn có thể tiếp tục sử dụng ứng dụng.`,
+      {
+        action: 'continue_using',
+      }
+    );
+  }
+
+  // Recipe moderation notifications
+  async notifyRecipePromotedToOfficial(userId: string, recipeTitle: string, recipeId: string) {
+    return this.createNotification(
+      userId,
+      'RECIPE_PROMOTED_TO_OFFICIAL',
+      '🎉 Công thức được chấp nhận!',
+      `Chúc mừng! Công thức "${recipeTitle}" của bạn đã được admin duyệt và thêm vào danh sách công thức chính thức của Bếp Việt.`,
+      {
+        recipeId,
+        recipeTitle,
+        action: 'view_official_recipe',
+      }
+    );
+  }
+
   async notifyRecipePromoted(userId: string, recipeTitle: string, recipeId: string) {
     return this.createNotification(
       userId,

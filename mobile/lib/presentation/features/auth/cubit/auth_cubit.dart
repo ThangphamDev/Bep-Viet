@@ -107,10 +107,14 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  Future<void> loginWithGoogle() async {
+  /// Login with Google
+  /// Set [forceAccountSelection] to true to always show account chooser
+  Future<void> loginWithGoogle({bool forceAccountSelection = false}) async {
     emit(AuthLoading());
     try {
-      final response = await _authRepository.loginWithGoogle();
+      final response = await _authRepository.loginWithGoogle(
+        forceAccountSelection: forceAccountSelection,
+      );
       if (response.success) {
         emit(AuthAuthenticated(user: response.data.user.toUserModel()));
       } else {
