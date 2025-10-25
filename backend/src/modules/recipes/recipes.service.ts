@@ -91,7 +91,7 @@ export class RecipesService {
 
   async getAllRecipes(filters: any = {}) {
     try {
-      // Simple query to get recipes with ingredients
+      // Query to get all public recipes (with or without ingredients)
       let query = `
         SELECT DISTINCT
           r.id,
@@ -112,7 +112,7 @@ export class RecipesService {
           r.created_at,
           r.updated_at
         FROM recipes r
-        INNER JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+        LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
         WHERE r.is_public = 1
       `;
       

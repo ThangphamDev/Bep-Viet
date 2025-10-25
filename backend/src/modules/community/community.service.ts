@@ -484,8 +484,10 @@ export class CommunityService {
       ]
     );
 
-    // 8. Insert ingredients (try to match with ingredients table, otherwise skip or add as note)
+    // 8. Insert ingredients (create new ingredient if not exists)
     for (const ing of (ingredients as any[])) {
+      let ingredientId;
+      
       // Try to find matching ingredient in ingredients table
       const [matchedIngredients] = await this.db.execute(
         `SELECT id FROM ingredients WHERE name = ? LIMIT 1`,
@@ -493,23 +495,36 @@ export class CommunityService {
       );
 
       if ((matchedIngredients as any[]).length > 0) {
-        const ingredientId = (matchedIngredients as any[])[0].id;
-        const [ingUuidResult] = await this.db.execute('SELECT UUID() as id');
-        const recipeIngId = (ingUuidResult as any[])[0].id;
-
-        // Parse quantity (extract number from string like "200g")
-        const quantityMatch = ing.quantity?.match(/(\d+(\.\d+)?)/);
-        const quantity = quantityMatch ? parseFloat(quantityMatch[1]) : 100;
+        // Use existing ingredient
+        ingredientId = (matchedIngredients as any[])[0].id;
+      } else {
+        // Create new ingredient if not found
+        const [newIngUuidResult] = await this.db.execute('SELECT UUID() as id');
+        ingredientId = (newIngUuidResult as any[])[0].id;
         
-        // Extract unit (g, ml, kg, etc)
-        const unit = ing.quantity?.replace(/[\d\.\s]+/g, '').trim() || 'g';
-
         await this.db.execute(
-          `INSERT INTO recipe_ingredients (id, recipe_id, ingredient_id, quantity, unit, note)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [recipeIngId, newRecipeId, ingredientId, quantity, unit, ing.note]
+          `INSERT INTO ingredients (id, name, default_unit, perishable, created_at, updated_at)
+           VALUES (?, ?, 'g', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          [ingredientId, ing.ingredient_name]
         );
       }
+
+      // Insert into recipe_ingredients
+      const [recipeIngUuidResult] = await this.db.execute('SELECT UUID() as id');
+      const recipeIngId = (recipeIngUuidResult as any[])[0].id;
+
+      // Parse quantity (extract number from string like "200g")
+      const quantityMatch = ing.quantity?.match(/(\d+(\.\d+)?)/);
+      const quantity = quantityMatch ? parseFloat(quantityMatch[1]) : 100;
+      
+      // Extract unit (g, ml, kg, etc)
+      const unit = ing.quantity?.replace(/[\d\.\s]+/g, '').trim() || 'g';
+
+      await this.db.execute(
+        `INSERT INTO recipe_ingredients (id, recipe_id, ingredient_id, quantity, unit, note)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [recipeIngId, newRecipeId, ingredientId, quantity, unit, ing.note]
+      );
     }
 
     // 9. Update community recipe with promoted info
