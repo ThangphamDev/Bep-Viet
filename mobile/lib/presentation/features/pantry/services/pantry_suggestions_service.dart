@@ -25,19 +25,10 @@ class PantrySuggestionsService {
     }
 
     try {
-      print('🔍 Fetching pantry suggestions with limit: $limit');
       final response = await _apiService.getPantrySuggestions(token, limit);
-      
-      print('📦 API Response: $response');
-      print('📦 Data type: ${response['data'].runtimeType}');
-      print('📦 Data: ${response['data']}');
-      print('📦 Pantry items type: ${response['pantry_items'].runtimeType}');
-      print('📦 Pantry items: ${response['pantry_items']}');
       
       final recipes = (response['data'] as List? ?? []).cast<Map<String, dynamic>>();
       final pantryItems = (response['pantry_items'] as List? ?? []).cast<Map<String, dynamic>>();
-      
-      print('✅ Parsed ${recipes.length} recipes and ${pantryItems.length} pantry items');
       
       return PantrySuggestionsResult(
         success: true,
@@ -46,7 +37,6 @@ class PantrySuggestionsService {
         pantryItems: pantryItems,
       );
     } catch (e) {
-      print('❌ Error fetching pantry suggestions: $e');
       return PantrySuggestionsResult(
         success: false,
         message: 'Lỗi khi tải gợi ý: ${e.toString()}',

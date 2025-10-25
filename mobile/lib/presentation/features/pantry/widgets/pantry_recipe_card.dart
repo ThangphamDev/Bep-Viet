@@ -226,36 +226,42 @@ class PantryRecipeCard extends StatelessWidget {
                   const SizedBox(height: 8),
 
                   // Tags row
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
+                  Row(
                     children: [
-                      // Meal type
-                      if (recipe.mealType != null)
-                        _buildTag(
-                          icon: _getMealTypeIcon(recipe.mealType),
-                          label: _getMealTypeText(recipe.mealType),
-                          color: AppTheme.primaryGreen.withOpacity(0.1),
-                          textColor: AppTheme.primaryGreen,
-                        ),
+                      Flexible(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            // Meal type
+                            if (recipe.mealType != null)
+                              _buildTag(
+                                icon: _getMealTypeIcon(recipe.mealType),
+                                label: _getMealTypeText(recipe.mealType),
+                                color: AppTheme.primaryGreen.withOpacity(0.1),
+                                textColor: AppTheme.primaryGreen,
+                              ),
 
-                      // Difficulty
-                      if (recipe.difficulty != null)
-                        _buildTag(
-                          icon: Icons.bar_chart,
-                          label: _getDifficultyText(recipe.difficulty),
-                          color: _getDifficultyColor(recipe.difficulty).withOpacity(0.1),
-                          textColor: _getDifficultyColor(recipe.difficulty),
-                        ),
+                            // Difficulty
+                            if (recipe.difficulty != null)
+                              _buildTag(
+                                icon: Icons.bar_chart,
+                                label: _getDifficultyText(recipe.difficulty),
+                                color: _getDifficultyColor(recipe.difficulty).withOpacity(0.1),
+                                textColor: _getDifficultyColor(recipe.difficulty),
+                              ),
 
-                      // Cook time
-                      if (recipe.cookTimeMin != null)
-                        _buildTag(
-                          icon: Icons.schedule,
-                          label: '${recipe.cookTimeMin} phút',
-                          color: Colors.blue.withOpacity(0.1),
-                          textColor: Colors.blue,
+                            // Cook time
+                            if (recipe.cookTimeMin != null)
+                              _buildTag(
+                                icon: Icons.schedule,
+                                label: '${recipe.cookTimeMin}p',
+                                color: Colors.blue.withOpacity(0.1),
+                                textColor: Colors.blue,
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 ],
@@ -274,22 +280,26 @@ class PantryRecipeCard extends StatelessWidget {
     required Color textColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: textColor),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: textColor,
-              fontWeight: FontWeight.w600,
+          Icon(icon, size: 11, color: textColor),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: textColor,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],

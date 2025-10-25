@@ -343,45 +343,55 @@ class PantryItemCard extends StatelessWidget {
                             color: AppTheme.primaryGreen.withOpacity(0.7),
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            '${item.currentQuantity} ${item.unit}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryGreen,
+                          Flexible(
+                            child: Text(
+                              '${item.currentQuantity} ${item.unit}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.primaryGreen,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                           // Location badge (nếu có)
                           if (item.location != null && item.location!.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: Colors.blue.shade200,
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    PantryColors.getLocationIcon(item.location),
-                                    size: 10,
-                                    color: Colors.blue.shade700,
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: Colors.blue.shade200,
+                                    width: 0.5,
                                   ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    item.location!,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      PantryColors.getLocationIcon(item.location),
+                                      size: 9,
                                       color: Colors.blue.shade700,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 2),
+                                    Flexible(
+                                      child: Text(
+                                        item.location!,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.blue.shade700,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
