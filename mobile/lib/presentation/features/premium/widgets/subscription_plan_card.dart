@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
-import 'package:bepviet_mobile/presentation/features/premium/pages/subscription_page.dart';
+
+// Generic interface for subscription plan display
+abstract class ISubscriptionPlan {
+  String get id;
+  String get name;
+  int get price;
+  String get duration;
+  List<String> get features;
+  bool get isPopular;
+}
 
 class SubscriptionPlanCard extends StatelessWidget {
-  final SubscriptionPlan plan;
+  final ISubscriptionPlan plan;
   final bool isSelected;
   final VoidCallback? onSelect;
 

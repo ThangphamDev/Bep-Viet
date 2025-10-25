@@ -102,10 +102,6 @@ export class PaymentsController {
         bank_code,
       );
 
-      this.logger.log(
-        `Created VNPay payment for user ${userId}, transaction ${transactionId}`,
-      );
-
       return {
         success: true,
         data: {
@@ -117,7 +113,6 @@ export class PaymentsController {
         message: 'Payment URL created successfully',
       };
     } catch (error: any) {
-      this.logger.error(`Error creating VNPay payment: ${error.message}`);
       throw error;
     }
   }
@@ -127,11 +122,9 @@ export class PaymentsController {
   @ApiResponse({ status: 200, description: 'Callback processed' })
   async vnpayCallback(@Query() query: any, @Res() res: Response) {
     try {
-      this.logger.log('Received VNPay IPN callback');
       const verification = this.vnpayService.verifyReturnUrl(query);
 
       if (!verification.isValid) {
-        this.logger.warn(`Invalid VNPay IPN signature for order ${verification.orderId}`);
         return res.status(200).json({ RspCode: '97', Message: 'Invalid signature' });
       }
 
@@ -157,6 +150,7 @@ export class PaymentsController {
         if (transactions && (transactions as any[]).length > 0) {
           const t = (transactions as any[])[0];
 
+          // Cancel old subscriptions
           await this.db.execute(
             `UPDATE subscriptions 
              SET status = 'CANCELLED', ended_at = NOW() 
@@ -164,6 +158,7 @@ export class PaymentsController {
             [t.user_id],
           );
 
+          // Create new subscription
           const [subUuidResult] = await this.db.execute('SELECT UUID() as id');
           const subscriptionId = (subUuidResult as any[])[0].id;
           const planUpper = String(t.plan_id).toUpperCase();
@@ -173,8 +168,6 @@ export class PaymentsController {
              VALUES (?, ?, ?, 'ACTIVE', ?, ?)`,
             [subscriptionId, t.user_id, planUpper, t.started_at, t.ended_at],
           );
-
-          this.logger.log(`Subscription activated for user ${t.user_id}, order ${orderId}`);
         }
 
         return res.status(200).json({ RspCode: '00', Message: 'Success' });
@@ -186,11 +179,10 @@ export class PaymentsController {
            WHERE id = ?`,
           [orderId],
         );
-        this.logger.warn(`Payment failed for order ${orderId}, code: ${responseCode}`);
+        
         return res.status(200).json({ RspCode: '00', Message: 'Success' });
       }
     } catch (error: any) {
-      this.logger.error(`Error processing VNPay IPN: ${error.message}`);
       return res.status(200).json({ RspCode: '99', Message: 'Unknown error' });
     }
   }
@@ -200,16 +192,16 @@ export class PaymentsController {
   @ApiResponse({ status: 302, description: 'Redirect to app' })
   async vnpayReturn(@Query() query: any, @Res() res: Response) {
     try {
-      this.logger.log('Received VNPay return, redirecting to app deep link');
+      // Extract ONLY essential params (prevent URL too long error)
+      const orderId = query['vnp_TxnRef'] || '';
+      const responseCode = query['vnp_ResponseCode'] || '99';
       
-      // Build deep link with all query parameters (not encoded)
-      const deepLink = `${this.appDeepLink}?${qs.stringify(query, { encode: false })}`;
-      this.logger.log(`Redirecting to: ${deepLink}`);
+      // Build MINIMAL deep link - app will query backend for full details
+      const deepLink = `${this.appDeepLink}?transactionId=${orderId}&responseCode=${responseCode}`;
       
       // 302 redirect to app
       return res.redirect(302, deepLink);
     } catch (error: any) {
-      this.logger.error(`Error processing VNPay return: ${error.message}`);
       // Fallback: redirect to app without params
       return res.redirect(302, this.appDeepLink);
     }

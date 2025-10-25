@@ -99,15 +99,9 @@ class AppRouter {
 
         // Intercept VNPay deep link and redirect to subscription page
         // This prevents "Page Not Found" error while app_links handles payment
-        final isVnpayDeepLink =
-            uri.scheme == 'bepviet' &&
-            uri.host == 'vnpay' &&
-            uri.path == '/return';
+        final isVnpayDeepLink = uri.scheme == 'bepviet' && uri.host == 'vnpay';
 
         if (isVnpayDeepLink) {
-          print(
-            '✅ VNPay deep link intercepted - redirecting to subscription page',
-          );
           // Redirect to valid route, app_links listener will handle payment result
           return AppRoutes.premiumSubscription;
         }

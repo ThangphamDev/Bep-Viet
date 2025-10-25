@@ -21,8 +21,6 @@ export class VNPayService {
 
     const baseUrl = (this.config.get('BASE_URL') ?? 'https://gullably-nonpsychological-leisha.ngrok-free.dev').trim();
     this.vnpReturnUrl = `${baseUrl}/api/payments/vnpay/return`;
-
-    this.logger.log(`VNPay TMN: ${this.vnpTmnCode}, Return: ${this.vnpReturnUrl}`);
   }
 
   /** Tạo link thanh toán */
@@ -69,9 +67,6 @@ export class VNPayService {
     // 4) Dùng chính bản đã encode để gửi đi
     const finalParams = { ...sortedEnc, vnp_SecureHash };
     const paymentUrl = this.vnpUrl + '?' + querystring.stringify(finalParams, { encode: false });
-
-    this.logger.debug('VNPay signData: ' + signData);
-    this.logger.debug('VNPay url: ' + paymentUrl);
 
     return paymentUrl;
   }
