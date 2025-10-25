@@ -145,8 +145,12 @@ export class RecipesService {
 
       query += ' ORDER BY r.rating_avg DESC, r.created_at DESC';
 
+    // Add pagination support
     if (filters.limit) {
       query += ` LIMIT ${parseInt(filters.limit.toString())}`;
+    }
+    if (filters.offset) {
+      query += ` OFFSET ${parseInt(filters.offset.toString())}`;
     }
 
       const [recipes] = await this.db.execute(query, params);

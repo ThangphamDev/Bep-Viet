@@ -1,7 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:bepviet_mobile/data/models/community_recipe.dart';
-import 'package:bepviet_mobile/data/models/recipe_model.dart';
 import 'package:bepviet_mobile/data/repositories/admin_repository.dart';
 
 part 'admin_cubit.freezed.dart';
@@ -33,10 +31,12 @@ class AdminCubit extends Cubit<AdminState> {
 
     try {
       final recipes = await _adminRepository.getAllCommunityRecipesForAdmin();
-      emit(AdminState.loaded(
-        recipes: recipes,
-        hasMore: recipes.length >= 50, // Assuming 50 is the limit
-      ));
+      emit(
+        AdminState.loaded(
+          recipes: recipes,
+          hasMore: recipes.length >= 50, // Assuming 50 is the limit
+        ),
+      );
     } catch (e) {
       emit(AdminState.error(e.toString()));
     }
@@ -55,10 +55,12 @@ class AdminCubit extends Cubit<AdminState> {
       if (moreRecipes.isEmpty) {
         emit(currentState.copyWith(hasMore: false));
       } else {
-        emit(currentState.copyWith(
-          recipes: [...currentRecipes, ...moreRecipes],
-          hasMore: moreRecipes.length >= 50,
-        ));
+        emit(
+          currentState.copyWith(
+            recipes: [...currentRecipes, ...moreRecipes],
+            hasMore: moreRecipes.length >= 50,
+          ),
+        );
       }
     } catch (e) {
       emit(AdminState.error(e.toString()));
@@ -102,7 +104,11 @@ class AdminCubit extends Cubit<AdminState> {
   }
 
   // Official Recipes Methods
-  Future<void> loadOfficialRecipes({bool refresh = false}) async {
+  Future<void> loadOfficialRecipes({
+    bool refresh = false,
+    String? search,
+    String? region,
+  }) async {
     if (refresh) {
       emit(const AdminState.loading());
     } else if (state is _Loaded) {
@@ -112,17 +118,22 @@ class AdminCubit extends Cubit<AdminState> {
     }
 
     try {
-      final recipes = await _adminRepository.getAllOfficialRecipes();
-      emit(AdminState.loaded(
-        recipes: recipes,
-        hasMore: recipes.length >= 50, // Assuming 50 is the limit
-      ));
+      final recipes = await _adminRepository.getAllOfficialRecipes(
+        search: search,
+        region: region,
+      );
+      emit(
+        AdminState.loaded(
+          recipes: recipes,
+          hasMore: recipes.length >= 50, // Assuming 50 is the limit
+        ),
+      );
     } catch (e) {
       emit(AdminState.error(e.toString()));
     }
   }
 
-  Future<void> loadMoreOfficialRecipes() async {
+  Future<void> loadMoreOfficialRecipes({String? search, String? region}) async {
     final currentState = state;
     if (currentState is! _Loaded || !currentState.hasMore) return;
 
@@ -130,15 +141,19 @@ class AdminCubit extends Cubit<AdminState> {
       final currentRecipes = currentState.recipes;
       final moreRecipes = await _adminRepository.getAllOfficialRecipes(
         offset: currentRecipes.length,
+        search: search,
+        region: region,
       );
 
       if (moreRecipes.isEmpty) {
         emit(currentState.copyWith(hasMore: false));
       } else {
-        emit(currentState.copyWith(
-          recipes: [...currentRecipes, ...moreRecipes],
-          hasMore: moreRecipes.length >= 50,
-        ));
+        emit(
+          currentState.copyWith(
+            recipes: [...currentRecipes, ...moreRecipes],
+            hasMore: moreRecipes.length >= 50,
+          ),
+        );
       }
     } catch (e) {
       emit(AdminState.error(e.toString()));
