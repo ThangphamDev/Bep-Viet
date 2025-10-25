@@ -510,54 +510,70 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
         title: Row(
           children: [
-            Icon(Icons.payment, color: AppTheme.primaryGreen),
-            const SizedBox(width: 12),
-            const Text('Chọn phương thức thanh toán'),
+            Icon(Icons.payment, color: AppTheme.primaryGreen, size: 24),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Chọn phương thức thanh toán',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Gói: ${plan.name}',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Số tiền: ${plan.price.toStringAsFixed(0)}đ',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryGreen,
-              ),
-            ),
-            const SizedBox(height: 24),
-            // VNPay button
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _payWithVNPay(plan);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0088CC),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Gói: ${plan.name}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Số tiền: ${plan.price.toStringAsFixed(0)}đ',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryGreen,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              // VNPay button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _payWithVNPay(plan);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0088CC),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.account_balance_wallet, size: 22),
+                  label: const Text(
+                    'Thanh toán VNPay',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
-              icon: const Icon(Icons.account_balance_wallet, size: 24),
-              label: const Text(
-                'Thanh toán VNPay',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
