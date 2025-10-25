@@ -175,4 +175,112 @@ class AdminCubit extends Cubit<AdminState> {
       throw Exception('Failed to delete recipe');
     }
   }
+
+  // ============ USER MANAGEMENT METHODS ============
+
+  Future<void> loadUsers({
+    bool refresh = false,
+    String? search,
+    String? role,
+    bool? isActive,
+  }) async {
+    if (refresh) {
+      emit(const AdminState.loading());
+    } else if (state is _Loaded) {
+      // Don't show loading if we're loading more
+    } else {
+      emit(const AdminState.loading());
+    }
+
+    try {
+      final users = await _adminRepository.getAllUsers(
+        search: search,
+        role: role,
+        isActive: isActive,
+      );
+      emit(
+        AdminState.loaded(
+          recipes: users, // Using 'recipes' field for users too
+          hasMore: users.length >= 50,
+        ),
+      );
+    } catch (e) {
+      emit(AdminState.error(e.toString()));
+    }
+  }
+
+  Future<void> loadMoreUsers({
+    String? search,
+    String? role,
+    bool? isActive,
+  }) async {
+    final currentState = state;
+    if (currentState is! _Loaded || !currentState.hasMore) return;
+
+    try {
+      final currentUsers = currentState.recipes; // 'recipes' holds users
+      final moreUsers = await _adminRepository.getAllUsers(
+        offset: currentUsers.length,
+        search: search,
+        role: role,
+        isActive: isActive,
+      );
+
+      if (moreUsers.isEmpty) {
+        emit(currentState.copyWith(hasMore: false));
+      } else {
+        emit(
+          currentState.copyWith(
+            recipes: [...currentUsers, ...moreUsers],
+            hasMore: moreUsers.length >= 50,
+          ),
+        );
+      }
+    } catch (e) {
+      emit(AdminState.error(e.toString()));
+    }
+  }
+
+  Future<void> blockUser(String userId) async {
+    final success = await _adminRepository.blockUser(userId);
+    if (success) {
+      // Update user in current list
+      final currentState = state;
+      if (currentState is _Loaded) {
+        final updatedUsers = currentState.recipes.map((user) {
+          if (user.id == userId) {
+            // Assuming user has a copyWith or similar
+            return (user as dynamic).copyWith
+                ? (user as dynamic).copyWith(isActive: false)
+                : user;
+          }
+          return user;
+        }).toList();
+        emit(currentState.copyWith(recipes: updatedUsers));
+      }
+    } else {
+      throw Exception('Failed to block user');
+    }
+  }
+
+  Future<void> unblockUser(String userId) async {
+    final success = await _adminRepository.unblockUser(userId);
+    if (success) {
+      // Update user in current list
+      final currentState = state;
+      if (currentState is _Loaded) {
+        final updatedUsers = currentState.recipes.map((user) {
+          if (user.id == userId) {
+            return (user as dynamic).copyWith
+                ? (user as dynamic).copyWith(isActive: true)
+                : user;
+          }
+          return user;
+        }).toList();
+        emit(currentState.copyWith(recipes: updatedUsers));
+      }
+    } else {
+      throw Exception('Failed to unblock user');
+    }
+  }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/user_model.dart';
+import 'package:bepviet_mobile/data/models/auth_models.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 
 class AuthService {
@@ -105,7 +106,10 @@ class AuthService {
     bool rememberMe = false,
   }) async {
     await _prefs.setString(AppConfig.tokenKey, authData.accessToken);
-    await _prefs.setString(AppConfig.refreshTokenKey, authData.refreshToken);
+    await _prefs.setString(
+      AppConfig.refreshTokenKey,
+      authData.refreshToken ?? '',
+    );
     await _prefs.setString(
       AppConfig.userKey,
       jsonEncode(authData.user.toJson()),
@@ -130,7 +134,8 @@ class AuthService {
   }) async {
     await _saveAuthData(
       AuthData(
-        user: user,
+        token: accessToken,
+        user: user.toUserData(),
         accessToken: accessToken,
         refreshToken: refreshToken,
       ),

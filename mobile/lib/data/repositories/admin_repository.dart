@@ -1,5 +1,6 @@
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
+import 'package:bepviet_mobile/data/models/user_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/admin_api_service.dart';
 
 class AdminRepository {
@@ -126,6 +127,82 @@ class AdminRepository {
       return response['success'] == true;
     } catch (e) {
       throw Exception('Failed to delete official recipe: $e');
+    }
+  }
+
+  // ============ USER MANAGEMENT ============
+
+  // Get all users
+  Future<List<UserModel>> getAllUsers({
+    int limit = 50,
+    int offset = 0,
+    String? search,
+    String? role,
+    bool? isActive,
+  }) async {
+    try {
+      final response = await _apiService.getAllUsers(
+        limit: limit,
+        offset: offset,
+        search: search,
+        role: role,
+        isActive: isActive,
+      );
+
+      if (response['success'] == true && response['data'] != null) {
+        final List<dynamic> usersJson = response['data'];
+        return usersJson.map((json) => UserModel.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load users: $e');
+    }
+  }
+
+  // Get user by ID
+  Future<UserModel> getUserById(String userId) async {
+    try {
+      final response = await _apiService.getUserById(userId);
+      return UserModel.fromJson(response['data']);
+    } catch (e) {
+      throw Exception('Failed to load user details: $e');
+    }
+  }
+
+  // Get user recipes
+  Future<List<CommunityRecipe>> getUserRecipes(String userId) async {
+    try {
+      final response = await _apiService.getUserRecipes(userId);
+
+      if (response['success'] == true && response['data'] != null) {
+        final List<dynamic> recipesJson = response['data'];
+        return recipesJson
+            .map((json) => CommunityRecipe.fromJson(json))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load user recipes: $e');
+    }
+  }
+
+  // Block user
+  Future<bool> blockUser(String userId) async {
+    try {
+      final response = await _apiService.blockUser(userId);
+      return response['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to block user: $e');
+    }
+  }
+
+  // Unblock user
+  Future<bool> unblockUser(String userId) async {
+    try {
+      final response = await _apiService.unblockUser(userId);
+      return response['success'] == true;
+    } catch (e) {
+      throw Exception('Failed to unblock user: $e');
     }
   }
 }

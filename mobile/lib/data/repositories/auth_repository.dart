@@ -1,4 +1,5 @@
 import 'package:bepviet_mobile/data/models/user_model.dart';
+import 'package:bepviet_mobile/data/models/auth_models.dart';
 import 'package:bepviet_mobile/data/sources/remote/auth_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/google_auth_service.dart';
 import 'package:bepviet_mobile/data/sources/local/biometric_auth_service.dart';
@@ -133,8 +134,10 @@ class AuthRepository {
 
       return AuthResponse(
         success: true,
+        token: accessToken,
         data: AuthData(
-          user: user,
+          token: accessToken,
+          user: user.toUserData(),
           accessToken: accessToken,
           refreshToken: refreshToken,
         ),
@@ -216,11 +219,14 @@ class AuthRepository {
       // Get user profile from server
       final user = await _authService.getUserProfile();
 
+      final token = _authService.accessToken ?? '';
       return AuthResponse(
         success: true,
+        token: token,
         data: AuthData(
-          user: user,
-          accessToken: _authService.accessToken ?? '',
+          token: token,
+          user: user.toUserData(),
+          accessToken: token,
           refreshToken: '', // No need to refresh
         ),
       );

@@ -7,6 +7,7 @@ import 'package:bepviet_mobile/data/models/meal_plan_model.dart';
 import 'package:bepviet_mobile/data/models/shopping_list_model.dart';
 import 'package:bepviet_mobile/data/models/pantry_item_model.dart';
 import 'package:bepviet_mobile/data/models/family_model.dart';
+import 'package:bepviet_mobile/data/models/auth_models.dart';
 
 class ApiService {
   final Dio _dio;

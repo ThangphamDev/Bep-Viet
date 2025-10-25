@@ -109,4 +109,69 @@ class AdminApiService {
     );
     return response.data;
   }
+
+  // ============ USER MANAGEMENT ============
+
+  // Get all users
+  Future<Map<String, dynamic>> getAllUsers({
+    int limit = 50,
+    int offset = 0,
+    String? search,
+    String? role,
+    bool? isActive,
+  }) async {
+    final token = await _getToken();
+    final response = await _dio.get(
+      '/api/users',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+        if (search != null) 'search': search,
+        if (role != null) 'role': role,
+        if (isActive != null) 'is_active': isActive ? 1 : 0,
+      },
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
+
+  // Get user by ID
+  Future<Map<String, dynamic>> getUserById(String userId) async {
+    final token = await _getToken();
+    final response = await _dio.get(
+      '/api/users/$userId',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
+
+  // Get user recipes
+  Future<Map<String, dynamic>> getUserRecipes(String userId) async {
+    final token = await _getToken();
+    final response = await _dio.get(
+      '/api/users/$userId/recipes',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
+
+  // Block user
+  Future<Map<String, dynamic>> blockUser(String userId) async {
+    final token = await _getToken();
+    final response = await _dio.post(
+      '/api/users/$userId/block',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
+
+  // Unblock user
+  Future<Map<String, dynamic>> unblockUser(String userId) async {
+    final token = await _getToken();
+    final response = await _dio.post(
+      '/api/users/$userId/unblock',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
 }

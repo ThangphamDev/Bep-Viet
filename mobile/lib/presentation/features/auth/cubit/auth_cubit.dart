@@ -96,7 +96,7 @@ class AuthCubit extends Cubit<AuthState> {
         rememberMe: rememberMe,
       );
       if (response.success) {
-        emit(AuthAuthenticated(user: response.data.user));
+        emit(AuthAuthenticated(user: response.data.user.toUserModel()));
       } else {
         emit(const AuthError(message: 'Đăng nhập thất bại'));
       }
@@ -112,7 +112,7 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final response = await _authRepository.loginWithGoogle();
       if (response.success) {
-        emit(AuthAuthenticated(user: response.data.user));
+        emit(AuthAuthenticated(user: response.data.user.toUserModel()));
       } else {
         emit(const AuthError(message: 'Đăng nhập Google thất bại'));
       }
@@ -236,7 +236,7 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final response = await _authRepository.loginWithBiometric();
       if (response.success) {
-        emit(AuthAuthenticated(user: response.data.user));
+        emit(AuthAuthenticated(user: response.data.user.toUserModel()));
       } else {
         emit(const AuthError(message: 'Đăng nhập sinh trắc học thất bại'));
       }

@@ -141,7 +141,7 @@ export class UsersService {
   }
 
   async changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<void> {
-    const { currentPassword, newPassword } = changePasswordDto;
+    const { currentPassword, newPassword} = changePasswordDto;
 
     if (!userId) {
       throw new NotFoundException('User ID is required');
@@ -173,5 +173,185 @@ export class UsersService {
       `UPDATE users SET password_hash = ? WHERE id = ?`,
       [hashedNewPassword, userId]
     );
+  }
+
+  // ============ ADMIN METHODS ============
+
+  async getAllUsers(filters: any = {}) {
+    try {
+      let query = `
+        SELECT 
+          u.id,
+          u.email,
+          u.name,
+          u.role,
+          u.region,
+          u.subregion,
+          u.is_active,
+          u.created_at,
+          u.updated_at,
+          COUNT(DISTINCT cr.id) as recipe_count,
+          COUNT(DISTINCT s.id) as subscription_count
+        FROM users u
+        LEFT JOIN community_recipes cr ON u.id = cr.author_user_id
+        LEFT JOIN subscriptions s ON u.id = s.user_id AND s.status = 'ACTIVE'
+        WHERE 1=1
+      `;
+
+      const params: any[] = [];
+
+      if (filters.search) {
+        query += ' AND (LOWER(u.name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))';
+        params.push(`%${filters.search}%`, `%${filters.search}%`);
+      }
+
+      if (filters.role) {
+        query += ' AND u.role = ?';
+        params.push(filters.role);
+      }
+
+      if (filters.is_active !== undefined) {
+        query += ' AND u.is_active = ?';
+        params.push(filters.is_active);
+      }
+
+      query += ' GROUP BY u.id ORDER BY u.created_at DESC';
+
+      if (filters.limit) {
+        query += ` LIMIT ${parseInt(filters.limit.toString())}`;
+      }
+      if (filters.offset) {
+        query += ` OFFSET ${parseInt(filters.offset.toString())}`;
+      }
+
+      const [users] = await this.db.execute(query, params);
+
+      return {
+        success: true,
+        data: users,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to get users: ${error.message}`);
+    }
+  }
+
+  async getUserRecipes(userId: string) {
+    try {
+      const [recipes] = await this.db.execute(
+        `SELECT 
+          id,
+          title,
+          region,
+          status,
+          difficulty,
+          time_min,
+          image_url,
+          created_at,
+          updated_at
+        FROM community_recipes
+        WHERE author_user_id = ?
+        ORDER BY created_at DESC`,
+        [userId]
+      );
+
+      return {
+        success: true,
+        data: recipes,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to get user recipes: ${error.message}`);
+    }
+  }
+
+  async blockUser(userId: string, adminUserId: string) {
+    try {
+      // Check if user exists
+      const [users] = await this.db.execute(
+        'SELECT id, name, is_active FROM users WHERE id = ?',
+        [userId]
+      );
+
+      if ((users as any[]).length === 0) {
+        throw new NotFoundException('User not found');
+      }
+
+      const user = (users as any[])[0];
+
+      if (!user.is_active) {
+        throw new BadRequestException('User is already blocked');
+      }
+
+      // Block user
+      await this.db.execute(
+        'UPDATE users SET is_active = 0 WHERE id = ?',
+        [userId]
+      );
+
+      // Log moderation action
+      const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+      const actionId = (uuidResult as any[])[0].id;
+
+      await this.db.execute(
+        `INSERT INTO moderation_actions (id, target_type, target_id, admin_user_id, action, note)
+         VALUES (?, 'USER', ?, ?, 'BLOCK', 'User blocked by admin')`,
+        [actionId, userId, adminUserId]
+      );
+
+      return {
+        success: true,
+        message: `User ${user.name} has been blocked`,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to block user: ${error.message}`);
+    }
+  }
+
+  async unblockUser(userId: string, adminUserId: string) {
+    try {
+      // Check if user exists
+      const [users] = await this.db.execute(
+        'SELECT id, name, is_active FROM users WHERE id = ?',
+        [userId]
+      );
+
+      if ((users as any[]).length === 0) {
+        throw new NotFoundException('User not found');
+      }
+
+      const user = (users as any[])[0];
+
+      if (user.is_active) {
+        throw new BadRequestException('User is already active');
+      }
+
+      // Unblock user
+      await this.db.execute(
+        'UPDATE users SET is_active = 1 WHERE id = ?',
+        [userId]
+      );
+
+      // Log moderation action
+      const [uuidResult] = await this.db.execute('SELECT UUID() as id');
+      const actionId = (uuidResult as any[])[0].id;
+
+      await this.db.execute(
+        `INSERT INTO moderation_actions (id, target_type, target_id, admin_user_id, action, note)
+         VALUES (?, 'USER', ?, ?, 'UNBLOCK', 'User unblocked by admin')`,
+        [actionId, userId, adminUserId]
+      );
+
+      return {
+        success: true,
+        message: `User ${user.name} has been unblocked`,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to unblock user: ${error.message}`);
+    }
   }
 }

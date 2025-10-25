@@ -2,23 +2,27 @@ class UserModel {
   final String id;
   final String email;
   final String name;
+  final String role;
   final String? region;
   final String? subregion;
-  final String role;
   final bool isActive;
-  final DateTime? createdAt;
+  final DateTime createdAt;
   final DateTime? updatedAt;
+  final int? recipeCount;
+  final int? subscriptionCount;
 
   UserModel({
     required this.id,
     required this.email,
     required this.name,
+    required this.role,
     this.region,
     this.subregion,
-    this.role = 'USER',
-    this.isActive = true,
-    this.createdAt,
+    required this.isActive,
+    required this.createdAt,
     this.updatedAt,
+    this.recipeCount,
+    this.subscriptionCount,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -26,16 +30,14 @@ class UserModel {
       id: json['id']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
+      role: json['role']?.toString() ?? 'USER',
       region: json['region']?.toString(),
       subregion: json['subregion']?.toString(),
-      role: json['role']?.toString() ?? 'USER',
-      isActive: json['is_active'] ?? json['isActive'] ?? true,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
-          : null,
+      isActive: _parseBool(json['is_active']),
+      createdAt: _parseDateTime(json['created_at']) ?? DateTime.now(),
+      updatedAt: _parseDateTime(json['updated_at']),
+      recipeCount: _parseInt(json['recipe_count']),
+      subscriptionCount: _parseInt(json['subscription_count']),
     );
   }
 
@@ -44,112 +46,52 @@ class UserModel {
       'id': id,
       'email': email,
       'name': name,
-      'region': region,
-      'subregion': subregion,
       'role': role,
-      'isActive': isActive,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
-    };
-  }
-}
-
-class AuthResponse {
-  final bool success;
-  final AuthData data;
-
-  AuthResponse({required this.success, required this.data});
-
-  factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    return AuthResponse(
-      success: json['success'] ?? false,
-      data: AuthData.fromJson(json['data'] as Map<String, dynamic>),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {'success': success, 'data': data.toJson()};
-  }
-}
-
-class AuthData {
-  final UserModel user;
-  final String accessToken;
-  final String refreshToken;
-
-  AuthData({
-    required this.user,
-    required this.accessToken,
-    required this.refreshToken,
-  });
-
-  factory AuthData.fromJson(Map<String, dynamic> json) {
-    return AuthData(
-      user: UserModel.fromJson(json['user'] as Map<String, dynamic>),
-      accessToken: json['accessToken']?.toString() ?? '',
-      refreshToken: json['refreshToken']?.toString() ?? '',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'user': user.toJson(),
-      'accessToken': accessToken,
-      'refreshToken': refreshToken,
-    };
-  }
-}
-
-class LoginRequest {
-  final String email;
-  final String password;
-
-  LoginRequest({required this.email, required this.password});
-
-  factory LoginRequest.fromJson(Map<String, dynamic> json) {
-    return LoginRequest(
-      email: json['email']?.toString() ?? '',
-      password: json['password']?.toString() ?? '',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {'email': email, 'password': password};
-  }
-}
-
-class RegisterRequest {
-  final String email;
-  final String password;
-  final String name;
-  final String? region;
-  final String? subregion;
-
-  RegisterRequest({
-    required this.email,
-    required this.password,
-    required this.name,
-    this.region,
-    this.subregion,
-  });
-
-  factory RegisterRequest.fromJson(Map<String, dynamic> json) {
-    return RegisterRequest(
-      email: json['email']?.toString() ?? '',
-      password: json['password']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
-      region: json['region']?.toString(),
-      subregion: json['subregion']?.toString(),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'email': email,
-      'password': password,
-      'name': name,
       'region': region,
       'subregion': subregion,
+      'is_active': isActive ? 1 : 0,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+      'recipe_count': recipeCount,
+      'subscription_count': subscriptionCount,
     };
   }
+
+  static bool _parseBool(dynamic value) {
+    if (value == null) return true;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return true;
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
+  }
+
+  String get regionDisplay {
+    switch (region) {
+      case 'BAC':
+        return 'Miền Bắc';
+      case 'TRUNG':
+        return 'Miền Trung';
+      case 'NAM':
+        return 'Miền Nam';
+      default:
+        return 'Không rõ';
+    }
+  }
+
+  String get statusDisplay => isActive ? 'Hoạt động' : 'Đã khóa';
 }
