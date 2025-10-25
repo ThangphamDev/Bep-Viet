@@ -61,6 +61,9 @@ class AuthRepository {
     // Disconnect Google account to force account selection next time
     await _googleAuthService.signOut();
 
+    // Disable biometric login for security
+    await disableBiometric();
+
     // Clear local auth data
     await _authService.logout();
   }
@@ -171,6 +174,8 @@ class AuthRepository {
   // Logout Google
   Future<void> logoutGoogle() async {
     await _googleAuthService.signOut();
+    // Disable biometric login for security
+    await disableBiometric();
     await _authService.logout();
   }
 
@@ -184,6 +189,13 @@ class AuthRepository {
   /// Check if biometric login is enabled
   Future<bool> isBiometricEnabled() async {
     return await _biometricAuthService.isBiometricEnabled();
+  }
+
+  /// Authenticate with biometric
+  Future<bool> authenticateBiometric({
+    String reason = 'Xác thực để đăng nhập',
+  }) async {
+    return await _biometricAuthService.authenticate(reason: reason);
   }
 
   /// Enable biometric login (call after successful login)

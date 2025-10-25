@@ -17,6 +17,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool _hasShownWelcome = false;
+  bool _hasPromptedBiometric = false;
   bool _isLoading = true;
   List<RecipeModel> _todaysSuggestions = [];
   List<RecipeModel> _recentRecipes = [];
@@ -169,9 +170,10 @@ class _HomePageState extends State<HomePage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
+    final uri = GoRouterState.of(context).uri;
+
     // Check for welcome message from login (only show once)
     if (!_hasShownWelcome) {
-      final uri = GoRouterState.of(context).uri;
       final welcomeName = uri.queryParameters['welcome'];
 
       if (welcomeName != null && welcomeName.isNotEmpty) {
@@ -195,6 +197,24 @@ class _HomePageState extends State<HomePage> {
                 duration: const Duration(seconds: 3),
               ),
             );
+          }
+        });
+      }
+    }
+
+    // Check for biometric prompt (only show once)
+    if (!_hasPromptedBiometric) {
+      final shouldPrompt = uri.queryParameters['promptBiometric'] == 'true';
+      final userEmail = uri.queryParameters['userEmail'];
+
+      if (shouldPrompt && userEmail != null) {
+        _hasPromptedBiometric = true;
+
+        // Delay to show after welcome message
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            await _promptEnableBiometric(userEmail);
           }
         });
       }
@@ -1090,5 +1110,102 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _promptEnableBiometric(String email) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.fingerprint, color: AppTheme.primaryGreen, size: 28),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('Kích hoạt đăng nhập nhanh?')),
+            ],
+          ),
+          content: const Text(
+            'Bạn có muốn sử dụng đăng nhập bằng vân tay để đăng nhập nhanh không?',
+            style: TextStyle(fontSize: 16),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Để sau', style: TextStyle(color: Colors.grey[600])),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Kích hoạt',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      try {
+        // Yêu cầu xác thực vân tay trước khi bật
+        final authCubit = context.read<AuthCubit>();
+        final authenticated = await authCubit.authRepository
+            .authenticateBiometric(
+              reason: 'Xác thực để kích hoạt đăng nhập vân tay',
+            );
+
+        if (!authenticated) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Xác thực vân tay thất bại'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return;
+        }
+
+        // Nếu xác thực thành công, bật biometric login
+        await authCubit.enableBiometric(email);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: const [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(child: Text('✓ Đã kích hoạt đăng nhập vân tay!')),
+                ],
+              ),
+              backgroundColor: AppTheme.primaryGreen,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Không thể kích hoạt đăng nhập vân tay'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
   }
 }
