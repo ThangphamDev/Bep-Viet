@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/pantry_item_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/cubit/pantry_cubit.dart';
+import 'package:bepviet_mobile/presentation/features/shopping/utils/ingredient_section_helper.dart';
+import 'package:bepviet_mobile/presentation/features/pantry/widgets/pantry_widgets.dart';
 
 class PantryPage extends StatefulWidget {
   const PantryPage({super.key});
@@ -75,6 +78,13 @@ class _PantryPageState extends State<PantryPage>
                   ),
               ]
             : [
+                IconButton(
+                  icon: const Icon(Icons.lightbulb_outline),
+                  onPressed: () {
+                    context.push('/pantry/suggestions');
+                  },
+                  tooltip: 'Nấu gì từ tủ lạnh?',
+                ),
                 IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: () => _showAddItemDialog(),
@@ -194,292 +204,95 @@ class _PantryPageState extends State<PantryPage>
     }
 
     if (filteredItems.isEmpty) {
-      return _buildEmptyState();
+      return PantryEmptyState(onAddItem: _showAddItemDialog);
     }
 
-    // Display all items in a single list (không group theo location nữa)
+    // Group items theo store section
+    final Map<String, List<PantryItemModel>> itemsBySection = {};
+    for (final item in filteredItems) {
+      // Phân loại bằng rule-based
+      final section = IngredientSectionHelper.classifyIngredient(item.ingredientName);
+      
+      // Background: AI classify và cache
+      _classifyWithAIInBackground(item.ingredientName);
+      
+      if (!itemsBySection.containsKey(section)) {
+        itemsBySection[section] = [];
+      }
+      itemsBySection[section]!.add(item);
+    }
+
+    // Sort sections theo thứ tự logic
+    final sortedSections = itemsBySection.keys.toList()
+      ..sort((a, b) => 
+        IngredientSectionHelper.getSectionOrder(a).compareTo(
+          IngredientSectionHelper.getSectionOrder(b)
+        )
+      );
+
+    // Build list với sections
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: filteredItems.length,
+      itemCount: sortedSections.fold<int>(
+        0, 
+        (sum, section) => sum + 1 + itemsBySection[section]!.length
+      ),
       itemBuilder: (context, index) {
-        return _buildPantryItemCard(filteredItems[index]);
+        int currentIndex = 0;
+        for (final section in sortedSections) {
+          // Section header
+          if (index == currentIndex) {
+            return PantrySectionHeader(
+              sectionName: section,
+              itemCount: itemsBySection[section]!.length,
+            );
+          }
+          currentIndex++;
+
+          // Items in section
+          final sectionItems = itemsBySection[section]!;
+          if (index < currentIndex + sectionItems.length) {
+            final itemIndex = index - currentIndex;
+            final item = sectionItems[itemIndex];
+            return Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: PantryItemCard(
+                item: item,
+                isSelectionMode: _isSelectionMode,
+                isSelected: _selectedItemIds.contains(item.id),
+                onTap: () {
+                  if (_isSelectionMode) {
+                    _toggleItemSelection(item.id);
+                  } else {
+                    _showItemDetailsDialog(item);
+                  }
+                },
+                onLongPress: () {
+                  if (!_isSelectionMode) {
+                    _enterSelectionMode(item.id);
+                  }
+                },
+                onConsume: () => _showConsumeDialog(item),
+                onEdit: () => _showEditItemDialog(item),
+                onDelete: () => _showDeleteItemDialog(item),
+                onSelectionChanged: (value) => _toggleItemSelection(item.id),
+              ),
+            );
+          }
+          currentIndex += sectionItems.length;
+        }
+        return const SizedBox.shrink();
       },
     );
   }
 
-  Widget _buildPantryItemCard(PantryItemModel item) {
-    final daysUntilExpiry = item.daysUntilExpiry;
-    final isExpired = item.isExpired;
-    final isExpiringSoon = item.isExpiringSoon;
-    final isLowStock = item.isLowStock;
-
-    // Extract real name from notes if it's a manual entry
-    String displayName = item.ingredientName;
-    String? displayNotes = item.notes;
-    
-    if (item.ingredientName == 'Khác' && item.notes != null) {
-      final match = RegExp(r'^Tên:\s*(.+?)(?:\.\s*(.*))?$').firstMatch(item.notes!);
-      if (match != null) {
-        displayName = match.group(1)!.trim();
-        displayNotes = match.group(2)?.trim();
-      }
-    }
-
-    Color statusColor = AppTheme.textSecondary;
-    String statusText = 'Tốt';
-    
-    if (isExpired) {
-      statusColor = AppTheme.errorColor;
-      statusText = 'Hết hạn';
-    } else if (isExpiringSoon) {
-      statusColor = AppTheme.warningColor;
-      statusText = 'Sắp hết hạn';
-    } else if (isLowStock) {
-      statusColor = AppTheme.warningColor;
-      statusText = 'Sắp hết';
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            statusColor.withOpacity(0.03),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: statusColor.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(
-          color: statusColor.withOpacity(0.25),
-          width: 1.5,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            if (_isSelectionMode) {
-              _toggleItemSelection(item.id);
-            } else {
-              _showItemDetailsDialog(item);
-            }
-          },
-          onLongPress: () {
-            if (!_isSelectionMode) {
-              _enterSelectionMode(item.id);
-            }
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Selection checkbox
-                if (_isSelectionMode) ...[
-                  Checkbox(
-                    value: _selectedItemIds.contains(item.id),
-                    onChanged: (value) => _toggleItemSelection(item.id),
-                    activeColor: AppTheme.primaryGreen,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              // Item image placeholder
-              // Image or Icon with background
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      statusColor.withOpacity(0.2),
-                      statusColor.withOpacity(0.05),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: statusColor.withOpacity(0.3),
-                    width: 2,
-                  ),
-                ),
-                child: item.ingredientImage != null && item.ingredientImage!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.network(
-                          item.ingredientImage!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              _getLocationIcon(item.location),
-                              color: statusColor,
-                              size: 32,
-                            );
-                          },
-                        ),
-                      )
-                    : Icon(
-                        _getLocationIcon(item.location),
-                        color: statusColor,
-                        size: 32,
-                      ),
-              ),
-              const SizedBox(width: 12),
-              
-              // Item details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${item.currentQuantity} ${item.unit}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 14,
-                          color: statusColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          isExpired 
-                              ? 'Hết hạn ${(-daysUntilExpiry).abs()} ngày trước'
-                              : daysUntilExpiry == 0
-                                  ? 'Hết hạn hôm nay'
-                                  : 'Còn $daysUntilExpiry ngày',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: statusColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Status and actions (hide in selection mode)
-              if (!_isSelectionMode)
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        statusText,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: statusColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                      // Consume button
-                      InkWell(
-                        onTap: () => _showConsumeDialog(item),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppTheme.primaryGreen.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.remove_circle_outline,
-                            size: 18,
-                            color: AppTheme.primaryGreen,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      // Edit button
-                      InkWell(
-                        onTap: () => _showEditItemDialog(item),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Colors.blue.withOpacity(0.3),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      // Delete button
-                      InkWell(
-                        onTap: () => _showDeleteItemDialog(item),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Colors.red.withOpacity(0.3),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.delete_outline,
-                            size: 18,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  /// Classify ingredient bằng AI trong background và cache kết quả
+  void _classifyWithAIInBackground(String ingredientName) {
+    IngredientSectionHelper.classifyWithCache(ingredientName).then((section) {
+      // Kết quả đã được cache, lần sau sẽ dùng ngay
+    }).catchError((error) {
+      // Silent fail
+    });
   }
 
   Widget _buildAttentionNeededTab(PantryState state) {
@@ -559,9 +372,30 @@ class _PantryPageState extends State<PantryPage>
     Color color,
     IconData icon,
   ) {
+    // Group items theo section
+    final Map<String, List<PantryItemModel>> itemsBySection = {};
+    for (final item in items) {
+      final section = IngredientSectionHelper.classifyIngredient(item.ingredientName);
+      _classifyWithAIInBackground(item.ingredientName);
+      
+      if (!itemsBySection.containsKey(section)) {
+        itemsBySection[section] = [];
+      }
+      itemsBySection[section]!.add(item);
+    }
+
+    // Sort sections
+    final sortedSections = itemsBySection.keys.toList()
+      ..sort((a, b) => 
+        IngredientSectionHelper.getSectionOrder(a).compareTo(
+          IngredientSectionHelper.getSectionOrder(b)
+        )
+      );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Attention category header
         Row(
           children: [
             Icon(icon, color: color, size: 20),
@@ -576,10 +410,47 @@ class _PantryPageState extends State<PantryPage>
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        ...items.map((item) => _buildPantryItemCard(item)),
+        const SizedBox(height: 12),
+        // Items grouped by section
+        ...sortedSections.expand((section) => [
+          PantrySectionHeader(
+            sectionName: section,
+            itemCount: itemsBySection[section]!.length,
+          ),
+          ...itemsBySection[section]!.map((item) => 
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: PantryItemCard(
+                item: item,
+                isSelectionMode: _isSelectionMode,
+                isSelected: _selectedItemIds.contains(item.id),
+                onTap: () {
+                  if (_isSelectionMode) {
+                    _toggleItemSelection(item.id);
+                  } else {
+                    _showItemDetailsDialog(item);
+                  }
+                },
+                onLongPress: () {
+                  if (!_isSelectionMode) {
+                    _enterSelectionMode(item.id);
+                  }
+                },
+                onConsume: () => _showConsumeDialog(item),
+                onEdit: () => _showEditItemDialog(item),
+                onDelete: () => _showDeleteItemDialog(item),
+                onSelectionChanged: (value) => _toggleItemSelection(item.id),
+              ),
+            )
+          ),
+        ]),
       ],
     );
+  }
+
+  // Helper method for location icon
+  IconData _getLocationIcon(String? location) {
+    return PantryColors.getLocationIcon(location);
   }
 
   Widget _buildStatsTab(PantryState state) {
@@ -727,47 +598,8 @@ class _PantryPageState extends State<PantryPage>
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            size: 64,
-            color: AppTheme.textSecondary,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Tủ lạnh của bạn đang trống',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Thêm nguyên liệu đầu tiên của bạn',
-            style: TextStyle(color: AppTheme.textSecondary),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showAddItemDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Thêm nguyên liệu'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryGreen,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Helper methods
-  IconData _getLocationIcon(String location) {
+  // Helper methods (location icon already moved to PantryColors)
+  IconData _getLocationIcon_OLD(String location) {
     switch (location) {
       case 'fridge':
         return Icons.kitchen;
