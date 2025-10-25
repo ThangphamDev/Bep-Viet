@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -27,7 +29,6 @@ class _NearbyStoresPageState extends State<NearbyStoresPage>
   bool _isLoading = true;
   String? _errorMessage;
   Set<Marker> _markers = {};
-  Store? _selectedStore;
 
   @override
   void initState() {
@@ -98,9 +99,6 @@ class _NearbyStoresPageState extends State<NearbyStoresPage>
               snippet: '${store.distanceText} • ${store.type}',
             ),
             onTap: () {
-              setState(() {
-                _selectedStore = store;
-              });
               _showStoreDetails(store);
             },
           ),
@@ -223,6 +221,15 @@ class _NearbyStoresPageState extends State<NearbyStoresPage>
       markers: _markers,
       myLocationEnabled: true,
       myLocationButtonEnabled: true,
+      zoomControlsEnabled: true,
+      zoomGesturesEnabled: true,
+      scrollGesturesEnabled: true,
+      tiltGesturesEnabled: true,
+      rotateGesturesEnabled: true,
+      mapToolbarEnabled: true,
+      gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+        Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+      },
       onMapCreated: (controller) {
         if (!_mapController.isCompleted) {
           _mapController.complete(controller);

@@ -3,37 +3,27 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import '../../data/models/store_model.dart';
 
-/// Places Service using OpenStreetMap - FREE, no billing required!
+/// Places Service using OpenStreetMap ONLY - FREE, no billing!
 class PlacesService {
   static const String _overpassUrl = 'https://overpass-api.de/api/interpreter';
 
-  /// Search for nearby stores using OpenStreetMap
+  /// Search for nearby stores using OpenStreetMap ONLY
   Future<List<Store>> searchNearbyStores({
     required double latitude,
     required double longitude,
     int radius = 5000,
-    List<String> keywords = const [
-      'Bách Hóa Xanh',
-      'Winmart',
-      'Co.opmart',
-      'Big C',
-      'Lotte Mart',
-      'Aeon',
-    ],
+    List<String> keywords = const [],
   }) async {
     try {
-      final List<Store> allStores = [];
-
-      // Search for all shops in the area
-      final stores = await _searchNearbyShops(
+      // Search OpenStreetMap for ALL shops nearby
+      final osmStores = await _searchNearbyShops(
         latitude: latitude,
         longitude: longitude,
         radius: radius,
       );
-      allStores.addAll(stores);
 
       // Remove duplicates
-      final uniqueStores = _removeDuplicates(allStores);
+      final uniqueStores = _removeDuplicates(osmStores);
 
       // Sort by distance
       uniqueStores.sort((a, b) {
@@ -41,7 +31,8 @@ class PlacesService {
         return a.distance!.compareTo(b.distance!);
       });
 
-      return uniqueStores.take(30).toList();
+      // Return up to 50 stores
+      return uniqueStores.take(50).toList();
     } catch (e) {
       return [];
     }
@@ -52,11 +43,13 @@ class PlacesService {
     required double longitude,
     required int radius,
   }) async {
-    // Overpass QL query to get all shops
+    // Overpass QL query - TÌM TẤT CẢ shops gần đây (đơn giản)
     final query =
-        '[out:json][timeout:25];'
+        '[out:json][timeout:30];'
         '('
+        // TẤT CẢ nodes có tag shop (bất kỳ loại nào)
         'node["shop"](around:$radius,$latitude,$longitude);'
+        // TẤT CẢ ways có tag shop
         'way["shop"](around:$radius,$latitude,$longitude);'
         ');'
         'out center;';
@@ -120,11 +113,22 @@ class PlacesService {
 
     if (lat == null || lon == null) return null;
 
-    final name = tags['name'] ?? tags['brand'] ?? 'Cửa hàng';
-    final shop = tags['shop'] ?? 'store';
+    // Get name - prioritize brand for chain stores
+    String name = tags['brand'] ?? tags['name'] ?? tags['official_name'] ?? '';
 
-    // Skip if no proper name
-    if (name == 'Cửa hàng' && shop == 'store') return null;
+    // Clean up name
+    name = name.trim();
+
+    // If no name, use shop type as name
+    if (name.isEmpty) {
+      final shop = tags['shop'] ?? 'store';
+      name = _parseShopType(shop);
+    }
+
+    // Skip ONLY if completely empty or generic
+    if (name.isEmpty || name == 'shop' || name == 'store') return null;
+
+    final shop = tags['shop'] ?? 'store';
 
     return Store(
       id: element['id']?.toString() ?? '',
@@ -144,37 +148,81 @@ class PlacesService {
   }
 
   String _buildAddress(Map<String, dynamic> tags) {
+    // Try full address first
+    if (tags['addr:full'] != null && tags['addr:full'].toString().isNotEmpty) {
+      return tags['addr:full'];
+    }
+
     final parts = <String>[];
+
+    // Build from components
     if (tags['addr:housenumber'] != null) parts.add(tags['addr:housenumber']);
     if (tags['addr:street'] != null) parts.add(tags['addr:street']);
+
+    // Add ward/district/city
+    if (tags['addr:ward'] != null) parts.add(tags['addr:ward']);
     if (tags['addr:district'] != null) parts.add(tags['addr:district']);
     if (tags['addr:city'] != null) parts.add(tags['addr:city']);
 
-    return parts.isEmpty ? 'Không có địa chỉ' : parts.join(', ');
+    // If we have street, that's minimum
+    if (parts.isNotEmpty && tags['addr:street'] != null) {
+      return parts.join(', ');
+    }
+
+    // Fallback: just street name
+    if (tags['addr:street'] != null) {
+      return tags['addr:street'];
+    }
+
+    // Last resort: district + city
+    if (tags['addr:district'] != null || tags['addr:city'] != null) {
+      final fallback = <String>[];
+      if (tags['addr:district'] != null) fallback.add(tags['addr:district']);
+      if (tags['addr:city'] != null) fallback.add(tags['addr:city']);
+      return fallback.join(', ');
+    }
+
+    return 'Thành phố Hồ Chí Minh';
   }
 
   String _parseShopType(String shop) {
-    switch (shop.toLowerCase()) {
-      case 'supermarket':
-        return 'Siêu thị';
-      case 'convenience':
-        return 'Cửa hàng tiện lợi';
-      case 'grocery':
-        return 'Tạp hóa';
-      case 'mall':
-        return 'Trung tâm mua sắm';
-      case 'department_store':
-        return 'Cửa hàng bách hóa';
-      default:
-        return 'Cửa hàng';
-    }
+    final shopLower = shop.toLowerCase();
+
+    if (shopLower.contains('supermarket')) return 'Siêu thị';
+    if (shopLower.contains('convenience')) return 'Cửa hàng tiện lợi';
+    if (shopLower.contains('grocery')) return 'Tạp hóa';
+    if (shopLower.contains('mall')) return 'Trung tâm mua sắm';
+    if (shopLower.contains('department')) return 'Cửa hàng bách hóa';
+
+    return 'Cửa hàng';
   }
 
   bool _checkIfOpen(String? openingHours) {
-    if (openingHours == null) return false;
+    if (openingHours == null) return true; // Assume open if no data
     if (openingHours == '24/7') return true;
-    // Simple check - assume open if has hours
-    return openingHours.isNotEmpty;
+
+    // Check current time (Vietnam timezone UTC+7)
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final hour = now.hour;
+
+    // Simple heuristic: Most stores open 7AM-10PM
+    // If has opening hours, parse it
+    if (openingHours.contains('-')) {
+      try {
+        // Try to parse "07:00-22:00" format
+        final parts = openingHours.split('-');
+        if (parts.length == 2) {
+          final openHour = int.tryParse(parts[0].split(':')[0]) ?? 7;
+          final closeHour = int.tryParse(parts[1].split(':')[0]) ?? 22;
+          return hour >= openHour && hour < closeHour;
+        }
+      } catch (e) {
+        // Parse failed, assume open
+      }
+    }
+
+    // Default: open during typical business hours
+    return hour >= 7 && hour < 22;
   }
 
   List<Store> _removeDuplicates(List<Store> stores) {
