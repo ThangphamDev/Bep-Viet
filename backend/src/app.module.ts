@@ -26,6 +26,7 @@ import { ModerationModule } from './modules/moderation/moderation.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { GeminiModule } from './modules/gemini/gemini.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     SubscriptionsModule,
     PaymentsModule,
     GeminiModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -62,6 +62,7 @@ async function bootstrap() {
       .addTag('Analytics', 'User and system analytics')
       .addTag('Moderation', 'Content moderation tools')
       .addTag('Subscriptions', 'Premium subscription management')
+      .addTag('Notifications', 'Notification management')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);

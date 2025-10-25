@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:bepviet_mobile/data/repositories/admin_repository.dart';
+import 'package:bepviet_mobile/data/models/user_model.dart';
 
 part 'admin_cubit.freezed.dart';
 
@@ -248,11 +249,8 @@ class AdminCubit extends Cubit<AdminState> {
       final currentState = state;
       if (currentState is _Loaded) {
         final updatedUsers = currentState.recipes.map((user) {
-          if (user.id == userId) {
-            // Assuming user has a copyWith or similar
-            return (user as dynamic).copyWith
-                ? (user as dynamic).copyWith(isActive: false)
-                : user;
+          if (user is UserModel && user.id == userId) {
+            return user.copyWith(isActive: false);
           }
           return user;
         }).toList();
@@ -270,10 +268,8 @@ class AdminCubit extends Cubit<AdminState> {
       final currentState = state;
       if (currentState is _Loaded) {
         final updatedUsers = currentState.recipes.map((user) {
-          if (user.id == userId) {
-            return (user as dynamic).copyWith
-                ? (user as dynamic).copyWith(isActive: true)
-                : user;
+          if (user is UserModel && user.id == userId) {
+            return user.copyWith(isActive: true);
           }
           return user;
         }).toList();

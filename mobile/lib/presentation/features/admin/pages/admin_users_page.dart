@@ -382,6 +382,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
 
                 if (context.mounted) Navigator.pop(context);
 
+                // Refresh danh sách để đồng bộ với backend
+                _performSearch();
+
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -442,6 +445,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                 await cubit.unblockUser(user.id);
 
                 if (context.mounted) Navigator.pop(context);
+
+                // Refresh danh sách để đồng bộ với backend
+                _performSearch();
 
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

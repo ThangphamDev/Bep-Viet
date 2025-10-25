@@ -94,4 +94,32 @@ class UserModel {
   }
 
   String get statusDisplay => isActive ? 'Hoạt động' : 'Đã khóa';
+
+  UserModel copyWith({
+    String? id,
+    String? email,
+    String? name,
+    String? role,
+    String? region,
+    String? subregion,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    int? recipeCount,
+    int? subscriptionCount,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      name: name ?? this.name,
+      role: role ?? this.role,
+      region: region ?? this.region,
+      subregion: subregion ?? this.subregion,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      recipeCount: recipeCount ?? this.recipeCount,
+      subscriptionCount: subscriptionCount ?? this.subscriptionCount,
+    );
+  }
 }

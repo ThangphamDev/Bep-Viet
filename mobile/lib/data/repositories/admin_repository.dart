@@ -2,6 +2,7 @@ import 'package:bepviet_mobile/data/models/community_recipe.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
 import 'package:bepviet_mobile/data/models/user_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/admin_api_service.dart';
+import 'package:dio/dio.dart';
 
 class AdminRepository {
   final AdminApiService _apiService;
@@ -191,8 +192,15 @@ class AdminRepository {
     try {
       final response = await _apiService.blockUser(userId);
       return response['success'] == true;
+    } on DioException catch (e) {
+      // Parse error message from backend
+      final errorMessage =
+          e.response?.data?['message'] ??
+          e.response?.data?['error'] ??
+          'Không thể khóa người dùng';
+      throw Exception(errorMessage);
     } catch (e) {
-      throw Exception('Failed to block user: $e');
+      throw Exception('Lỗi kết nối: $e');
     }
   }
 
@@ -201,8 +209,15 @@ class AdminRepository {
     try {
       final response = await _apiService.unblockUser(userId);
       return response['success'] == true;
+    } on DioException catch (e) {
+      // Parse error message from backend
+      final errorMessage =
+          e.response?.data?['message'] ??
+          e.response?.data?['error'] ??
+          'Không thể mở khóa người dùng';
+      throw Exception(errorMessage);
     } catch (e) {
-      throw Exception('Failed to unblock user: $e');
+      throw Exception('Lỗi kết nối: $e');
     }
   }
 }
