@@ -147,7 +147,8 @@ class _AdminRecipeDetailPageState extends State<AdminRecipeDetailPage> {
   int get recipeCommentCount {
     if (recipe == null) return 0;
     if (widget.isOfficialRecipe) {
-      return 0;
+      return (recipe as RecipeModel).ratingCount ??
+          0; // Use ratingCount as proxy for comments
     } else {
       return (recipe as CommunityRecipe).commentCount;
     }
@@ -156,7 +157,7 @@ class _AdminRecipeDetailPageState extends State<AdminRecipeDetailPage> {
   int get recipeRatingCount {
     if (recipe == null) return 0;
     if (widget.isOfficialRecipe) {
-      return 0;
+      return (recipe as RecipeModel).ratingCount ?? 0;
     } else {
       return (recipe as CommunityRecipe).ratingCount;
     }
@@ -165,7 +166,7 @@ class _AdminRecipeDetailPageState extends State<AdminRecipeDetailPage> {
   double get recipeAvgRating {
     if (recipe == null) return 0.0;
     if (widget.isOfficialRecipe) {
-      return 0.0;
+      return (recipe as RecipeModel).ratingAvg ?? 0.0;
     } else {
       return (recipe as CommunityRecipe).avgRating ?? 0.0;
     }

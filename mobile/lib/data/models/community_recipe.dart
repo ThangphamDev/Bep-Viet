@@ -54,7 +54,7 @@ class CommunityRecipe {
       costHint: _parseInt(json['cost_hint']),
       status: json['status']?.toString(),
       imageUrl: json['image_url']?.toString(),
-      createdAt: json['created_at'] != null 
+      createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
       updatedAt: json['updated_at'] != null
@@ -62,23 +62,36 @@ class CommunityRecipe {
           : null,
       authorName: json['author_name']?.toString(),
       authorId: json['author_id']?.toString(),
-      commentCount: _parseInt(json['comment_count']) ?? 0,
-      ratingCount: _parseInt(json['rating_count']) ?? 0,
-      avgRating: _parseDouble(json['avg_rating']),
+      commentCount: json['comments'] != null
+          ? (json['comments'] as List).length
+          : (_parseInt(json['comment_count']) ?? 0),
+      ratingCount: json['ratings'] != null && json['ratings']['count'] != null
+          ? _parseInt(json['ratings']['count']) ?? 0
+          : (_parseInt(json['rating_count']) ?? 0),
+      avgRating: json['ratings'] != null && json['ratings']['average'] != null
+          ? _parseDouble(json['ratings']['average'])
+          : _parseDouble(json['avg_rating']),
       ingredients: json['ingredients'] != null
           ? (json['ingredients'] as List)
-              .map((e) => CommunityRecipeIngredient.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (e) => CommunityRecipeIngredient.fromJson(
+                    e as Map<String, dynamic>,
+                  ),
+                )
+                .toList()
           : null,
       steps: json['steps'] != null
           ? (json['steps'] as List)
-              .map((e) => CommunityRecipeStep.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (e) =>
+                      CommunityRecipeStep.fromJson(e as Map<String, dynamic>),
+                )
+                .toList()
           : null,
       comments: json['comments'] != null
           ? (json['comments'] as List)
-              .map((e) => RecipeComment.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map((e) => RecipeComment.fromJson(e as Map<String, dynamic>))
+                .toList()
           : null,
       ratings: json['ratings'] != null
           ? RecipeRatings.fromJson(json['ratings'] as Map<String, dynamic>)
@@ -96,8 +109,8 @@ class CommunityRecipe {
 
   static double? _parseDouble(dynamic value) {
     if (value == null) return null;
-  if (value is double) return value;
-  if (value is int) return value.toDouble();
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value);
     return null;
   }
@@ -188,11 +201,7 @@ class CommunityRecipeStep {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'order_no': orderNo,
-      'content_md': contentMd,
-    };
+    return {'id': id, 'order_no': orderNo, 'content_md': contentMd};
   }
 }
 
@@ -247,11 +256,7 @@ class RecipeRatings {
   final int count;
   final List<RecipeRating>? details;
 
-  RecipeRatings({
-    this.average = 0.0,
-    this.count = 0,
-    this.details,
-  });
+  RecipeRatings({this.average = 0.0, this.count = 0, this.details});
 
   factory RecipeRatings.fromJson(Map<String, dynamic> json) {
     return RecipeRatings(
@@ -259,8 +264,8 @@ class RecipeRatings {
       count: _parseInt(json['count']) ?? 0,
       details: json['details'] != null
           ? (json['details'] as List)
-              .map((e) => RecipeRating.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map((e) => RecipeRating.fromJson(e as Map<String, dynamic>))
+                .toList()
           : null,
     );
   }
@@ -362,13 +367,19 @@ class CreateCommunityRecipeRequest {
       imageUrl: json['image_url']?.toString(),
       ingredients: json['ingredients'] != null
           ? (json['ingredients'] as List)
-              .map((e) => CreateIngredientRequest.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (e) => CreateIngredientRequest.fromJson(
+                    e as Map<String, dynamic>,
+                  ),
+                )
+                .toList()
           : [],
       steps: json['steps'] != null
           ? (json['steps'] as List)
-              .map((e) => CreateStepRequest.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (e) => CreateStepRequest.fromJson(e as Map<String, dynamic>),
+                )
+                .toList()
           : [],
     );
   }
@@ -416,11 +427,7 @@ class CreateIngredientRequest {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'quantity': quantity,
-      'note': note,
-    };
+    return {'name': name, 'quantity': quantity, 'note': note};
   }
 }
 
@@ -428,10 +435,7 @@ class CreateStepRequest {
   final int orderNo;
   final String contentMd;
 
-  CreateStepRequest({
-    required this.orderNo,
-    required this.contentMd,
-  });
+  CreateStepRequest({required this.orderNo, required this.contentMd});
 
   factory CreateStepRequest.fromJson(Map<String, dynamic> json) {
     return CreateStepRequest(
@@ -449,44 +453,31 @@ class CreateStepRequest {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'order_no': orderNo,
-      'content_md': contentMd,
-    };
+    return {'order_no': orderNo, 'content_md': contentMd};
   }
 }
 
 class AddCommentRequest {
   final String content;
 
-  AddCommentRequest({
-    required this.content,
-  });
+  AddCommentRequest({required this.content});
 
   factory AddCommentRequest.fromJson(Map<String, dynamic> json) {
-    return AddCommentRequest(
-      content: json['content']?.toString() ?? '',
-    );
+    return AddCommentRequest(content: json['content']?.toString() ?? '');
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'content': content,
-    };
+    return {'content': content};
   }
 }
 
 class AddRatingRequest {
   final int stars;
 
-  AddRatingRequest({
-    required this.stars,
-  });
+  AddRatingRequest({required this.stars});
 
   factory AddRatingRequest.fromJson(Map<String, dynamic> json) {
-    return AddRatingRequest(
-      stars: _parseInt(json['stars']) ?? 0,
-    );
+    return AddRatingRequest(stars: _parseInt(json['stars']) ?? 0);
   }
 
   static int? _parseInt(dynamic value) {
@@ -498,9 +489,7 @@ class AddRatingRequest {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'stars': stars,
-    };
+    return {'stars': stars};
   }
 }
 
@@ -553,19 +542,15 @@ class CommunityResponse {
   final List<CommunityRecipe> data;
   final String? message;
 
-  CommunityResponse({
-    required this.success,
-    required this.data,
-    this.message,
-  });
+  CommunityResponse({required this.success, required this.data, this.message});
 
   factory CommunityResponse.fromJson(Map<String, dynamic> json) {
     return CommunityResponse(
       success: json['success'] == true,
       data: json['data'] != null
           ? (json['data'] as List)
-              .map((e) => CommunityRecipe.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map((e) => CommunityRecipe.fromJson(e as Map<String, dynamic>))
+                .toList()
           : [],
       message: json['message']?.toString(),
     );
@@ -600,10 +585,6 @@ class CommunityDetailResponse {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'success': success,
-      'data': data.toJson(),
-      'message': message,
-    };
+    return {'success': success, 'data': data.toJson(), 'message': message};
   }
 }
