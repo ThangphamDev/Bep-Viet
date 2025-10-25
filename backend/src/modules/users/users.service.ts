@@ -87,8 +87,23 @@ export class UsersService {
 
   async getUserById(userId: string): Promise<UserProfileDto> {
     const [users] = await this.db.execute(
-      `SELECT id, email, name, role, region, subregion, created_at 
-       FROM users WHERE id = ?`,
+      `SELECT 
+        u.id,
+        u.email,
+        u.name,
+        u.role,
+        u.region,
+        u.subregion,
+        u.is_active,
+        u.created_at,
+        u.updated_at,
+        COUNT(DISTINCT cr.id) as recipe_count,
+        COUNT(DISTINCT s.id) as subscription_count
+      FROM users u
+      LEFT JOIN community_recipes cr ON u.id = cr.author_user_id
+      LEFT JOIN subscriptions s ON u.id = s.user_id AND s.status = 'ACTIVE'
+      WHERE u.id = ?
+      GROUP BY u.id`,
       [userId]
     );
 
