@@ -299,11 +299,13 @@ class RecipeRating {
   final int stars;
   final DateTime createdAt;
   final String authorName;
+  final String authorId;
 
   RecipeRating({
     required this.stars,
     required this.createdAt,
     required this.authorName,
+    required this.authorId,
   });
 
   factory RecipeRating.fromJson(Map<String, dynamic> json) {
@@ -313,6 +315,8 @@ class RecipeRating {
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
       authorName: json['author_name']?.toString() ?? '',
+      authorId:
+          json['author_id']?.toString() ?? json['user_id']?.toString() ?? '',
     );
   }
 

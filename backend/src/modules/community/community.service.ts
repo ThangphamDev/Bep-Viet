@@ -179,6 +179,7 @@ export class CommunityService {
       `SELECT 
         rr.stars,
         rr.created_at,
+        rr.user_id as author_id,
         u.name as author_name
       FROM recipe_ratings rr
       JOIN users u ON rr.user_id = u.id

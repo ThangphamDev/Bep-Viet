@@ -62,12 +62,46 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   }
 
   void _checkUserRating() {
-    // Check if current user has already rated this recipe
-    // This would need to be implemented based on your user authentication system
-    // For now, we'll assume no rating initially
-    setState(() {
-      _hasUserRated = false;
-      _userRating = null;
+    // Get current user ID from AuthCubit
+    final authState = context.read<AuthCubit>().state;
+    if (authState is! AuthAuthenticated) {
+      setState(() {
+        _hasUserRated = false;
+        _userRating = null;
+      });
+      return;
+    }
+
+    final currentUserId = authState.user.id;
+
+    // Listen to recipe state changes to check if user has rated
+    _detailCubit.stream.listen((state) {
+      if (state is CommunityDetailLoaded) {
+        // Check if current user has already rated this recipe
+        final userRating = state.recipe.ratings?.details?.firstWhere(
+          (rating) => rating.authorId == currentUserId,
+          orElse: () => RecipeRating(
+            stars: 0,
+            createdAt: DateTime.now(),
+            authorName: '',
+            authorId: '',
+          ),
+        );
+
+        if (mounted) {
+          setState(() {
+            if (userRating != null &&
+                userRating.stars > 0 &&
+                userRating.authorId.isNotEmpty) {
+              _hasUserRated = true;
+              _userRating = userRating.stars;
+            } else {
+              _hasUserRated = false;
+              _userRating = null;
+            }
+          });
+        }
+      }
     });
   }
 
@@ -892,100 +926,101 @@ class _RecipeDetailContentState extends State<_RecipeDetailContent> {
             icon: Icons.star_outline,
             child: Column(
               children: [
-                // Rating input
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppTheme.primaryGreen.withOpacity(0.2),
+                // Rating input - Chỉ hiển thị khi chưa đánh giá
+                if (!widget.hasUserRated)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.primaryGreen.withOpacity(0.2),
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Đánh giá công thức này',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(5, (index) {
-                          return IconButton(
-                            onPressed: widget.hasUserRated
-                                ? null
-                                : () => widget.onRatingChanged(index + 1),
-                            icon: Icon(
-                              index < widget.selectedRating
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: index < widget.selectedRating
-                                  ? Colors.amber
-                                  : AppTheme.textSecondary,
-                              size: 32,
-                            ),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 12),
-                      if (widget.hasUserRated) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppTheme.primaryGreen.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: AppTheme.primaryGreen,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Bạn đã đánh giá ${widget.userRating} sao cho công thức này',
-                                style: TextStyle(
-                                  color: AppTheme.primaryGreen,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Đánh giá công thức này',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 12),
-                      ],
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed:
-                              (!widget.hasUserRated &&
-                                  widget.selectedRating > 0)
-                              ? widget.onAddRating
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryGreen,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(5, (index) {
+                            return IconButton(
+                              onPressed: () =>
+                                  widget.onRatingChanged(index + 1),
+                              icon: Icon(
+                                index < widget.selectedRating
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: index < widget.selectedRating
+                                    ? Colors.amber
+                                    : AppTheme.textSecondary,
+                                size: 32,
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: widget.selectedRating > 0
+                                ? widget.onAddRating
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryGreen,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Gửi đánh giá',
+                              style: TextStyle(color: Colors.white),
                             ),
                           ),
-                          child: const Text(
-                            'Gửi đánh giá',
-                            style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  // Hiển thị thông báo đã đánh giá
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.primaryGreen.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: AppTheme.primaryGreen,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            'Bạn đã đánh giá ${widget.userRating} sao cho công thức này',
+                            style: TextStyle(
+                              color: AppTheme.primaryGreen,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
                 const SizedBox(height: 16),
 
