@@ -621,12 +621,14 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/premium'),
+          onPressed: () => context.go('/'),
+          tooltip: 'Về trang chủ',
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
             onPressed: _showSubscriptionHistory,
+            tooltip: 'Lịch sử đăng ký',
           ),
         ],
       ),
