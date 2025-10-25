@@ -12,6 +12,83 @@ export class RecipesService {
     private redisService: RedisService,
   ) {}
 
+  /**
+   * Parse instructions_md into steps array for mobile app compatibility
+   * Expected format: numbered list (1., 2., 3., etc.) or markdown list (-, *, etc.)
+   */
+  private parseInstructionsToSteps(instructionsMd: string | null): any[] {
+    if (!instructionsMd) return [];
+
+    const steps: any[] = [];
+    const lines = instructionsMd.split('\n').filter(line => line.trim());
+    
+    let stepNumber = 1;
+    let currentStep = '';
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      // Check if line starts with a number (1., 2., etc.)
+      const numberedMatch = trimmedLine.match(/^(\d+)\.\s*(.+)$/);
+      if (numberedMatch) {
+        // Save previous step if exists
+        if (currentStep) {
+          steps.push({
+            stepNumber: stepNumber - 1,
+            instruction: currentStep.trim()
+          });
+        }
+        // Start new step
+        stepNumber = parseInt(numberedMatch[1]);
+        currentStep = numberedMatch[2];
+        stepNumber++;
+        continue;
+      }
+
+      // Check if line starts with markdown list marker (-, *, +)
+      const listMatch = trimmedLine.match(/^[-*+]\s*(.+)$/);
+      if (listMatch) {
+        // Save previous step if exists
+        if (currentStep) {
+          steps.push({
+            stepNumber: stepNumber - 1,
+            instruction: currentStep.trim()
+          });
+          stepNumber++;
+        }
+        // Start new step
+        currentStep = listMatch[1];
+        continue;
+      }
+
+      // If line doesn't start with number or list marker, append to current step
+      if (currentStep) {
+        currentStep += ' ' + trimmedLine;
+      } else {
+        // First line without marker, start first step
+        currentStep = trimmedLine;
+      }
+    }
+
+    // Add last step
+    if (currentStep) {
+      steps.push({
+        stepNumber: stepNumber - 1,
+        instruction: currentStep.trim()
+      });
+    }
+
+    // If no structured steps found, treat entire text as one step
+    if (steps.length === 0 && instructionsMd.trim()) {
+      steps.push({
+        stepNumber: 1,
+        instruction: instructionsMd.trim()
+      });
+    }
+
+    return steps;
+  }
+
   async getAllRecipes(filters: any = {}) {
     try {
       // Simple query to get recipes with ingredients
@@ -189,10 +266,14 @@ export class RecipesService {
         [id]
       );
 
+      // Parse instructions_md into steps array for mobile compatibility
+      const steps = this.parseInstructionsToSteps(recipe.instructions_md);
+
       // Add to recipe object
       recipe.ingredients = ingredients;
       recipe.tags = tags;
       recipe.variants = variants;
+      recipe.steps = steps;
 
       // Cache the complete recipe (without is_favorite)
       if (this.redisService.isReady()) {

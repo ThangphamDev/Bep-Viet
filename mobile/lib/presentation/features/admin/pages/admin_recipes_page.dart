@@ -12,11 +12,12 @@ class AdminRecipesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dio = Dio();
+    final adminApiService = AdminApiService(dio);
+    final adminRepository = AdminRepository(adminApiService);
+
     return BlocProvider(
       create: (context) {
-        final dio = Dio();
-        final adminApiService = AdminApiService(dio);
-        final adminRepository = AdminRepository(adminApiService);
         return AdminCubit(adminRepository)..loadOfficialRecipes();
       },
       child: Scaffold(
@@ -24,12 +25,8 @@ class AdminRecipesPage extends StatelessWidget {
         body: BlocBuilder<AdminCubit, AdminState>(
           builder: (context, state) {
             return state.when(
-              initial: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
+              initial: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               loaded: (recipes, hasMore) {
                 if (recipes.isEmpty) {
                   return const Center(
@@ -56,7 +53,9 @@ class AdminRecipesPage extends StatelessWidget {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    context.read<AdminCubit>().loadOfficialRecipes(refresh: true);
+                    context.read<AdminCubit>().loadOfficialRecipes(
+                      refresh: true,
+                    );
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.only(top: 8, bottom: 100),
@@ -76,6 +75,7 @@ class AdminRecipesPage extends StatelessWidget {
                       final recipe = recipes[index];
                       return AdminOfficialRecipeCard(
                         recipe: recipe,
+                        adminRepository: adminRepository,
                         onDelete: () {
                           _showDeleteDialog(context, recipe);
                         },
@@ -96,16 +96,15 @@ class AdminRecipesPage extends StatelessWidget {
                     const SizedBox(height: 20),
                     Text(
                       'Lỗi: $message',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.red,
-                      ),
+                      style: const TextStyle(fontSize: 16, color: Colors.red),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        context.read<AdminCubit>().loadOfficialRecipes(refresh: true);
+                        context.read<AdminCubit>().loadOfficialRecipes(
+                          refresh: true,
+                        );
                       },
                       child: const Text('Thử lại'),
                     ),
@@ -124,7 +123,9 @@ class AdminRecipesPage extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Recipe'),
-        content: Text('Bạn có chắc muốn xóa công thức chính thức "${recipe.title}"?'),
+        content: Text(
+          'Bạn có chắc muốn xóa công thức chính thức "${recipe.title}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

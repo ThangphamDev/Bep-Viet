@@ -3,20 +3,67 @@ import 'package:flutter/material.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
+import 'package:bepviet_mobile/data/repositories/admin_repository.dart';
 
-class AdminRecipeDetailPage extends StatelessWidget {
-  final dynamic recipe; // Can be CommunityRecipe or RecipeModel
+class AdminRecipeDetailPage extends StatefulWidget {
+  final String recipeId;
   final bool isOfficialRecipe;
+  final AdminRepository adminRepository;
 
   const AdminRecipeDetailPage({
     super.key,
-    required this.recipe,
+    required this.recipeId,
+    required this.adminRepository,
     this.isOfficialRecipe = false,
   });
 
+  @override
+  State<AdminRecipeDetailPage> createState() => _AdminRecipeDetailPageState();
+}
+
+class _AdminRecipeDetailPageState extends State<AdminRecipeDetailPage> {
+  dynamic recipe; // Can be CommunityRecipe or RecipeModel
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecipeDetail();
+  }
+
+  Future<void> _loadRecipeDetail() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      if (widget.isOfficialRecipe) {
+        recipe = await widget.adminRepository.getOfficialRecipeById(
+          widget.recipeId,
+        );
+      } else {
+        recipe = await widget.adminRepository.getCommunityRecipeById(
+          widget.recipeId,
+        );
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Không thể tải chi tiết công thức: $e';
+      });
+    }
+  }
+
   // Helper methods to get recipe information
   String get recipeTitle {
-    if (isOfficialRecipe) {
+    if (recipe == null) return '';
+    if (widget.isOfficialRecipe) {
       return (recipe as RecipeModel).name;
     } else {
       return (recipe as CommunityRecipe).title;
@@ -24,7 +71,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   String? get recipeDescription {
-    if (isOfficialRecipe) {
+    if (recipe == null) return null;
+    if (widget.isOfficialRecipe) {
       return (recipe as RecipeModel).description;
     } else {
       return (recipe as CommunityRecipe).descriptionMd;
@@ -32,7 +80,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   int? get recipeTimeMin {
-    if (isOfficialRecipe) {
+    if (recipe == null) return null;
+    if (widget.isOfficialRecipe) {
       final rec = recipe as RecipeModel;
       return rec.cookTimeMinutes ?? rec.totalTimeMinutes ?? rec.prepTimeMinutes;
     } else {
@@ -41,7 +90,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   String? get recipeDifficulty {
-    if (isOfficialRecipe) {
+    if (recipe == null) return null;
+    if (widget.isOfficialRecipe) {
       return (recipe as RecipeModel).difficulty?.toString();
     } else {
       return (recipe as CommunityRecipe).difficulty;
@@ -49,7 +99,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   String? get recipeRegion {
-    if (isOfficialRecipe) {
+    if (recipe == null) return null;
+    if (widget.isOfficialRecipe) {
       return (recipe as RecipeModel).baseRegion;
     } else {
       return (recipe as CommunityRecipe).region;
@@ -57,7 +108,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   String? get recipeStatus {
-    if (isOfficialRecipe) {
+    if (recipe == null) return null;
+    if (widget.isOfficialRecipe) {
       return 'OFFICIAL';
     } else {
       return (recipe as CommunityRecipe).status;
@@ -65,7 +117,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   String? get recipeAuthorName {
-    if (isOfficialRecipe) {
+    if (recipe == null) return null;
+    if (widget.isOfficialRecipe) {
       return 'Bếp Việt';
     } else {
       return (recipe as CommunityRecipe).authorName;
@@ -74,7 +127,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
 
   // Unified accessors for lists and stats used in the UI
   List<dynamic>? get recipeIngredients {
-    if (isOfficialRecipe) {
+    if (recipe == null) return null;
+    if (widget.isOfficialRecipe) {
       return (recipe as RecipeModel).ingredients;
     } else {
       return (recipe as CommunityRecipe).ingredients;
@@ -82,7 +136,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   List<dynamic>? get recipeSteps {
-    if (isOfficialRecipe) {
+    if (recipe == null) return null;
+    if (widget.isOfficialRecipe) {
       return (recipe as RecipeModel).steps;
     } else {
       return (recipe as CommunityRecipe).steps;
@@ -90,7 +145,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   int get recipeCommentCount {
-    if (isOfficialRecipe) {
+    if (recipe == null) return 0;
+    if (widget.isOfficialRecipe) {
       return 0;
     } else {
       return (recipe as CommunityRecipe).commentCount;
@@ -98,7 +154,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   int get recipeRatingCount {
-    if (isOfficialRecipe) {
+    if (recipe == null) return 0;
+    if (widget.isOfficialRecipe) {
       return 0;
     } else {
       return (recipe as CommunityRecipe).ratingCount;
@@ -106,7 +163,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   double get recipeAvgRating {
-    if (isOfficialRecipe) {
+    if (recipe == null) return 0.0;
+    if (widget.isOfficialRecipe) {
       return 0.0;
     } else {
       return (recipe as CommunityRecipe).avgRating ?? 0.0;
@@ -114,7 +172,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
   }
 
   int? get recipeCostHint {
-    if (isOfficialRecipe) {
+    if (recipe == null) return null;
+    if (widget.isOfficialRecipe) {
       return null;
     } else {
       return (recipe as CommunityRecipe).costHint;
@@ -126,66 +185,99 @@ class AdminRecipeDetailPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: Text(isOfficialRecipe ? 'Chi tiết Công thức Chính thức' : 'Chi tiết Công thức'),
+        title: Text(
+          widget.isOfficialRecipe
+              ? 'Chi tiết Công thức Chính thức'
+              : 'Chi tiết Công thức',
+        ),
         backgroundColor: AppTheme.primaryGreen,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () => _showDeleteDialog(context),
-            tooltip: 'Xóa công thức',
-          ),
+          if (!_isLoading && recipe != null)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () => _showDeleteDialog(context),
+              tooltip: 'Xóa công thức',
+            ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Recipe Header
-            _buildRecipeHeader(),
-            const SizedBox(height: 24),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _loadRecipeDetail,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Thử lại'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Recipe Header
+                    _buildRecipeHeader(),
+                    const SizedBox(height: 24),
 
-            // Status Badge
-            _buildStatusBadge(),
-            const SizedBox(height: 24),
+                    // Status Badge
+                    _buildStatusBadge(),
+                    const SizedBox(height: 24),
 
-            // Description
-            if (recipeDescription != null && recipeDescription!.isNotEmpty)
-              _buildDescription(),
-            const SizedBox(height: 24),
+                    // Description
+                    if (recipeDescription != null &&
+                        recipeDescription!.isNotEmpty)
+                      _buildDescription(),
+                    const SizedBox(height: 24),
 
-            // Recipe Info
-            _buildRecipeInfo(),
-            const SizedBox(height: 24),
+                    // Recipe Info
+                    _buildRecipeInfo(),
+                    const SizedBox(height: 24),
 
-            // Ingredients
-            _buildIngredients(),
-            const SizedBox(height: 24),
+                    // Ingredients
+                    _buildIngredients(),
+                    const SizedBox(height: 24),
 
-            // Steps
-            _buildSteps(),
-            const SizedBox(height: 24),
+                    // Steps
+                    _buildSteps(),
+                    const SizedBox(height: 24),
 
-            // Comments & Ratings
-            _buildCommentsAndRatings(),
-          ],
-        ),
-      ),
-    ),
+                    // Comments & Ratings
+                    _buildCommentsAndRatings(),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 
   Widget _buildRecipeHeader() {
     final recipe = this.recipe;
-    final imageUrl = isOfficialRecipe && recipe is RecipeModel 
-        ? recipe.imageUrl 
-        : recipe is CommunityRecipe 
-            ? recipe.imageUrl 
-            : null;
-    
+    final imageUrl = widget.isOfficialRecipe && recipe is RecipeModel
+        ? recipe.imageUrl
+        : recipe is CommunityRecipe
+        ? recipe.imageUrl
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -215,17 +307,14 @@ class AdminRecipeDetailPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
-        
+
         // Recipe Title and Info
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppTheme.borderColor,
-              width: 1,
-            ),
+            border: Border.all(color: AppTheme.borderColor, width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,11 +330,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(
-                    Icons.person,
-                    size: 16,
-                    color: AppTheme.textSecondary,
-                  ),
+                  Icon(Icons.person, size: 16, color: AppTheme.textSecondary),
                   const SizedBox(width: 4),
                   Text(
                     recipeAuthorName ?? 'Bếp Việt',
@@ -296,11 +381,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.restaurant_menu,
-              size: 60,
-              color: Colors.white,
-            ),
+            Icon(Icons.restaurant_menu, size: 60, color: Colors.white),
             const SizedBox(height: 12),
             Text(
               recipeTitle,
@@ -326,7 +407,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
             color: _getStatusColor(recipeStatus ?? 'APPROVED'),
             borderRadius: BorderRadius.circular(20),
           ),
-            child: Text(
+          child: Text(
             _getStatusText(recipeStatus ?? 'APPROVED'),
             style: const TextStyle(
               color: Colors.white,
@@ -342,7 +423,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
             color: _getDifficultyColor(recipeDifficulty ?? 'DE'),
             borderRadius: BorderRadius.circular(20),
           ),
-            child: Text(
+          child: Text(
             _getDifficultyText(recipeDifficulty ?? 'DE'),
             style: const TextStyle(
               color: Colors.white,
@@ -358,7 +439,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
             color: AppTheme.primaryGreen.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
           ),
-            child: Text(
+          child: Text(
             _getRegionText(recipeRegion ?? 'BAC'),
             style: const TextStyle(
               color: AppTheme.primaryGreen,
@@ -439,7 +520,9 @@ class AdminRecipeDetailPage extends StatelessWidget {
                 child: _buildInfoItem(
                   icon: Icons.restaurant_menu,
                   label: 'Loại bữa ăn',
-                  value: _getMealTypeText(recipe is RecipeModel ? recipe.mealType : null),
+                  value: _getMealTypeText(
+                    recipe is RecipeModel ? recipe.mealType : null,
+                  ),
                   color: AppTheme.primaryGreen,
                 ),
               ),
@@ -452,7 +535,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
                 child: _buildInfoItem(
                   icon: Icons.star,
                   label: 'Đánh giá',
-                  value: isOfficialRecipe && recipe is RecipeModel
+                  value: widget.isOfficialRecipe && recipe is RecipeModel
                       ? '${recipe.ratingAvg?.toStringAsFixed(1) ?? '0.0'}'
                       : recipeAvgRating.toStringAsFixed(1),
                   color: Colors.amber,
@@ -462,7 +545,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
                 child: _buildInfoItem(
                   icon: Icons.comment,
                   label: 'Bình luận',
-                  value: isOfficialRecipe && recipe is RecipeModel
+                  value: widget.isOfficialRecipe && recipe is RecipeModel
                       ? '${recipe.ratingCount ?? 0}'
                       : '${recipeCommentCount}',
                   color: AppTheme.primaryGreen,
@@ -470,7 +553,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
               ),
             ],
           ),
-          if (isOfficialRecipe && recipe is RecipeModel) ...[
+          if (widget.isOfficialRecipe && recipe is RecipeModel) ...[
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
@@ -538,10 +621,7 @@ class AdminRecipeDetailPage extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppTheme.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 2),
@@ -579,48 +659,50 @@ class AdminRecipeDetailPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (recipeIngredients != null && recipeIngredients!.isNotEmpty)
-            ...recipeIngredients!.map((ingredient) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.primaryGreen,
-                          shape: BoxShape.circle,
-                        ),
+            ...recipeIngredients!.map(
+              (ingredient) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.primaryGreen,
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          // handle both model shapes
-                          ingredient is CommunityRecipeIngredient
-                              ? ingredient.ingredientName
-                              : (ingredient is RecipeIngredientModel
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        // handle both model shapes
+                        ingredient is CommunityRecipeIngredient
+                            ? ingredient.ingredientName
+                            : (ingredient is RecipeIngredientModel
                                   ? ingredient.ingredientName
                                   : ingredient['ingredientName'] ?? ''),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                      ),
-                      Text(
-            ingredient is CommunityRecipeIngredient
-              ? (ingredient.quantity ?? '')
-              : (ingredient is RecipeIngredientModel
-                ? ingredient.quantity.toString()
-                : (ingredient['quantity']?.toString() ?? '')),
                         style: const TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textSecondary,
+                          color: AppTheme.textPrimary,
                         ),
                       ),
-                    ],
-                  ),
-                ))
+                    ),
+                    Text(
+                      ingredient is CommunityRecipeIngredient
+                          ? (ingredient.quantity ?? '')
+                          : (ingredient is RecipeIngredientModel
+                                ? ingredient.quantity.toString()
+                                : (ingredient['quantity']?.toString() ?? '')),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else
             const Text(
               'Chưa có thông tin nguyên liệu',
@@ -656,48 +738,52 @@ class AdminRecipeDetailPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (recipeSteps != null && recipeSteps!.isNotEmpty)
-            ...recipeSteps!.map((step) => Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.primaryGreen,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            // orderNo vs stepNumber
-                            '${step is CommunityRecipeStep ? step.orderNo : (step is RecipeStepModel ? step.stepNumber : (step['orderNo'] ?? step['stepNumber'] ?? ''))}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+            ...recipeSteps!.map(
+              (step) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.primaryGreen,
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
+                      child: Center(
                         child: Text(
-                          step is CommunityRecipeStep
-                              ? step.contentMd
-                              : (step is RecipeStepModel
-                                  ? step.instruction
-                                  : (step['contentMd'] ?? step['instruction'] ?? '')),
+                          // orderNo vs stepNumber
+                          '${step is CommunityRecipeStep ? step.orderNo : (step is RecipeStepModel ? step.stepNumber : (step['orderNo'] ?? step['stepNumber'] ?? ''))}',
                           style: const TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textPrimary,
-                            height: 1.5,
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ))
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        step is CommunityRecipeStep
+                            ? step.contentMd
+                            : (step is RecipeStepModel
+                                  ? step.instruction
+                                  : (step['contentMd'] ??
+                                        step['instruction'] ??
+                                        '')),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textPrimary,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else
             const Text(
               'Chưa có thông tin cách làm',
@@ -714,16 +800,16 @@ class AdminRecipeDetailPage extends StatelessWidget {
 
   Widget _buildCommentsAndRatings() {
     final recipe = this.recipe;
-    final commentCount = isOfficialRecipe && recipe is RecipeModel 
-        ? recipe.ratingCount ?? 0 
+    final commentCount = widget.isOfficialRecipe && recipe is RecipeModel
+        ? recipe.ratingCount ?? 0
         : recipeCommentCount;
-    final ratingCount = isOfficialRecipe && recipe is RecipeModel 
-        ? recipe.ratingCount ?? 0 
+    final ratingCount = widget.isOfficialRecipe && recipe is RecipeModel
+        ? recipe.ratingCount ?? 0
         : recipeRatingCount;
-    final avgRating = isOfficialRecipe && recipe is RecipeModel 
-        ? recipe.ratingAvg ?? 0.0 
+    final avgRating = widget.isOfficialRecipe && recipe is RecipeModel
+        ? recipe.ratingAvg ?? 0.0
         : recipeAvgRating;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -781,8 +867,8 @@ class AdminRecipeDetailPage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-  title: const Text('Delete Recipe'),
-  content: Text('Bạn có chắc muốn xóa công thức "${recipeTitle}"?'),
+        title: const Text('Delete Recipe'),
+        content: Text('Bạn có chắc muốn xóa công thức "${recipeTitle}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

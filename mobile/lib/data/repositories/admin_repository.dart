@@ -66,7 +66,9 @@ class AdminRepository {
       print('Delete community recipe error: $e');
       // Re-throw với message rõ ràng hơn
       if (e.toString().contains('500')) {
-        throw Exception('Server error: Không thể xóa công thức. Vui lòng kiểm tra quyền admin hoặc thử lại sau.');
+        throw Exception(
+          'Server error: Không thể xóa công thức. Vui lòng kiểm tra quyền admin hoặc thử lại sau.',
+        );
       }
       throw Exception('Failed to delete recipe: ${e.toString()}');
     }
@@ -89,9 +91,7 @@ class AdminRepository {
 
       if (response['success'] == true && response['data'] != null) {
         final List<dynamic> recipesJson = response['data'];
-        return recipesJson
-            .map((json) => RecipeModel.fromJson(json))
-            .toList();
+        return recipesJson.map((json) => RecipeModel.fromJson(json)).toList();
       }
       return [];
     } catch (e) {
@@ -106,6 +106,16 @@ class AdminRepository {
       return RecipeModel.fromJson(response['data']);
     } catch (e) {
       throw Exception('Failed to load recipe details: $e');
+    }
+  }
+
+  // Get community recipe by ID
+  Future<CommunityRecipe> getCommunityRecipeById(String recipeId) async {
+    try {
+      final response = await _apiService.getCommunityRecipeById(recipeId);
+      return CommunityRecipe.fromJson(response['data']);
+    } catch (e) {
+      throw Exception('Failed to load community recipe details: $e');
     }
   }
 

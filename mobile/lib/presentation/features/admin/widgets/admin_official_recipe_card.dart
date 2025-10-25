@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
+import 'package:bepviet_mobile/data/repositories/admin_repository.dart';
 import 'package:bepviet_mobile/presentation/features/admin/pages/admin_recipe_detail_page.dart';
 
 class AdminOfficialRecipeCard extends StatelessWidget {
   final RecipeModel recipe;
+  final AdminRepository adminRepository;
   final VoidCallback? onDelete;
 
   const AdminOfficialRecipeCard({
     super.key,
     required this.recipe,
+    required this.adminRepository,
     this.onDelete,
   });
 
@@ -21,7 +24,8 @@ class AdminOfficialRecipeCard extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => AdminRecipeDetailPage(
-              recipe: recipe,
+              recipeId: recipe.id,
+              adminRepository: adminRepository,
               isOfficialRecipe: true,
             ),
           ),
@@ -30,9 +34,7 @@ class AdminOfficialRecipeCard extends StatelessWidget {
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         elevation: 1,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -54,7 +56,10 @@ class AdminOfficialRecipeCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.primaryGreen,
                       borderRadius: BorderRadius.circular(8),
@@ -102,15 +107,22 @@ class AdminOfficialRecipeCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: _getDifficultyColor(recipe.difficulty?.toString() ?? '1').withOpacity(0.1),
+                      color: _getDifficultyColor(
+                        recipe.difficulty?.toString() ?? '1',
+                      ).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       _getDifficultyText(recipe.difficulty?.toString() ?? '1'),
                       style: TextStyle(
-                        color: _getDifficultyColor(recipe.difficulty?.toString() ?? '1'),
+                        color: _getDifficultyColor(
+                          recipe.difficulty?.toString() ?? '1',
+                        ),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -118,7 +130,10 @@ class AdminOfficialRecipeCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.primaryGreen.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),

@@ -23,10 +23,7 @@ class AdminApiService {
     final token = await _getToken();
     final response = await _dio.get(
       '/api/community/recipes',
-      queryParameters: {
-        'limit': limit,
-        'offset': offset,
-      },
+      queryParameters: {'limit': limit, 'offset': offset},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
     return response.data;
@@ -88,6 +85,16 @@ class AdminApiService {
     final token = await _getToken();
     final response = await _dio.get(
       '/api/recipes/$recipeId',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
+
+  // Get community recipe by ID
+  Future<Map<String, dynamic>> getCommunityRecipeById(String recipeId) async {
+    final token = await _getToken();
+    final response = await _dio.get(
+      '/api/community/recipes/$recipeId',
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
     return response.data;

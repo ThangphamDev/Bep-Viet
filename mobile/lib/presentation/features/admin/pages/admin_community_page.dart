@@ -12,11 +12,12 @@ class AdminCommunityPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dio = Dio();
+    final adminApiService = AdminApiService(dio);
+    final adminRepository = AdminRepository(adminApiService);
+
     return BlocProvider(
       create: (context) {
-        final dio = Dio();
-        final adminApiService = AdminApiService(dio);
-        final adminRepository = AdminRepository(adminApiService);
         return AdminCubit(adminRepository)..loadCommunityRecipes();
       },
       child: Scaffold(
@@ -24,12 +25,8 @@ class AdminCommunityPage extends StatelessWidget {
         body: BlocBuilder<AdminCubit, AdminState>(
           builder: (context, state) {
             return state.when(
-              initial: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
+              initial: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               loaded: (recipes, hasMore) {
                 if (recipes.isEmpty) {
                   return const Center(
@@ -56,7 +53,9 @@ class AdminCommunityPage extends StatelessWidget {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    context.read<AdminCubit>().loadCommunityRecipes(refresh: true);
+                    context.read<AdminCubit>().loadCommunityRecipes(
+                      refresh: true,
+                    );
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.only(top: 8, bottom: 100),
@@ -76,6 +75,7 @@ class AdminCommunityPage extends StatelessWidget {
                       final recipe = recipes[index];
                       return AdminCommunityRecipeCard(
                         recipe: recipe,
+                        adminRepository: adminRepository,
                         onPromote: () {
                           _showPromoteDialog(context, recipe);
                         },
@@ -99,16 +99,15 @@ class AdminCommunityPage extends StatelessWidget {
                     const SizedBox(height: 20),
                     Text(
                       'Lỗi: $message',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.red,
-                      ),
+                      style: const TextStyle(fontSize: 16, color: Colors.red),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        context.read<AdminCubit>().loadCommunityRecipes(refresh: true);
+                        context.read<AdminCubit>().loadCommunityRecipes(
+                          refresh: true,
+                        );
                       },
                       child: const Text('Thử lại'),
                     ),
@@ -127,7 +126,9 @@ class AdminCommunityPage extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Promote Recipe'),
-        content: Text('Bạn có chắc muốn promote công thức "${recipe.title}" thành công thức chính thức?'),
+        content: Text(
+          'Bạn có chắc muốn promote công thức "${recipe.title}" thành công thức chính thức?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -136,14 +137,16 @@ class AdminCommunityPage extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
-              final success = await context.read<AdminCubit>().promoteRecipe(recipe.id);
+              final success = await context.read<AdminCubit>().promoteRecipe(
+                recipe.id,
+              );
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      success 
-                        ? 'Đã promote công thức "${recipe.title}" thành công!' 
-                        : 'Không thể promote công thức. Vui lòng thử lại.'
+                      success
+                          ? 'Đã promote công thức "${recipe.title}" thành công!'
+                          : 'Không thể promote công thức. Vui lòng thử lại.',
                     ),
                     backgroundColor: success ? Colors.green : Colors.red,
                     duration: const Duration(seconds: 3),
@@ -167,7 +170,9 @@ class AdminCommunityPage extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Xóa công thức'),
-        content: Text('Bạn có chắc muốn xóa công thức "${recipe.title}"? Hành động này không thể hoàn tác.'),
+        content: Text(
+          'Bạn có chắc muốn xóa công thức "${recipe.title}"? Hành động này không thể hoàn tác.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -176,14 +181,16 @@ class AdminCommunityPage extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
-              final success = await context.read<AdminCubit>().deleteRecipe(recipe.id);
+              final success = await context.read<AdminCubit>().deleteRecipe(
+                recipe.id,
+              );
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      success 
-                        ? 'Đã xóa công thức "${recipe.title}" thành công!' 
-                        : 'Không thể xóa công thức. Vui lòng thử lại.'
+                      success
+                          ? 'Đã xóa công thức "${recipe.title}" thành công!'
+                          : 'Không thể xóa công thức. Vui lòng thử lại.',
                     ),
                     backgroundColor: success ? Colors.green : Colors.red,
                     duration: const Duration(seconds: 3),
