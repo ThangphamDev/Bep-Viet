@@ -161,20 +161,18 @@ class AdminCubit extends Cubit<AdminState> {
   }
 
   Future<void> deleteOfficialRecipe(String recipeId) async {
-    try {
-      final success = await _adminRepository.deleteOfficialRecipe(recipeId);
-      if (success) {
-        // Remove recipe from current list
-        final currentState = state;
-        if (currentState is _Loaded) {
-          final updatedRecipes = currentState.recipes
-              .where((recipe) => recipe.id != recipeId)
-              .toList();
-          emit(currentState.copyWith(recipes: updatedRecipes));
-        }
+    final success = await _adminRepository.deleteOfficialRecipe(recipeId);
+    if (success) {
+      // Remove recipe from current list
+      final currentState = state;
+      if (currentState is _Loaded) {
+        final updatedRecipes = currentState.recipes
+            .where((recipe) => recipe.id != recipeId)
+            .toList();
+        emit(currentState.copyWith(recipes: updatedRecipes));
       }
-    } catch (e) {
-      emit(AdminState.error('Failed to delete official recipe: $e'));
+    } else {
+      throw Exception('Failed to delete recipe');
     }
   }
 }

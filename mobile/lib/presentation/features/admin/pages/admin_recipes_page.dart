@@ -300,22 +300,64 @@ class _AdminRecipesPageState extends State<AdminRecipesPage> {
   }
 
   void _showDeleteDialog(BuildContext context, recipe) {
+    // Get recipe name - RecipeModel uses 'name' field, not 'title'
+    final recipeName =
+        recipe.name ?? recipe.name_vi ?? recipe.title ?? 'công thức này';
+
+    // Get cubit BEFORE opening dialog
+    final cubit = context.read<AdminCubit>();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Recipe'),
-        content: Text(
-          'Bạn có chắc muốn xóa công thức chính thức "${recipe.title}"?',
-        ),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa công thức'),
+        content: Text('Bạn có chắc muốn xóa công thức "$recipeName"?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<AdminCubit>().deleteOfficialRecipe(recipe.id);
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close confirm dialog
+
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) =>
+                    const Center(child: CircularProgressIndicator()),
+              );
+
+              try {
+                await cubit.deleteOfficialRecipe(recipe.id);
+
+                // Close loading
+                if (context.mounted) Navigator.pop(context);
+
+                // Show success message
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Đã xóa công thức "$recipeName"'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                // Close loading
+                if (context.mounted) Navigator.pop(context);
+
+                // Show error message
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Lỗi khi xóa: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
