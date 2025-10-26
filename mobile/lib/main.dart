@@ -109,15 +109,19 @@ class _BepVietAppState extends State<BepVietApp> {
     _initializePushNotifications();
 
     // Listen to auth state changes to connect/disconnect WebSocket
-    _authCubit.stream.listen((authState) {
+    _authCubit.stream.listen((authState) async {
       if (authState is AuthAuthenticated) {
         final token = widget.authRepository.accessToken;
         if (token != null) {
           widget.webSocketService.connect(token);
-          _notificationsCubit.loadNotifications([]);
+
+          // Wait for connection then fetch history
+          await Future.delayed(const Duration(milliseconds: 1500));
+          await _notificationsCubit.fetchHistory();
         }
       } else if (authState is AuthUnauthenticated) {
         widget.webSocketService.disconnect();
+        _notificationsCubit.loadNotifications([]);
       }
     });
 

@@ -68,6 +68,28 @@ class NotificationsCubit extends Cubit<NotificationsState> {
     );
   }
 
+  Future<void> fetchHistory() async {
+    try {
+      final historyData = await _webSocketService.getHistory();
+      final notifications = historyData
+          .map((data) {
+            try {
+              return NotificationModel.fromJson(data);
+            } catch (e) {
+              print('Error parsing notification: $e');
+              return null;
+            }
+          })
+          .whereType<NotificationModel>()
+          .toList();
+
+      loadNotifications(notifications);
+      print('✅ Loaded ${notifications.length} notifications from history');
+    } catch (e) {
+      print('❌ Error fetching notification history: $e');
+    }
+  }
+
   void markAsRead(String notificationId) {
     final currentState = state;
     if (currentState is NotificationsLoaded) {

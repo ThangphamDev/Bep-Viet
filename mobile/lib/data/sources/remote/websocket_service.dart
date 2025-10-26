@@ -97,6 +97,46 @@ class WebSocketService {
     }
   }
 
+  /// Get notification history
+  Future<List<Map<String, dynamic>>> getHistory() async {
+    if (_socket?.connected != true) {
+      print('❌ Cannot get history: Not connected');
+      return [];
+    }
+
+    try {
+      final completer = Completer<List<Map<String, dynamic>>>();
+
+      _socket!.emitWithAck(
+        'get_history',
+        null,
+        ack: (data) {
+          if (data != null && data is Map && data['success'] == true) {
+            final notifications =
+                (data['notifications'] as List?)
+                    ?.map((e) => e as Map<String, dynamic>)
+                    .toList() ??
+                [];
+            completer.complete(notifications);
+          } else {
+            completer.complete([]);
+          }
+        },
+      );
+
+      return await completer.future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          print('⏱️ Get history timeout');
+          return [];
+        },
+      );
+    } catch (e) {
+      print('❌ Error getting history: $e');
+      return [];
+    }
+  }
+
   /// Mark notification as read
   void markAsRead(String notificationId) {
     if (_socket?.connected == true) {
