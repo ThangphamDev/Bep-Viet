@@ -520,8 +520,41 @@ export class CommunityService {
       const quantityMatch = ing.quantity?.match(/(\d+(\.\d+)?)/);
       const quantity = quantityMatch ? parseFloat(quantityMatch[1]) : 100;
       
-      // Extract unit (g, ml, kg, etc)
-      const unit = ing.quantity?.replace(/[\d\.\s]+/g, '').trim() || 'g';
+      // Extract unit and normalize it
+      let unit = ing.quantity?.replace(/[\d\.\s]+/g, '').trim().toLowerCase() || 'g';
+      
+      // Map common unit variations to valid units in database
+      const unitMap = {
+        'gram': 'g',
+        'gam': 'g',
+        'gr': 'g',
+        'kilogram': 'kg',
+        'kilo': 'kg',
+        'ki lô': 'kg',
+        'milliliter': 'ml',
+        'mililit': 'ml',
+        'liter': 'lít',
+        'lit': 'lít',
+        'tablespoon': 'muỗng canh',
+        'teaspoon': 'muỗng cà phê',
+        'cup': 'chén',
+        'piece': 'cái',
+        'clove': 'củ',
+      };
+      
+      unit = unitMap[unit] || unit;
+      
+      // Validate unit exists in database
+      const [validUnits] = await this.db.execute(
+        'SELECT code FROM units WHERE code = ? LIMIT 1',
+        [unit]
+      );
+      
+      // If unit doesn't exist, use default based on ingredient type
+      if ((validUnits as any[]).length === 0) {
+        console.warn(`Unit "${unit}" not found in database, using default "g"`);
+        unit = 'g'; // Default fallback
+      }
 
       await this.db.execute(
         `INSERT INTO recipe_ingredients (id, recipe_id, ingredient_id, quantity, unit, note)

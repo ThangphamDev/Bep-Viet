@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, forwardRef, Inject as NestInject } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
+import { NotificationsGateway } from './notifications.gateway';
 
 @Injectable()
 export class NotificationsService {
-  constructor(@Inject('DATABASE_CONNECTION') private db: any) {}
+  constructor(
+    @Inject('DATABASE_CONNECTION') private db: any,
+    @NestInject(forwardRef(() => NotificationsGateway))
+    private readonly notificationsGateway: NotificationsGateway,
+  ) {}
 
   async createNotification(
     userId: string,
@@ -29,16 +34,23 @@ export class NotificationsService {
         ]
       );
 
+      const notificationData = {
+        id: notificationId,
+        userId,
+        type,
+        title,
+        body,
+        payload,
+        delivered_at: new Date(),
+        is_read: false,
+      };
+
+      // Send real-time notification via WebSocket
+      this.notificationsGateway.sendNotificationToUser(userId, notificationData);
+
       return {
         success: true,
-        data: {
-          id: notificationId,
-          userId,
-          type,
-          title,
-          body,
-          payload,
-        },
+        data: notificationData,
       };
     } catch (error) {
       console.error('Error creating notification:', error);

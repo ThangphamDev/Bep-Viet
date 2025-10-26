@@ -7,6 +7,7 @@ import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/recipe_model.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/premium/cubit/premium_cubit.dart';
+import 'package:bepviet_mobile/presentation/features/notifications/widgets/notification_badge.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -241,6 +242,10 @@ class _HomePageState extends State<HomePage> {
             pinned: true,
             backgroundColor: AppTheme.primaryGreen,
             actions: [
+              // Notification Badge
+              const NotificationBadge(),
+              const SizedBox(width: 8),
+              // Menu
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white),
                 onSelected: (value) {

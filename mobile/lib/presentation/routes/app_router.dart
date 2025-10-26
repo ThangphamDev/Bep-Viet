@@ -26,6 +26,9 @@ import 'package:bepviet_mobile/data/models/user_model.dart';
 // Admin imports
 import 'package:bepviet_mobile/presentation/features/admin/pages/admin_main_page.dart';
 
+// Notifications import
+import 'package:bepviet_mobile/presentation/features/notifications/pages/notifications_page.dart';
+
 class AppRoutes {
   // Main routes
   static const String home = '/';
@@ -34,6 +37,7 @@ class AppRoutes {
   static const String planner = '/planner';
   static const String pantry = '/pantry';
   static const String community = '/community';
+  static const String notifications = '/notifications';
 
   // Admin routes
   static const String admin = '/admin';
@@ -208,6 +212,12 @@ class AppRouter {
               path: '/profile',
               name: 'profile',
               builder: (context, state) => const ProfilePage(),
+            ),
+            // Notifications route
+            GoRoute(
+              path: AppRoutes.notifications,
+              name: 'notifications',
+              builder: (context, state) => const NotificationsPage(),
             ),
             // Premium routes
             GoRoute(
