@@ -142,10 +142,25 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
       // Create list (backend returns list ID only)
       final listId = await _apiService.createShoppingList(token, dto);
 
-      // Reload lists to get the new one
-      await loadShoppingLists();
+      // Load the newly created list directly to ensure it's selected
+      final newList = await _apiService.getShoppingListById(token, listId);
 
-      emit(state.copyWith(isLoading: false));
+      // Reload all lists to update the list
+      final shoppingLists = await _apiService.getShoppingLists(token);
+
+      // Add the new list if not already in the list
+      final updatedLists = shoppingLists.any((l) => l.id == newList.id)
+          ? shoppingLists
+          : [...shoppingLists, newList];
+
+      // Select the newly created list
+      emit(
+        state.copyWith(
+          isLoading: false,
+          shoppingLists: updatedLists,
+          selectedList: newList, // Auto-select the new list
+        ),
+      );
 
       return listId;
     } catch (e) {
@@ -344,19 +359,43 @@ class ShoppingListCubit extends Cubit<ShoppingListState> {
         return;
       }
 
-      await _apiService.deleteShoppingList(token, listId);
+      // WORKAROUND: Backend không có API xóa danh sách
+      // Giải pháp: Xóa TẤT CẢ items trong danh sách
+      final listToDelete = state.shoppingLists.firstWhere(
+        (list) => list.id == listId,
+        orElse: () => throw Exception('Danh sách không tồn tại'),
+      );
 
+      // Xóa từng item trong danh sách
+      for (final item in listToDelete.items) {
+        try {
+          await _apiService.removeItemFromShoppingList(token, listId, item.id);
+        } catch (e) {
+          // Continue deleting other items even if one fails
+          print('Failed to delete item ${item.id}: $e');
+        }
+      }
+
+      // Sau khi xóa hết items, remove list khỏi local state
       final updatedLists = state.shoppingLists
           .where((list) => list.id != listId)
           .toList();
+
+      // Nếu đang xóa list được chọn, chọn list đầu tiên còn lại
+      ShoppingListModel? newSelectedList;
+      if (state.selectedList?.id == listId) {
+        // List đang được chọn bị xóa → chọn list đầu tiên còn lại
+        newSelectedList = updatedLists.isNotEmpty ? updatedLists.first : null;
+      } else {
+        // Xóa list khác → giữ nguyên selected list
+        newSelectedList = state.selectedList;
+      }
 
       emit(
         state.copyWith(
           isLoading: false,
           shoppingLists: updatedLists,
-          selectedList: state.selectedList?.id == listId
-              ? null
-              : state.selectedList,
+          selectedList: newSelectedList,
         ),
       );
     } catch (e) {

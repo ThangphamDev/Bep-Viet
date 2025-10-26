@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:bepviet_mobile/presentation/features/shopping/cubit/shopping_list_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/planner/cubit/meal_plan_cubit.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/cubit/pantry_cubit.dart';
@@ -9,6 +10,7 @@ import 'package:bepviet_mobile/data/models/pantry_item_model.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/auth_service.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
+import '../utils/ingredient_section_helper.dart';
 import 'nearby_stores_page.dart';
 
 class ShoppingListPage extends StatefulWidget {
@@ -31,6 +33,17 @@ class _ShoppingListPageState extends State<ShoppingListPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadData();
+  }
+
+  /// Classify ingredient bằng AI trong background và cache kết quả
+  void _classifyWithAIInBackground(String ingredientName) {
+    // Run in background without awaiting
+    IngredientSectionHelper.classifyWithCache(ingredientName).then((section) {
+      // Kết quả đã được cache, lần sau sẽ dùng ngay
+      // Không cần update UI vì đã hiển thị rule-based result
+    }).catchError((error) {
+      // Silent fail, rule-based result vẫn đang hiển thị
+    });
   }
 
   @override
@@ -137,27 +150,13 @@ class _ShoppingListPageState extends State<ShoppingListPage>
           return _buildShoppingListView(selectedList, state.shoppingLists);
         },
       ),
-      floatingActionButton: BlocBuilder<MealPlanCubit, MealPlanState>(
-        builder: (context, mealPlanState) {
-          final hasMealPlan =
-              mealPlanState.currentPlan != null &&
-              mealPlanState.currentPlan!.meals.isNotEmpty;
-
-          return FloatingActionButton.extended(
-            onPressed: hasMealPlan
-                ? () => _generateShoppingListFromMealPlan(
-                    mealPlanState.currentPlan!,
-                  )
-                : null,
-            backgroundColor: hasMealPlan ? AppTheme.primaryGreen : Colors.grey,
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.restaurant_menu),
-            label: const Text('Từ kế hoạch'),
-            tooltip: hasMealPlan
-                ? 'Tạo danh sách mua sắm từ kế hoạch bữa ăn (${mealPlanState.currentPlan!.meals.length} món)'
-                : 'Chưa có kế hoạch bữa ăn cho tuần này',
-          );
-        },
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _generateShoppingListFromAllPlans([]),
+        backgroundColor: AppTheme.primaryGreen,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.restaurant_menu),
+        label: const Text('Từ kế hoạch'),
+        tooltip: 'Tạo danh sách mua sắm từ kế hoạch bữa ăn',
       ),
     );
   }
@@ -233,7 +232,9 @@ class _ShoppingListPageState extends State<ShoppingListPage>
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: selectedList.id,
+                value: sortedLists.any((list) => list.id == selectedList.id)
+                    ? selectedList.id
+                    : (sortedLists.isNotEmpty ? sortedLists.first.id : null),
                 isExpanded: true,
                 icon: Icon(Icons.arrow_drop_down, color: AppTheme.primaryGreen),
                 style: const TextStyle(
@@ -301,32 +302,31 @@ class _ShoppingListPageState extends State<ShoppingListPage>
     // Group items by store section
     final Map<String, List<ShoppingItem>> itemsBySection = {};
     for (final item in selectedList.items) {
-      final section = item.storeSectionName ?? 'Khác';
+      // Nếu item không có section từ backend, tự động phân loại
+      String section;
+      if (item.storeSectionName == null || 
+          item.storeSectionName!.isEmpty || 
+          item.storeSectionName == 'null') {
+        // Dùng rule-based ngay để hiển thị nhanh
+        section = IngredientSectionHelper.classifyIngredient(item.ingredientName);
+        
+        // Background: Classify bằng AI và cache cho lần sau
+        _classifyWithAIInBackground(item.ingredientName);
+      } else {
+        section = item.storeSectionName!;
+      }
+      
       if (!itemsBySection.containsKey(section)) {
         itemsBySection[section] = [];
       }
       itemsBySection[section]!.add(item);
     }
 
-    // Define section order for better shopping experience
-    final sectionOrder = [
-      'Rau củ quả',
-      'Thịt, cá, hải sản',
-      'Trứng, sữa',
-      'Gia vị, ướp',
-      'Đồ khô',
-      'Đồ uống',
-      'Đồ đông lạnh',
-      'Khác',
-    ];
-
     // Sort sections by predefined order
     final sortedSections = itemsBySection.entries.toList()
       ..sort((a, b) {
-        int indexA = sectionOrder.indexOf(a.key);
-        int indexB = sectionOrder.indexOf(b.key);
-        if (indexA == -1) indexA = sectionOrder.length;
-        if (indexB == -1) indexB = sectionOrder.length;
+        final indexA = IngredientSectionHelper.getSectionOrder(a.key);
+        final indexB = IngredientSectionHelper.getSectionOrder(b.key);
         return indexA.compareTo(indexB);
       });
 
@@ -621,29 +621,7 @@ class _ShoppingListPageState extends State<ShoppingListPage>
   }
 
   IconData _getSectionIcon(String sectionName) {
-    final lowerName = sectionName.toLowerCase();
-
-    if (lowerName.contains('rau') ||
-        lowerName.contains('củ') ||
-        lowerName.contains('quả')) {
-      return Icons.eco;
-    } else if (lowerName.contains('thịt') ||
-        lowerName.contains('cá') ||
-        lowerName.contains('hải sản')) {
-      return Icons.set_meal;
-    } else if (lowerName.contains('trứng') || lowerName.contains('sữa')) {
-      return Icons.egg;
-    } else if (lowerName.contains('gia vị') || lowerName.contains('ướp')) {
-      return Icons.restaurant;
-    } else if (lowerName.contains('khô')) {
-      return Icons.grain;
-    } else if (lowerName.contains('uống')) {
-      return Icons.local_drink;
-    } else if (lowerName.contains('đông lạnh')) {
-      return Icons.ac_unit;
-    } else {
-      return Icons.shopping_basket;
-    }
+    return IngredientSectionHelper.getSectionIcon(sectionName);
   }
 
   Widget _buildShoppingItemWithPantryInfo(ShoppingItem item, bool isChecked) {
@@ -658,17 +636,19 @@ class _ShoppingListPageState extends State<ShoppingListPage>
             )
             .firstOrNull;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isChecked
-                  ? Colors.green.withOpacity(0.3)
-                  : Colors.grey.withOpacity(0.2),
+        return Opacity(
+          opacity: isChecked ? 0.5 : 1.0, // Làm mờ món đã mua
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isChecked
+                    ? Colors.green.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.2),
+              ),
             ),
-          ),
           child: ListTile(
             leading: Checkbox(
               value: isChecked,
@@ -787,6 +767,7 @@ class _ShoppingListPageState extends State<ShoppingListPage>
               ],
             ),
           ),
+        ),
         );
       },
     );
@@ -1127,6 +1108,142 @@ class _ShoppingListPageState extends State<ShoppingListPage>
     );
   }
 
+  /// Lấy tất cả các meals từ các ngày tương lai (từ hôm nay trở đi)
+  List<MealSlot> _getAllFutureMeals(List<MealPlanModel> mealPlans) {
+    if (mealPlans.isEmpty) return [];
+
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+
+    final Map<String, MealSlot> uniqueMeals = {}; // Dùng Map để loại bỏ duplicate
+
+    for (final plan in mealPlans) {
+      for (final meal in plan.meals) {
+        if (meal.recipeId == null) continue;
+
+        // Convert date to local time
+        final dateUtc = DateTime.parse(meal.date);
+        final dateLocal = dateUtc.toLocal();
+        final dateOnly = DateTime(dateLocal.year, dateLocal.month, dateLocal.day);
+
+        // Chỉ lấy các ngày từ hôm nay trở đi
+        if (!dateOnly.isBefore(todayDate)) {
+          // Tạo unique key: date + mealType + recipeId
+          final key = '${meal.date}_${meal.mealType.name}_${meal.recipeId}';
+          
+          // Chỉ add nếu chưa có (tránh duplicate)
+          if (!uniqueMeals.containsKey(key)) {
+            uniqueMeals[key] = meal;
+          }
+        }
+      }
+    }
+
+    return uniqueMeals.values.toList();
+  }
+
+  /// Tạo shopping list từ TẤT CẢ các meal plans
+  void _generateShoppingListFromAllPlans(List<MealPlanModel> mealPlans) async {
+    if (_disposed || !mounted) return;
+
+    try {
+      // Show loading
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text('Đang tải kế hoạch bữa ăn...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+      }
+
+      // Load meal plans cho nhiều tuần (4 tuần tương lai)
+      final cubit = context.read<MealPlanCubit>();
+      final allPlans = <MealPlanModel>[];
+      final addedPlanIds = <String>{}; // Track để tránh duplicate
+      
+      // Tính thứ Hai của tuần hiện tại
+      final now = DateTime.now();
+      final currentMonday = now.subtract(Duration(days: now.weekday - 1));
+      
+      for (int i = 0; i < 4; i++) {
+        final weekMonday = currentMonday.add(Duration(days: i * 7));
+        final weekStartDate = DateFormat('yyyy-MM-dd').format(weekMonday);
+        
+        await cubit.loadMealPlans(date: weekStartDate);
+        
+        if (!mounted || _disposed) return;
+        
+        final state = cubit.state;
+        if (state.currentPlan != null && 
+            state.currentPlan!.meals.isNotEmpty &&
+            !addedPlanIds.contains(state.currentPlan!.id)) {
+          allPlans.add(state.currentPlan!);
+          addedPlanIds.add(state.currentPlan!.id);
+        }
+      }
+      
+      if (!mounted || _disposed) return;
+
+      // Hide loading
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      final updatedPlans = allPlans;
+
+      // Tạo một MealPlanModel tổng hợp từ tất cả các plans
+      final allMeals = _getAllFutureMeals(updatedPlans);
+
+      if (allMeals.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Không có món ăn nào cho các ngày tới'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Tạo một meal plan tổng hợp
+      final combinedPlan = MealPlanModel(
+        id: 'combined',
+        userId: updatedPlans.first.userId,
+        weekStartDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        name: 'Tất cả ngày tương lai',
+        description: 'Kế hoạch tổng hợp từ ${allMeals.length} món',
+        meals: allMeals,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      _generateShoppingListFromMealPlan(combinedPlan);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi tải kế hoạch: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _generateShoppingListFromMealPlan(MealPlanModel mealPlan) async {
     if (_disposed || !mounted) return;
 
@@ -1293,6 +1410,9 @@ class _ShoppingListPageState extends State<ShoppingListPage>
       );
       Overlay.of(context).insert(overlayEntry);
 
+      // Track successfully saved items to delete them
+      final List<String> successfulItemIds = [];
+
       // Add each item to pantry
       for (final item in checkedItems) {
         try {
@@ -1313,6 +1433,7 @@ class _ShoppingListPageState extends State<ShoppingListPage>
 
           await context.read<PantryCubit>().addPantryItem(dto);
           successCount++;
+          successfulItemIds.add(item.id); // Track successful items
         } catch (e) {
           errorCount++;
         }
@@ -1321,6 +1442,20 @@ class _ShoppingListPageState extends State<ShoppingListPage>
       // Remove overlay
       if (mounted) {
         overlayEntry.remove();
+      }
+
+      // Delete successfully saved items from shopping list
+      if (successfulItemIds.isNotEmpty && mounted) {
+        for (final itemId in successfulItemIds) {
+          try {
+            await context.read<ShoppingListCubit>().removeItemFromShoppingList(
+              list.id,
+              itemId,
+            );
+          } catch (e) {
+            // Ignore delete errors, item was already saved to pantry
+          }
+        }
       }
 
       // Show result
@@ -1416,9 +1551,12 @@ class _ShoppingListPageState extends State<ShoppingListPage>
       }
 
       // Create shopping list
-      final dateRange = selectedDates.length == 1
-          ? _formatDateShort(selectedDates.first)
-          : '${_formatDateShort(selectedDates.first)} - ${_formatDateShort(selectedDates.last)}';
+      // Sắp xếp các ngày theo thứ tự tăng dần (từ gần đến xa)
+      final sortedDates = selectedDates.toList()..sort();
+      
+      final dateRange = sortedDates.length == 1
+          ? _formatDateShort(sortedDates.first)
+          : '${_formatDateShort(sortedDates.first)} - ${_formatDateShort(sortedDates.last)}';
 
       final createDto = CreateShoppingListDto(
         name: 'Mua sắm $dateRange',
@@ -1511,8 +1649,10 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
   @override
   void initState() {
     super.initState();
+    
     // Group meals by date
     _mealsByDate = {};
+    
     for (final meal in widget.mealPlan.meals) {
       if (meal.recipeId != null) {
         if (!_mealsByDate.containsKey(meal.date)) {
@@ -1521,13 +1661,30 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
         _mealsByDate[meal.date]!.add(meal);
       }
     }
-    // Select all dates by default
-    _selectedDates.addAll(_mealsByDate.keys);
+    
+    // Lấy ngày hiện tại (chỉ phần ngày, bỏ giờ)
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    
+    // Select all future dates by default (không chọn ngày đã qua)
+    for (final dateStr in _mealsByDate.keys) {
+      // QUAN TRỌNG: Parse và convert sang local time
+      final dateUtc = DateTime.parse(dateStr);
+      final dateLocal = dateUtc.toLocal();
+      final dateOnly = DateTime(dateLocal.year, dateLocal.month, dateLocal.day);
+      
+      // Chỉ chọn ngày hôm nay và các ngày sau
+      if (!dateOnly.isBefore(todayDate)) {
+        _selectedDates.add(dateStr);
+      }
+    }
   }
 
   String _formatDate(String dateStr) {
     try {
-      final date = DateTime.parse(dateStr);
+      // QUAN TRỌNG: Convert sang local time để hiển thị đúng
+      final dateUtc = DateTime.parse(dateStr);
+      final date = dateUtc.toLocal();
       final weekday = [
         'CN',
         'T2',
@@ -1556,7 +1713,18 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final sortedDates = _mealsByDate.keys.toList()..sort();
+    // Lọc ra chỉ các ngày từ hôm nay trở đi
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    
+    final futureDates = _mealsByDate.keys.where((dateStr) {
+      // QUAN TRỌNG: Parse và convert sang local time
+      final dateUtc = DateTime.parse(dateStr);
+      final dateLocal = dateUtc.toLocal();
+      final dateOnly = DateTime(dateLocal.year, dateLocal.month, dateLocal.day);
+      return !dateOnly.isBefore(todayDate); // Ngày hôm nay và các ngày sau
+    }).toList()..sort();
+    
     final totalMeals = _selectedDates.fold<int>(
       0,
       (sum, date) => sum + (_mealsByDate[date]?.length ?? 0),
@@ -1591,7 +1759,7 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Chọn các ngày bạn muốn tạo danh sách mua sắm',
+                    'Chọn các ngày bạn muốn tạo danh sách mua sắm (${futureDates.length} ngày khả dụng)',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.9),
@@ -1610,13 +1778,14 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
               child: Row(
                 children: [
                   Checkbox(
-                    value: _selectedDates.length == _mealsByDate.length,
+                    value: _selectedDates.length == futureDates.length && futureDates.isNotEmpty,
                     tristate: true,
                     activeColor: AppTheme.primaryGreen,
                     onChanged: (value) {
                       setState(() {
                         if (value == true) {
-                          _selectedDates.addAll(_mealsByDate.keys);
+                          // Chọn tất cả các ngày trong tương lai
+                          _selectedDates.addAll(futureDates);
                         } else {
                           _selectedDates.clear();
                         }
@@ -1637,75 +1806,100 @@ class _SelectDatesDialogState extends State<_SelectDatesDialog> {
               ),
             ),
 
-            // Date list
+            // Date list (chỉ hiển thị ngày từ hôm nay trở đi)
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: sortedDates.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final date = sortedDates[index];
-                  final meals = _mealsByDate[date]!;
-                  final isSelected = _selectedDates.contains(date);
-
-                  return CheckboxListTile(
-                    value: isSelected,
-                    activeColor: AppTheme.primaryGreen,
-                    onChanged: (value) {
-                      setState(() {
-                        if (value == true) {
-                          _selectedDates.add(date);
-                        } else {
-                          _selectedDates.remove(date);
-                        }
-                      });
-                    },
-                    title: Text(
-                      _formatDate(date),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+              child: futureDates.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.event_busy,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Không có món ăn nào\ncho các ngày tới',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        ...meals.map(
-                          (meal) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Row(
-                              children: [
-                                Text(
-                                  _getMealTypeIcon(meal.mealType),
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    meal.recipeName ?? 'Món ăn',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  '${meal.servings} phần',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[500],
-                                  ),
-                                ),
-                              ],
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: futureDates.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final date = futureDates[index];
+                        final meals = _mealsByDate[date]!;
+                        final isSelected = _selectedDates.contains(date);
+
+                        return CheckboxListTile(
+                          value: isSelected,
+                          activeColor: AppTheme.primaryGreen,
+                          onChanged: (value) {
+                            setState(() {
+                              if (value == true) {
+                                _selectedDates.add(date);
+                              } else {
+                                _selectedDates.remove(date);
+                              }
+                            });
+                          },
+                          title: Text(
+                            _formatDate(date),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ),
-                      ],
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              ...meals.map(
+                                (meal) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        _getMealTypeIcon(meal.mealType),
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          meal.recipeName ?? 'Món ăn',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        '${meal.servings} phần',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
 
             // Actions

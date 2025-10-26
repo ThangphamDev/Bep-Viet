@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:share_plus/share_plus.dart';
+// TODO: Uncomment khi share_plus được fix
+// import 'package:share_plus/share_plus.dart';
 import 'package:bepviet_mobile/core/theme/app_theme.dart';
 import 'package:bepviet_mobile/data/models/community_recipe.dart';
 import 'package:bepviet_mobile/presentation/features/auth/cubit/auth_cubit.dart';
@@ -440,7 +441,16 @@ class _CommunityFeedCardNewState extends State<CommunityFeedCardNew> {
     setState(() {
       _shareCount++;
     });
-    Share.share('Xem công thức: ${widget.recipe.title}');
+    // TODO: Uncomment khi share_plus được fix
+    // Share.share('Xem công thức: ${widget.recipe.title}');
+    
+    // Tạm thời hiển thị thông báo
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Tính năng chia sẻ đang được cập nhật'),
+        duration: Duration(seconds: 2),
+      ),
+    );
     widget.onShare?.call(widget.recipe.id);
   }
 

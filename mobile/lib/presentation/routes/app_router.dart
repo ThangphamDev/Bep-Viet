@@ -7,6 +7,7 @@ import 'package:bepviet_mobile/presentation/features/recipes/pages/recipe_detail
 import 'package:bepviet_mobile/presentation/features/favorites/pages/favorites_page.dart';
 import 'package:bepviet_mobile/presentation/features/planner/pages/planner_page.dart';
 import 'package:bepviet_mobile/presentation/features/pantry/pages/pantry_page.dart';
+import 'package:bepviet_mobile/presentation/features/pantry/pages/pantry_suggestions_page.dart';
 import 'package:bepviet_mobile/presentation/features/shopping/pages/shopping_list_page.dart';
 import 'package:bepviet_mobile/presentation/features/community/pages/community_page.dart';
 import 'package:bepviet_mobile/presentation/features/personal/pages/personal_page.dart';
@@ -197,6 +198,11 @@ class AppRouter {
               path: AppRoutes.pantry,
               name: 'pantry',
               builder: (context, state) => const PantryPage(),
+            ),
+            GoRoute(
+              path: '/pantry/suggestions',
+              name: 'pantry-suggestions',
+              builder: (context, state) => const PantrySuggestionsPage(),
             ),
             GoRoute(
               path: AppRoutes.shopping,

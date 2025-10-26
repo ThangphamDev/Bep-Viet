@@ -11,6 +11,8 @@ import 'package:bepviet_mobile/presentation/features/pantry/cubit/pantry_cubit.d
 import 'package:bepviet_mobile/presentation/widgets/recipe_selection_dialog.dart';
 import 'package:bepviet_mobile/data/sources/remote/api_service.dart';
 import 'package:bepviet_mobile/data/sources/remote/auth_service.dart';
+import 'package:bepviet_mobile/presentation/features/planner/services/cooking_service.dart';
+import 'package:bepviet_mobile/presentation/features/planner/widgets/cooking_result_dialog.dart';
 
 class PlannerPage extends StatefulWidget {
   const PlannerPage({super.key});
@@ -194,9 +196,9 @@ class _PlannerPageState extends State<PlannerPage>
                           'Đang lập kế hoạch...',
                           style: TextStyle(fontSize: 16),
                         ),
-                      ],
-                    ),
-                  ),
+          ],
+        ),
+      ),
                 ),
               ),
             ),
@@ -205,15 +207,15 @@ class _PlannerPageState extends State<PlannerPage>
       floatingActionButton: _isGeneratingPlan
           ? null
           : FloatingActionButton.extended(
-              onPressed: _showGeneratePlanDialog,
-              backgroundColor: AppTheme.primaryGreen,
-              icon: const Icon(Icons.auto_awesome),
-              label: const Text(
-                'Lập kế hoạch thông minh',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              heroTag: 'smart_plan',
-            ),
+        onPressed: _showGeneratePlanDialog,
+        backgroundColor: AppTheme.primaryGreen,
+        icon: const Icon(Icons.auto_awesome),
+        label: const Text(
+          'Lập kế hoạch thông minh',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        heroTag: 'smart_plan',
+      ),
     );
   }
 
@@ -416,19 +418,15 @@ class _PlannerPageState extends State<PlannerPage>
       allMeals.addAll(mealPlan.meals);
     }
     print('PlannerPage: Found ${allMeals.length} total meals');
-
+    
     // Get the meal plan ID (từ currentPlan hoặc first plan)
-    final mealPlanId =
-        state.currentPlan?.id ??
-        (state.mealPlans.isNotEmpty ? state.mealPlans.first.id : '');
+    final mealPlanId = state.currentPlan?.id ?? (state.mealPlans.isNotEmpty ? state.mealPlans.first.id : '');
 
     return SingleChildScrollView(
       child: Column(
         children: [
           // Daily rows layout - each day is a row with meal slots
-          ...days
-              .map((day) => _buildDayRow(day, allMeals, mealPlanId))
-              .toList(),
+          ...days.map((day) => _buildDayRow(day, allMeals, mealPlanId)).toList(),
 
           const SizedBox(height: 20),
         ],
@@ -442,11 +440,7 @@ class _PlannerPageState extends State<PlannerPage>
         DateFormat('yyyy-MM-dd').format(today);
   }
 
-  Widget _buildDayRow(
-    DateTime day,
-    List<MealSlot> allMeals,
-    String mealPlanId,
-  ) {
+  Widget _buildDayRow(DateTime day, List<MealSlot> allMeals, String mealPlanId) {
     final dayString = DateFormat(
       'yyyy-MM-dd',
     ).format(DateTime(day.year, day.month, day.day));
@@ -537,12 +531,9 @@ class _PlannerPageState extends State<PlannerPage>
               ),
               const Spacer(),
               // Clear all meals button - only show if there are meals for this day
-              if (dayMeals.any(
-                (m) => m.recipeName != null && m.recipeName!.isNotEmpty,
-              ))
+              if (dayMeals.any((m) => m.recipeName != null && m.recipeName!.isNotEmpty))
                 IconButton(
-                  onPressed: () =>
-                      _showClearDayDialog(day, dayMeals, mealPlanId),
+                  onPressed: () => _showClearDayDialog(day, dayMeals, mealPlanId),
                   icon: const Icon(Icons.delete_sweep),
                   color: Colors.red.shade400,
                   iconSize: 20,
@@ -696,8 +687,7 @@ class _PlannerPageState extends State<PlannerPage>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Recipe image
-                      if (meal.recipeImage != null &&
-                          meal.recipeImage!.isNotEmpty) ...[
+                      if (meal.recipeImage != null && meal.recipeImage!.isNotEmpty) ...[
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
@@ -735,9 +725,7 @@ class _PlannerPageState extends State<PlannerPage>
                                     height: 16,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        mealColor,
-                                      ),
+                                      valueColor: AlwaysStoppedAnimation<Color>(mealColor),
                                     ),
                                   ),
                                 ),
@@ -803,7 +791,10 @@ class _PlannerPageState extends State<PlannerPage>
                   child: Center(
                     child: Text(
                       '-',
-                      style: TextStyle(fontSize: 20, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                 ),
@@ -814,6 +805,7 @@ class _PlannerPageState extends State<PlannerPage>
       ),
     );
   }
+
 
   // Helper methods
   String _getWeekRangeText(DateTime weekStart) {
@@ -875,17 +867,17 @@ class _PlannerPageState extends State<PlannerPage>
       print('🤖 Smart Planning: Widget not mounted or disposed');
       return;
     }
-
+    
     // Set loading state
     setState(() => _isGeneratingPlan = true);
     print('🤖 Smart Planning: Loading state set to true');
-
+    
     // Lưu TẤT CẢ dependencies vào biến local NGAY từ đầu để tránh lỗi deactivated widget
     final apiService = context.read<ApiService>();
     final authService = context.read<AuthService>();
     final mealPlanCubit = context.read<MealPlanCubit>();
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-
+    
     try {
       final token = authService.accessToken;
       if (token == null) {
@@ -899,17 +891,15 @@ class _PlannerPageState extends State<PlannerPage>
         );
         return;
       }
-
+      
       print('🤖 Smart Planning: Token OK');
 
       // Lấy meal plan hiện tại
       final currentState = mealPlanCubit.state;
       String? mealPlanId;
-
-      print(
-        '🤖 Smart Planning: Current meal plans count: ${currentState.mealPlans.length}',
-      );
-
+      
+      print('🤖 Smart Planning: Current meal plans count: ${currentState.mealPlans.length}');
+      
       // Nếu chưa có meal plan cho tuần này, tạo mới
       if (currentState.mealPlans.isEmpty) {
         print('🤖 Smart Planning: No meal plan, creating new one...');
@@ -919,20 +909,20 @@ class _PlannerPageState extends State<PlannerPage>
           note: 'Kế hoạch tuần ${DateFormat('dd/MM').format(_selectedWeek)}',
         );
         print('🤖 Smart Planning: Meal plan created');
-
+        
         if (!mounted || _disposed) {
           setState(() => _isGeneratingPlan = false);
           return;
         }
-
+        
         // Đợi một chút để state cập nhật
         await Future.delayed(const Duration(milliseconds: 300));
-
+        
         if (!mounted || _disposed) {
           setState(() => _isGeneratingPlan = false);
           return;
         }
-
+        
         final newState = mealPlanCubit.state;
         if (newState.mealPlans.isNotEmpty) {
           mealPlanId = newState.mealPlans.first.id;
@@ -960,11 +950,9 @@ class _PlannerPageState extends State<PlannerPage>
         budgetPerMeal: 50000, // Mặc định
         servings: 2, // Mặc định
       );
-
-      print(
-        '🤖 Smart Planning: AI returned ${suggestedPlan.meals.length} meal suggestions',
-      );
-
+      
+      print('🤖 Smart Planning: AI returned ${suggestedPlan.meals.length} meal suggestions');
+      
       if (!mounted || _disposed) {
         setState(() => _isGeneratingPlan = false);
         return;
@@ -972,10 +960,10 @@ class _PlannerPageState extends State<PlannerPage>
 
       // Lấy lại state mới sau khi tạo meal plan
       final latestState = mealPlanCubit.state;
-
+      
       // Lấy danh sách các buổi ăn hiện có
-      final existingMeals = latestState.mealPlans.isNotEmpty
-          ? latestState.mealPlans.first.meals
+      final existingMeals = latestState.mealPlans.isNotEmpty 
+          ? latestState.mealPlans.first.meals 
           : <MealSlot>[];
       int addedCount = 0;
 
@@ -984,8 +972,16 @@ class _PlannerPageState extends State<PlannerPage>
       // Lấy ngày hiện tại (chỉ ngày, bỏ giờ)
       final today = DateTime.now();
       final todayDate = DateTime(today.year, today.month, today.day);
-
+      
       print('🤖 Smart Planning: Today date: $todayDate');
+
+      // Track các recipe_id đã được thêm để tránh trùng lặp
+      final Set<String> usedRecipeIds = existingMeals
+          .where((meal) => meal.recipeId != null)
+          .map((meal) => meal.recipeId!)
+          .toSet();
+      
+      print('🤖 Smart Planning: Existing recipe IDs: ${usedRecipeIds.length}');
 
       // Duyệt qua từng món ăn được gợi ý
       print('🤖 Smart Planning: Processing suggestions...');
@@ -993,54 +989,44 @@ class _PlannerPageState extends State<PlannerPage>
         // Parse ngày của món ăn được gợi ý
         final mealDate = DateTime.tryParse(suggestedMeal.date);
         if (mealDate == null) {
-          print(
-            '🤖 Smart Planning: Skipped meal - invalid date: ${suggestedMeal.date}',
-          );
+          print('🤖 Smart Planning: Skipped meal - invalid date: ${suggestedMeal.date}');
           continue;
         }
-
-        final mealDateOnly = DateTime(
-          mealDate.year,
-          mealDate.month,
-          mealDate.day,
-        );
-
+        
+        final mealDateOnly = DateTime(mealDate.year, mealDate.month, mealDate.day);
+        
         // Bỏ qua những ngày đã qua
         if (mealDateOnly.isBefore(todayDate)) {
-          print(
-            '🤖 Smart Planning: Skipped meal - past date: $mealDateOnly (${suggestedMeal.mealType})',
-          );
+          print('🤖 Smart Planning: Skipped meal - past date: $mealDateOnly (${suggestedMeal.mealType})');
           continue;
         }
 
         // Kiểm tra xem buổi này đã có món ăn chưa
-        final hasExistingMeal = existingMeals.any(
-          (meal) =>
-              meal.date == suggestedMeal.date &&
-              meal.mealType == suggestedMeal.mealType &&
-              meal.recipeName != null &&
-              meal.recipeName!.isNotEmpty,
-        );
+        final hasExistingMeal = existingMeals.any((meal) =>
+            meal.date == suggestedMeal.date &&
+            meal.mealType == suggestedMeal.mealType &&
+            meal.recipeName != null &&
+            meal.recipeName!.isNotEmpty);
 
         if (hasExistingMeal) {
-          print(
-            '🤖 Smart Planning: Skipped meal - slot already filled: $mealDateOnly (${suggestedMeal.mealType})',
-          );
+          print('🤖 Smart Planning: Skipped meal - slot already filled: $mealDateOnly (${suggestedMeal.mealType})');
           continue;
         }
 
         if (suggestedMeal.recipeId == null) {
-          print(
-            '🤖 Smart Planning: Skipped meal - no recipe ID: $mealDateOnly (${suggestedMeal.mealType})',
-          );
+          print('🤖 Smart Planning: Skipped meal - no recipe ID: $mealDateOnly (${suggestedMeal.mealType})');
+          continue;
+        }
+
+        // Kiểm tra món ăn đã được dùng trong tuần chưa (tránh trùng lặp)
+        if (usedRecipeIds.contains(suggestedMeal.recipeId)) {
+          print('🤖 Smart Planning: Skipped meal - recipe already used: ${suggestedMeal.recipeName} (${suggestedMeal.recipeId})');
           continue;
         }
 
         // Nếu chưa có món ăn, thêm vào
-        print(
-          '🤖 Smart Planning: Adding meal: ${suggestedMeal.recipeName} to $mealDateOnly (${suggestedMeal.mealType})',
-        );
-
+        print('🤖 Smart Planning: Adding meal: ${suggestedMeal.recipeName} to $mealDateOnly (${suggestedMeal.mealType})');
+        
         // Convert to UPPERCASE - backend expects this!
         String mealSlotString = '';
         switch (suggestedMeal.mealType) {
@@ -1064,18 +1050,21 @@ class _PlannerPageState extends State<PlannerPage>
 
         await mealPlanCubit.addMealToPlan(mealPlanId, dto);
         print('🤖 Smart Planning: Meal added successfully');
-
+        
+        // Thêm recipe_id vào danh sách đã dùng để tránh trùng lặp
+        usedRecipeIds.add(suggestedMeal.recipeId!);
+        
         if (!mounted || _disposed) {
           print('🤖 Smart Planning: Widget disposed after adding meal');
           setState(() => _isGeneratingPlan = false);
           return;
         }
-
+        
         addedCount++;
-
+        
         // Đợi một chút giữa các request để tránh quá tải
         await Future.delayed(const Duration(milliseconds: 200));
-
+        
         if (!mounted || _disposed) {
           setState(() => _isGeneratingPlan = false);
           return;
@@ -1088,7 +1077,7 @@ class _PlannerPageState extends State<PlannerPage>
       setState(() => _isGeneratingPlan = false);
 
       if (!mounted || _disposed) return;
-
+      
       // Reload meal plans
       print('🤖 Smart Planning: Reloading meal plans...');
       _lastLoadedWeek = null;
@@ -1112,12 +1101,12 @@ class _PlannerPageState extends State<PlannerPage>
     } catch (e) {
       print('🤖 Smart Planning: ERROR - ${e.toString()}');
       print('🤖 Smart Planning: ERROR Stack trace: ${StackTrace.current}');
-
+      
       // Tắt loading
       if (mounted && !_disposed) {
         setState(() => _isGeneratingPlan = false);
       }
-
+      
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text('Lỗi: ${e.toString()}'),
@@ -1128,20 +1117,14 @@ class _PlannerPageState extends State<PlannerPage>
   }
 
   // Clear all meals for a specific day
-  Future<void> _showClearDayDialog(
-    DateTime day,
-    List<MealSlot> dayMeals,
-    String mealPlanId,
-  ) async {
+  Future<void> _showClearDayDialog(DateTime day, List<MealSlot> dayMeals, String mealPlanId) async {
     if (!mounted || _disposed) return;
-
+    
     // Filter only meals that have recipes
-    final mealsToDelete = dayMeals
-        .where((m) => m.recipeName != null && m.recipeName!.isNotEmpty)
-        .toList();
-
+    final mealsToDelete = dayMeals.where((m) => m.recipeName != null && m.recipeName!.isNotEmpty).toList();
+    
     if (mealsToDelete.isEmpty) return;
-
+    
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1156,75 +1139,73 @@ class _PlannerPageState extends State<PlannerPage>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+                    ),
             child: const Text('Xóa tất cả'),
           ),
         ],
       ),
     );
-
+    
     if (confirmed == true && mounted && !_disposed) {
       await _clearDayMeals(day, mealsToDelete, mealPlanId);
     }
   }
 
-  Future<void> _clearDayMeals(
-    DateTime day,
-    List<MealSlot> mealsToDelete,
-    String mealPlanId,
-  ) async {
+  Future<void> _clearDayMeals(DateTime day, List<MealSlot> mealsToDelete, String mealPlanId) async {
     if (!mounted || _disposed) return;
-
+    
     // Store ALL dependencies locally FIRST
     final mealPlanCubit = context.read<MealPlanCubit>();
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-
+    
     try {
       if (!mounted || _disposed) return;
-
+      
       // Use the day parameter for date (already in correct local timezone)
       final dateString = DateFormat('yyyy-MM-dd').format(day);
-
+      
       // Delete all meals for this day (without reloading after each deletion)
       for (final meal in mealsToDelete) {
         if (!mounted || _disposed) break;
-
+        
         // Convert MealType to string for API (UPPERCASE - backend expects this!)
         String mealSlotString = '';
         switch (meal.mealType) {
-          case MealType.breakfast:
+      case MealType.breakfast:
             mealSlotString = 'BREAKFAST';
             break;
-          case MealType.lunch:
+      case MealType.lunch:
             mealSlotString = 'LUNCH';
             break;
-          case MealType.dinner:
+      case MealType.dinner:
             mealSlotString = 'DINNER';
             break;
         }
-
+        
         // Skip reload for batch deletion - we'll reload once at the end
         await mealPlanCubit.removeMealFromPlan(
-          mealPlanId,
-          dateString,
+          mealPlanId, 
+          dateString, 
           mealSlotString,
           reloadAfter: false,
         );
-
+        
         if (!mounted || _disposed) break;
-
+        
         // Small delay to avoid overwhelming the backend
         await Future.delayed(const Duration(milliseconds: 100));
       }
-
+      
       if (!mounted || _disposed) return;
-
+      
       // Reload meal plans
       _lastLoadedWeek = null;
       await _loadMealPlans();
-
+      
       if (!mounted || _disposed) return;
-
+      
       // Show success message
       scaffoldMessenger.showSnackBar(
         SnackBar(
@@ -1235,7 +1216,7 @@ class _PlannerPageState extends State<PlannerPage>
       );
     } catch (e) {
       if (!mounted || _disposed) return;
-
+      
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: const Text('❌ Lỗi khi xóa món ăn'),
@@ -1474,7 +1455,17 @@ class _PlannerPageState extends State<PlannerPage>
 
             // Options
             ListTile(
-              leading: const Icon(Icons.edit, color: AppTheme.primaryGreen),
+              leading: const Icon(Icons.restaurant_menu, color: AppTheme.primaryGreen),
+              title: const Text('Đã nấu'),
+              subtitle: const Text('Trừ nguyên liệu từ tủ lạnh'),
+              onTap: () {
+                Navigator.pop(context);
+                _markMealAsCooked(meal, day);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.blue),
               title: const Text('Thay đổi món ăn'),
               onTap: () {
                 Navigator.pop(context);
@@ -1610,6 +1601,211 @@ class _PlannerPageState extends State<PlannerPage>
     );
   }
 
+  void _markMealAsCooked(MealSlot meal, DateTime day) async {
+    if (meal.recipeId == null || meal.recipeId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không thể xác định món ăn'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final parentContext = context;
+    final scaffoldMessenger = ScaffoldMessenger.of(parentContext);
+
+    // Show loading snackbar (lightweight, không block UI)
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Đang xử lý...'),
+          ],
+        ),
+        duration: Duration(seconds: 10), // Auto-dismiss after 10s
+        backgroundColor: Color(0xFF616161),
+      ),
+    );
+
+    try {
+      // Initialize cooking service
+      final cookingService = CookingService(
+        apiService: parentContext.read<ApiService>(),
+        authService: parentContext.read<AuthService>(),
+      );
+
+      // Cook meal (check and consume ingredients)
+      final result = await cookingService.cookMeal(
+        recipeId: meal.recipeId!,
+        recipeName: meal.recipeName ?? 'Món ăn',
+        servings: 1,
+      );
+
+      if (!mounted) return;
+
+      // Nếu THIẾU nguyên liệu → Ẩn loading snackbar và hiển thị dialog
+      if (!result.success && result.missingIngredients.isNotEmpty) {
+        // Hide loading snackbar
+        scaffoldMessenger.hideCurrentSnackBar();
+        
+        final shouldAddToCart = await showDialog<bool>(
+          context: parentContext,
+          builder: (context) => CookingResultDialog(
+            result: result,
+            recipeName: meal.recipeName ?? 'Món ăn',
+          ),
+        );
+
+        // TODO: Thêm vào shopping list nếu user muốn
+        if (shouldAddToCart == true) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                'Đã thêm ${result.missingIngredients.length} nguyên liệu vào danh sách mua sắm',
+              ),
+              backgroundColor: AppTheme.primaryGreen,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Nếu ĐỦ nguyên liệu và consume thành công
+      if (result.success) {
+        print('=== COOKING SUCCESS: Starting to remove meal from plan ===');
+        print('Meal: ${meal.recipeName}');
+        print('Meal plan ID from slot: ${meal.mealPlanId}');
+        print('Recipe ID: ${meal.recipeId}');
+        
+        // 1. Lấy meal plan ID từ cubit state (vì meal.mealPlanId có thể trống)
+        final currentState = parentContext.read<MealPlanCubit>().state;
+        String? planIdToUse = meal.mealPlanId;
+        
+        // Nếu meal.mealPlanId trống hoặc 'default', lấy từ currentPlan
+        if (planIdToUse.isEmpty || planIdToUse == 'default') {
+          if (currentState.currentPlan != null && currentState.currentPlan!.id.isNotEmpty) {
+            planIdToUse = currentState.currentPlan!.id;
+            print('Using currentPlan ID: $planIdToUse');
+          } else if (currentState.mealPlans.isNotEmpty) {
+            planIdToUse = currentState.mealPlans.first.id;
+            print('Using first available plan ID: $planIdToUse');
+          }
+        }
+        
+        if (planIdToUse == null || planIdToUse.isEmpty || planIdToUse == 'default') {
+          print('❌ ERROR: Cannot find valid meal plan ID!');
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Lỗi: Không tìm thấy kế hoạch bữa ăn'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        
+        // 2. Xóa món ăn khỏi kế hoạch
+        String mealSlotString = '';
+        switch (meal.mealType) {
+          case MealType.breakfast:
+            mealSlotString = 'BREAKFAST';
+            break;
+          case MealType.lunch:
+            mealSlotString = 'LUNCH';
+            break;
+          case MealType.dinner:
+            mealSlotString = 'DINNER';
+            break;
+        }
+
+        final dateString = DateFormat('yyyy-MM-dd').format(DateTime(day.year, day.month, day.day));
+        print('Date: $dateString, Meal slot: $mealSlotString, Plan ID: $planIdToUse');
+
+        try {
+          await parentContext.read<MealPlanCubit>().removeMealFromPlan(
+            planIdToUse,
+            dateString,
+            mealSlotString,
+          );
+          print('✓ Meal removed successfully from plan');
+        } catch (e) {
+          print('❌ Error removing meal from plan: $e');
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text('Lỗi khi xóa món: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        // 2. Force reload meal plans
+        _lastLoadedWeek = null;
+        await _loadMealPlans();
+        print('✓ Meal plans reloaded');
+
+        // 3. Reload pantry
+        parentContext.read<PantryCubit>().loadPantryItems();
+        print('✓ Pantry reload triggered');
+
+        // 4. Hide loading snackbar và hiển thị success
+        scaffoldMessenger.hideCurrentSnackBar();
+        await Future.delayed(const Duration(milliseconds: 100)); // Small delay
+        
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('✓ Nấu thành công món "${meal.recipeName}"'),
+            backgroundColor: AppTheme.primaryGreen,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        print('✓ Success snackbar shown');
+        print('=== COOKING SUCCESS: Complete ===');
+      } else {
+        // Có lỗi khi consume
+        print('❌ Cooking failed: ${result.message}');
+        
+        // Hide loading snackbar
+        scaffoldMessenger.hideCurrentSnackBar();
+        await Future.delayed(const Duration(milliseconds: 100));
+        
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ EXCEPTION in _markMealAsCooked: $e');
+      
+      // Hide loading snackbar
+      if (mounted) {
+        scaffoldMessenger.hideCurrentSnackBar();
+        await Future.delayed(const Duration(milliseconds: 100));
+        
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        print('✓ Error snackbar shown');
+      }
+    }
+  }
+
   String _getMealTypeDisplay(MealType mealType) {
     switch (mealType) {
       case MealType.breakfast:
@@ -1641,4 +1837,5 @@ class _PlannerPageState extends State<PlannerPage>
         return '';
     }
   }
+
 }

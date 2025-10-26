@@ -1100,15 +1100,13 @@ class ApiService {
     }
   }
 
+  // NOTE: Backend không có API DELETE shopping list
+  // Workaround: Xóa tất cả items thay vì xóa list
+  // Method này được giữ lại để tương thích với code cũ
   Future<void> deleteShoppingList(String token, String listId) async {
-    try {
-      await _dio.delete(
-        '/api/shopping/lists/$listId',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-    } catch (e) {
-      throw Exception('Failed to delete shopping list: $e');
-    }
+    // No-op: Actual deletion is handled by deleting all items
+    // See shopping_list_cubit.dart -> deleteShoppingList()
+    return;
   }
 
   Future<void> removeItemFromShoppingList(
@@ -1265,12 +1263,12 @@ class ApiService {
 
   Future<void> consumePantryItem(
     String token,
-    String itemId,
+    String itemId,  // Not used, kept for backward compatibility
     ConsumePantryItemDto dto,
   ) async {
     try {
       await _dio.post(
-        '/api/pantry/$itemId/consume',
+        '/api/pantry/consume',  // Backend endpoint - consumes by ingredient_id
         data: dto.toJson(),
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -1287,6 +1285,36 @@ class ApiService {
       );
     } catch (e) {
       throw Exception('Failed to delete pantry item: $e');
+    }
+  }
+
+  /// Lấy gợi ý món ăn dựa trên nguyên liệu có trong tủ lạnh
+  Future<Map<String, dynamic>> getPantrySuggestions(
+    String token,
+    int limit,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/api/pantry/suggestions',
+        queryParameters: {'limit': limit},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final responseData = response.data as Map<String, dynamic>;
+        if (responseData['success'] == true) {
+          return {
+            'success': true,
+            'message': responseData['message'] ?? '',
+            'data': responseData['data'] ?? [],
+            'pantry_items': responseData['pantry_items'] ?? [],
+          };
+        }
+      }
+
+      throw Exception('Invalid API response format');
+    } catch (e) {
+      throw Exception('Failed to get pantry suggestions: $e');
     }
   }
 

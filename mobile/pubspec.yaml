@@ -57,7 +57,8 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.3.3
   logger: ^2.0.2+1
-  share_plus: ^7.2.1
+  # TODO: Uncomment khi share_plus được fix
+  # share_plus: ^7.2.1
   
   # Image Picker
   image_picker: ^1.0.7
