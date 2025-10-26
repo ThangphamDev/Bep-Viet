@@ -18,7 +18,11 @@ class NotificationBadge extends StatelessWidget {
           return Stack(
             clipBehavior: Clip.none,
             children: [
-              const Icon(Icons.notifications_outlined, size: 28),
+              const Icon(
+                Icons.notifications_outlined,
+                size: 28,
+                color: Colors.white,
+              ),
               if (unreadCount > 0)
                 Positioned(
                   right: 0,
