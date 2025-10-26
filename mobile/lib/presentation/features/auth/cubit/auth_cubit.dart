@@ -75,10 +75,7 @@ class AuthCubit extends Cubit<AuthState> {
   AuthRepository get authRepository => _authRepository;
 
   Future<void> _initializeAuthState() async {
-    // Show splash screen for at least 1 second
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Always emit Unauthenticated to show login page
+    // Always emit Unauthenticated to show login page immediately
     // This allows users to use biometric login
     emit(AuthUnauthenticated());
   }

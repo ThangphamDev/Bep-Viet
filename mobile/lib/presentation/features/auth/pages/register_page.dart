@@ -140,10 +140,10 @@ class _RegisterPageState extends State<RegisterPage>
         const SizedBox(height: 24),
         // Logo
         Container(
-          width: 80,
-          height: 80,
+          width: 100,
+          height: 100,
           decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -153,10 +153,14 @@ class _RegisterPageState extends State<RegisterPage>
               ),
             ],
           ),
-          child: const Icon(
-            Icons.restaurant_menu,
-            size: 40,
-            color: Colors.white,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Image.asset(
+              'assets/logo/LOGO.png',
+              width: 100,
+              height: 100,
+              fit: BoxFit.contain,
+            ),
           ),
         ),
         const SizedBox(height: 16),

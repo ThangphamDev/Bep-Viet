@@ -219,15 +219,7 @@ class _BepVietAppState extends State<BepVietApp> {
         ],
         child: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) {
-            // Show splash screen while checking auth
-            if (state is AuthInitial) {
-              return MaterialApp(
-                debugShowCheckedModeBanner: false,
-                theme: AppTheme.lightTheme,
-                home: const _SplashScreen(),
-              );
-            }
-
+            // Show router directly without splash screen
             return MaterialApp.router(
               title: AppConfig.appName,
               debugShowCheckedModeBanner: false,
@@ -242,70 +234,4 @@ class _BepVietAppState extends State<BepVietApp> {
   }
 }
 
-// Splash Screen
-class _SplashScreen extends StatelessWidget {
-  const _SplashScreen();
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // App Logo
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.restaurant_menu,
-                  size: 60,
-                  color: AppTheme.primaryGreen,
-                ),
-              ),
-              const SizedBox(height: 32),
-              // App Name
-              const Text(
-                'Bếp Việt',
-                style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Hôm nay ăn gì, có Bếp Việt lo',
-                style: TextStyle(fontSize: 16, color: Colors.white70),
-              ),
-              const SizedBox(height: 48),
-              // Loading Indicator
-              const SizedBox(
-                width: 40,
-                height: 40,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

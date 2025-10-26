@@ -173,10 +173,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       children: [
         // Logo
         Container(
-          width: 100,
-          height: 100,
+          width: 120,
+          height: 120,
           decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
@@ -186,10 +186,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.restaurant_menu,
-            size: 50,
-            color: Colors.white,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Image.asset(
+              'assets/logo/LOGO.png',
+              width: 120,
+              height: 120,
+              fit: BoxFit.contain,
+            ),
           ),
         ),
         const SizedBox(height: 24),
