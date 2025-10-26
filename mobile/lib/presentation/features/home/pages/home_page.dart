@@ -299,15 +299,19 @@ class _HomePageState extends State<HomePage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
-                            Icons.restaurant_menu,
-                            color: Colors.white,
-                            size: 18,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.asset(
+                              'assets/logo/LOGO.png',
+                              width: 18,
+                              height: 18,
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -352,7 +356,7 @@ class _HomePageState extends State<HomePage> {
                                     children: [
                                       // Icon
                                       Container(
-                                        padding: const EdgeInsets.all(14),
+                                        padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
                                           color: Colors.white.withOpacity(0.2),
                                           borderRadius: BorderRadius.circular(
@@ -368,10 +372,14 @@ class _HomePageState extends State<HomePage> {
                                             ),
                                           ],
                                         ),
-                                        child: const Icon(
-                                          Icons.restaurant_menu,
-                                          color: Colors.white,
-                                          size: 40,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.asset(
+                                            'assets/logo/LOGO.png',
+                                            width: 50,
+                                            height: 50,
+                                            fit: BoxFit.contain,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(height: 10),
