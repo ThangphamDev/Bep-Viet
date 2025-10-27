@@ -114,6 +114,12 @@ export class SuggestionsService {
     //   params.push(spice_preference);
     // }
 
+    // Region filter: if user selected a region, keep recipes from that region
+    if (region && region !== '' && region !== 'all') {
+      query += ' AND r.base_region = ?';
+      params.push(region);
+    }
+
     query += ' ORDER BY r.rating_avg DESC, r.created_at DESC LIMIT 50';
 
     const [recipes] = await this.db.execute(query, params);
