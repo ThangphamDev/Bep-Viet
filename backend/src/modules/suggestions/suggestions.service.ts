@@ -73,6 +73,8 @@ export class SuggestionsService {
     }
 
     // Build base query for recipes
+    // IMPROVEMENT: Only show recipes with servings <= user's desired servings
+    // This ensures we don't suggest a 10-person dish when user wants 1-2 servings
     let query = `
       SELECT 
         r.id as recipe_id,
@@ -91,9 +93,10 @@ export class SuggestionsService {
         COALESCE(r.servings, 2) as servings
       FROM recipes r
       WHERE r.is_public = 1
+        AND COALESCE(r.servings, 2) <= ?
     `;
     
-    let params: any[] = [];
+    let params: any[] = [servings]; // First param: max servings
 
     if (meal_type) {
       query += ' AND r.meal_type = ?';
@@ -105,10 +108,11 @@ export class SuggestionsService {
       params.push(max_time);
     }
 
-    if (spice_preference !== undefined) {
-      query += ' AND r.spice_level <= ?';
-      params.push(spice_preference);
-    }
+    // Remove spice filter - let users decide based on recipe info
+    // if (spice_preference !== undefined) {
+    //   query += ' AND r.spice_level <= ?';
+    //   params.push(spice_preference);
+    // }
 
     query += ' ORDER BY r.rating_avg DESC, r.created_at DESC LIMIT 50';
 
@@ -127,7 +131,9 @@ export class SuggestionsService {
         exclude_allergens
       });
 
-      if (suggestion.total_cost <= budget || !budget) {
+      // Allow recipes within budget or up to 20% over budget for flexibility
+      const maxBudget = budget ? budget * 1.2 : Infinity;
+      if (suggestion.total_cost <= maxBudget || !budget) {
         suggestions.push(suggestion);
       }
     }
@@ -161,6 +167,9 @@ export class SuggestionsService {
   private async calculateRecipeScore(recipe: any, params: any) {
     const { region, season, servings, budget, pantry_ids, exclude_allergens } = params;
 
+    // Use default region 'NAM' for price lookup if region is empty/'all'
+    const priceRegion = region && region !== '' && region !== 'all' ? region : 'NAM';
+
     // Get recipe ingredients with prices
     const [ingredients] = await this.db.execute(
       `SELECT 
@@ -178,7 +187,7 @@ export class SuggestionsService {
       LEFT JOIN ingredient_seasonality ise ON ri.ingredient_id = ise.ingredient_id 
         AND ise.region = ? AND ise.season_code = ?
       WHERE ri.recipe_id = ?`,
-      [region, region, season, recipe.recipe_id]
+      [priceRegion, priceRegion, season, recipe.recipe_id]
     );
 
     let totalCost = 0;
@@ -193,8 +202,12 @@ export class SuggestionsService {
     for (const ingredient of ingredients as any[]) {
       ingredientCount++;
       
-      // Calculate cost
-      const quantity = ingredient.quantity * servings;
+      // Calculate cost with proper scaling
+      // If recipe is for 2 people and user wants 4, scale by 2x (4/2)
+      const baseQuantity = ingredient.quantity || 1;
+      const recipeServings = recipe.servings || 2;
+      const scaleFactor = servings / recipeServings;
+      const quantity = baseQuantity * scaleFactor;
       const cost = ingredient.price_per_unit ? quantity * ingredient.price_per_unit : 0;
       totalCost += cost;
 
