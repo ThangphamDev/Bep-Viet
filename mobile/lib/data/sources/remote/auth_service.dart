@@ -185,6 +185,33 @@ class AuthService {
     }
   }
 
+  // Refresh access token using refresh token
+  Future<bool> refreshAccessToken() async {
+    final refresh = refreshToken;
+    if (refresh == null || refresh.isEmpty) {
+      print('⚠️ No refresh token available');
+      return false;
+    }
+
+    try {
+      print('🔄 Refreshing access token...');
+      final response = await _apiService.refreshToken(refresh);
+
+      if (response['success'] == true && response['data'] != null) {
+        final newAccessToken = response['data']['accessToken'] as String;
+        await _prefs.setString(AppConfig.tokenKey, newAccessToken);
+        print('✅ Access token refreshed successfully');
+        return true;
+      }
+
+      print('❌ Failed to refresh token: Invalid response');
+      return false;
+    } catch (e) {
+      print('❌ Failed to refresh token: $e');
+      return false;
+    }
+  }
+
   // Delete account
   Future<void> deleteAccount() async {
     final token = accessToken;

@@ -8,10 +8,13 @@ import 'package:bepviet_mobile/data/models/shopping_list_model.dart';
 import 'package:bepviet_mobile/data/models/pantry_item_model.dart';
 import 'package:bepviet_mobile/data/models/family_model.dart';
 import 'package:bepviet_mobile/data/models/auth_models.dart';
+import 'package:bepviet_mobile/core/network/auth_interceptor.dart';
+import 'package:bepviet_mobile/data/sources/remote/auth_service.dart';
 
 class ApiService {
   final Dio _dio;
   final String baseUrl;
+  bool _interceptorAdded = false;
 
   ApiService(this._dio, {String? baseUrl})
     : baseUrl = baseUrl ?? AppConfig.ngrokBaseUrl {
@@ -21,6 +24,19 @@ class ApiService {
 
     // Add ngrok-skip-browser-warning header
     _dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+  }
+
+  /// Thêm AuthInterceptor để tự động refresh token
+  /// Chỉ gọi 1 lần sau khi AuthService đã được khởi tạo
+  void setupAuthInterceptor(AuthService authService) {
+    if (!_interceptorAdded) {
+      print('🔧 [ApiService] Setting up AuthInterceptor');
+      _dio.interceptors.add(
+        AuthInterceptor(authService: authService, dio: _dio),
+      );
+      _interceptorAdded = true;
+      print('✅ [ApiService] AuthInterceptor added successfully');
+    }
   }
 
   // Auth
@@ -84,6 +100,29 @@ class ApiService {
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Đăng ký thất bại');
+    }
+  }
+
+  // Refresh access token
+  Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
+    try {
+      final response = await _dio.post(
+        '/api/auth/refresh',
+        data: {'refreshToken': refreshToken},
+      );
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Invalid API response format');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('Refresh token không hợp lệ hoặc đã hết hạn');
+      } else {
+        throw Exception('Không thể làm mới token');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Làm mới token thất bại');
     }
   }
 
