@@ -284,16 +284,40 @@ export class MealPlansService {
       FROM recipes r
       WHERE r.is_public = 1 
         AND r.meal_type = ?
-        AND r.spice_level <= ?
-        AND r.cook_time_min <= ?
-      ORDER BY r.rating_avg DESC
-      LIMIT 10`,
+        AND (r.spice_level IS NULL OR r.spice_level <= ?)
+        AND (r.cook_time_min IS NULL OR r.cook_time_min <= ?)
+      ORDER BY COALESCE(r.rating_avg, 0) DESC
+      LIMIT 50`,
       [meal_type, spice_pref, max_time]
     );
 
+    // Fallback: if nothing found, relax constraints further but keep meal_type
+    let recipesList: any[] = recipes as any[];
+    if (!recipesList || recipesList.length === 0) {
+      const [fallback] = await this.db.execute(
+        `SELECT 
+          r.id as recipe_id,
+          r.name_vi,
+          r.name_en,
+          r.meal_type,
+          r.difficulty,
+          r.cook_time_min,
+          r.spice_level,
+          r.rating_avg,
+          r.image_url
+        FROM recipes r
+        WHERE r.is_public = 1 
+          AND r.meal_type = ?
+        ORDER BY COALESCE(r.rating_avg, 0) DESC
+        LIMIT 50`,
+        [meal_type]
+      );
+      recipesList = fallback as any[];
+    }
+
     // Calculate costs for each recipe
     const suggestions: any[] = [];
-    for (const recipe of recipes as any[]) {
+  for (const recipe of recipesList) {
       const [ingredients] = await this.db.execute(
         `SELECT 
           ri.quantity,

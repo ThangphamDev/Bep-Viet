@@ -52,11 +52,19 @@ export class PantryService {
       batch_code = ''
     } = itemData;
 
+    // Validate and trim ingredient_id
+    const trimmedIngredientId = ingredient_id?.trim();
+    if (!trimmedIngredientId || trimmedIngredientId.length > 36) {
+      throw new NotFoundException(
+        `Invalid ingredient_id: must be a valid UUID (max 36 characters). Received: "${ingredient_id}" (length: ${ingredient_id?.length})`
+      );
+    }
+
     // Check if item already exists
     const [existing] = await this.db.execute(
       `SELECT id, quantity FROM pantry_items 
        WHERE user_id = ? AND ingredient_id = ? AND location = ? AND batch_code = ?`,
-      [userId, ingredient_id, location, batch_code]
+      [userId, trimmedIngredientId, location, batch_code]
     );
 
     if ((existing as any[]).length > 0) {
@@ -82,7 +90,7 @@ export class PantryService {
       `INSERT INTO pantry_items 
        (id, user_id, ingredient_id, quantity, unit, expire_date, location, batch_code)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [pantryItemId, userId, ingredient_id, quantity, unit ?? null, expire_date ?? null, location, batch_code]
+      [pantryItemId, userId, trimmedIngredientId, quantity, unit ?? null, expire_date ?? null, location, batch_code]
     );
 
     return {
@@ -134,13 +142,21 @@ export class PantryService {
   }
 
   async consumePantryItem(userId: string, ingredientId: string, quantity: number) {
+    // Validate and trim ingredient_id
+    const trimmedIngredientId = ingredientId?.trim();
+    if (!trimmedIngredientId || trimmedIngredientId.length > 36) {
+      throw new NotFoundException(
+        `Invalid ingredient_id: must be a valid UUID (max 36 characters). Received: "${ingredientId}" (length: ${ingredientId?.length})`
+      );
+    }
+
     const [result] = await this.db.execute(
       `UPDATE pantry_items 
        SET quantity = GREATEST(0, quantity - ?)
        WHERE user_id = ? AND ingredient_id = ? AND quantity >= ?
        ORDER BY expire_date ASC
        LIMIT 1`,
-      [quantity, userId, ingredientId, quantity]
+      [quantity, userId, trimmedIngredientId, quantity]
     );
 
     if ((result as any).affectedRows === 0) {
