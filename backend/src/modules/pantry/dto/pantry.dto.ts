@@ -1,9 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsInt, IsDateString, Min } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsDateString, Min, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class AddPantryItemDto {
   @ApiProperty({ example: 'ingredient-uuid' })
   @IsString()
+  @MaxLength(36, { message: 'ingredient_id must not exceed 36 characters (UUID format)' })
+  @Transform(({ value }) => value?.trim())
   ingredient_id: string;
 
   @ApiProperty({ example: 500 })
@@ -62,6 +65,8 @@ export class UpdatePantryItemDto {
 export class ConsumePantryItemDto {
   @ApiProperty({ example: 'ingredient-uuid' })
   @IsString()
+  @MaxLength(36, { message: 'ingredient_id must not exceed 36 characters (UUID format)' })
+  @Transform(({ value }) => value?.trim())
   ingredient_id: string;
 
   @ApiProperty({ example: 200 })

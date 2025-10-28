@@ -8,20 +8,25 @@ class CommunityApiService {
     _dio.options.baseUrl = AppConfig.ngrokBaseUrl;
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
-    
-    // Add ngrok-skip-browser-warning header
+
     _dio.options.headers['ngrok-skip-browser-warning'] = 'true';
   }
 
-  Future<Map<String, dynamic>> getAllCommunityRecipes(Map<String, dynamic> filters) async {
-    final response = await _dio.get('/api/community/recipes', queryParameters: filters);
+  Future<Map<String, dynamic>> getAllCommunityRecipes(
+    Map<String, dynamic> filters,
+  ) async {
+    final response = await _dio.get(
+      '/api/community/recipes',
+      queryParameters: filters,
+    );
     return response.data;
   }
 
   Future<Map<String, dynamic>> getFeaturedRecipes({int? limit}) async {
-    final response = await _dio.get('/api/community/recipes/featured', queryParameters: {
-      if (limit != null) 'limit': limit,
-    });
+    final response = await _dio.get(
+      '/api/community/recipes/featured',
+      queryParameters: {if (limit != null) 'limit': limit},
+    );
     return response.data;
   }
 
@@ -30,18 +35,32 @@ class CommunityApiService {
     return response.data;
   }
 
-  Future<Map<String, dynamic>> createCommunityRecipe(Map<String, dynamic> request) async {
+  Future<Map<String, dynamic>> createCommunityRecipe(
+    Map<String, dynamic> request,
+  ) async {
     final response = await _dio.post('/api/community/recipes', data: request);
     return response.data;
   }
 
-  Future<Map<String, dynamic>> addComment(String recipeId, Map<String, dynamic> request) async {
-    final response = await _dio.post('/api/community/recipes/$recipeId/comments', data: request);
+  Future<Map<String, dynamic>> addComment(
+    String recipeId,
+    Map<String, dynamic> request,
+  ) async {
+    final response = await _dio.post(
+      '/api/community/recipes/$recipeId/comments',
+      data: request,
+    );
     return response.data;
   }
 
-  Future<Map<String, dynamic>> addRating(String recipeId, Map<String, dynamic> request) async {
-    final response = await _dio.post('/api/community/recipes/$recipeId/ratings', data: request);
+  Future<Map<String, dynamic>> addRating(
+    String recipeId,
+    Map<String, dynamic> request,
+  ) async {
+    final response = await _dio.post(
+      '/api/community/recipes/$recipeId/ratings',
+      data: request,
+    );
     return response.data;
   }
 
@@ -55,13 +74,25 @@ class CommunityApiService {
     return response.data;
   }
 
-  Future<Map<String, dynamic>> moderateRecipe(String recipeId, Map<String, dynamic> request) async {
-    final response = await _dio.put('/api/community/moderation/$recipeId', data: request);
+  Future<Map<String, dynamic>> moderateRecipe(
+    String recipeId,
+    Map<String, dynamic> request,
+  ) async {
+    final response = await _dio.put(
+      '/api/community/moderation/$recipeId',
+      data: request,
+    );
     return response.data;
   }
 
-  Future<Map<String, dynamic>> updateCommunityRecipe(String recipeId, Map<String, dynamic> request) async {
-    final response = await _dio.put('/api/community/recipes/$recipeId', data: request);
+  Future<Map<String, dynamic>> updateCommunityRecipe(
+    String recipeId,
+    Map<String, dynamic> request,
+  ) async {
+    final response = await _dio.put(
+      '/api/community/recipes/$recipeId',
+      data: request,
+    );
     return response.data;
   }
 
@@ -70,15 +101,21 @@ class CommunityApiService {
     return response.data;
   }
 
-  Future<Map<String, dynamic>> uploadImage(List<int> imageBytes, String mimeType) async {
+  Future<Map<String, dynamic>> uploadImage(
+    List<int> imageBytes,
+    String mimeType,
+  ) async {
     final formData = FormData.fromMap({
       'image': MultipartFile.fromBytes(
         imageBytes,
         filename: 'image.${mimeType.split('/').last}',
       ),
     });
-    
-    final response = await _dio.post('/api/community/upload-image', data: formData);
+
+    final response = await _dio.post(
+      '/api/community/upload-image',
+      data: formData,
+    );
     return response.data;
   }
 }

@@ -63,14 +63,26 @@ export class AuthService {
       const accessToken = this.generateAccessToken(userId, email, 'USER');
       const refreshToken = this.generateRefreshToken(userId, email, 'USER');
 
+      // Get created user with all fields
+      const [createdUsers] = await this.db.execute(
+        'SELECT id, email, name, role, region, subregion, is_active, created_at, updated_at FROM users WHERE id = ?',
+        [userId]
+      );
+      const createdUser = (createdUsers as any[])[0];
+
       return {
         success: true,
         data: {
           user: {
-            id: userId,
-            email,
-            name,
-            role: 'USER',
+            id: createdUser.id,
+            email: createdUser.email,
+            name: createdUser.name,
+            role: createdUser.role,
+            region: createdUser.region,
+            subregion: createdUser.subregion,
+            is_active: createdUser.is_active,
+            created_at: createdUser.created_at,
+            updated_at: createdUser.updated_at,
           },
           accessToken,
           refreshToken,
@@ -87,7 +99,7 @@ export class AuthService {
 
     // Find user
     const [users] = await this.db.execute(
-      'SELECT id, email, password_hash, name, role, is_active FROM users WHERE email = ?',
+      'SELECT id, email, password_hash, name, role, region, subregion, is_active, created_at, updated_at FROM users WHERE email = ?',
       [email]
     );
 
@@ -121,6 +133,11 @@ export class AuthService {
           email: user.email,
           name: user.name,
           role: user.role,
+          region: user.region,
+          subregion: user.subregion,
+          is_active: user.is_active,
+          created_at: user.created_at,
+          updated_at: user.updated_at,
         },
         accessToken,
         refreshToken,
@@ -194,7 +211,7 @@ export class AuthService {
 
       // Check if user exists
       const [users] = await this.db.execute(
-        'SELECT id, email, name, role, is_active FROM users WHERE email = ?',
+        'SELECT id, email, name, role, region, subregion, is_active, created_at, updated_at FROM users WHERE email = ?',
         [email]
       );
 
@@ -208,10 +225,11 @@ export class AuthService {
       } else {
         // User doesn't exist - create new account
         const userId = randomUUID();
+        const now = new Date();
         await this.db.execute(
-          `INSERT INTO users (id, email, password_hash, name, region, role, is_active)
-           VALUES (?, ?, ?, ?, 'BAC', 'USER', 1)`,
-          [userId, email, '', name || 'Google User'] // Empty password for Google users
+          `INSERT INTO users (id, email, password_hash, name, region, role, is_active, created_at)
+           VALUES (?, ?, ?, ?, 'BAC', 'USER', 1, ?)`,
+          [userId, email, '', name || 'Google User', now] // Empty password for Google users
         );
 
         // Create user preferences
@@ -226,7 +244,11 @@ export class AuthService {
           email,
           name: name || 'Google User',
           role: 'USER',
+          region: 'BAC',
+          subregion: null,
           is_active: 1,
+          created_at: now,
+          updated_at: null,
         };
       }
 
@@ -244,6 +266,11 @@ export class AuthService {
             email: user.email,
             name: user.name,
             role: user.role,
+            region: user.region,
+            subregion: user.subregion,
+            is_active: user.is_active,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
           },
           accessToken,
           refreshToken,
@@ -270,7 +297,7 @@ export class AuthService {
       { userId, email, role, type: 'access' },
       {
         secret: this.configService.get('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRES'),
+        expiresIn: Number(this.configService.get('JWT_EXPIRES')),
       }
     );
   }
@@ -280,7 +307,7 @@ export class AuthService {
       { userId, email, role, type: 'refresh' },
       {
         secret: this.configService.get('REFRESH_SECRET'),
-        expiresIn: this.configService.get('REFRESH_EXPIRES'),
+        expiresIn: Number(this.configService.get('REFRESH_EXPIRES')),
       }
     );
   }

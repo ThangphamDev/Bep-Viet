@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bepviet_mobile/core/config/app_config.dart';
 import 'package:bepviet_mobile/data/models/user_model.dart';
@@ -14,13 +15,8 @@ class AuthService {
   // Check if user is logged in
   bool get isLoggedIn => _prefs.getString(AppConfig.tokenKey) != null;
 
-  // Get current access token
   String? get accessToken {
-    final token = _prefs.getString(AppConfig.tokenKey);
-    print(
-      '🔑 AuthService - Access token: ${token != null ? '${token.substring(0, 20)}...' : 'null'}',
-    );
-    return token;
+    return _prefs.getString(AppConfig.tokenKey);
   }
 
   // Get current refresh token
@@ -182,6 +178,44 @@ class AuthService {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  // Refresh access token using refresh token
+  Future<bool> refreshAccessToken() async {
+    final refresh = refreshToken;
+    if (refresh == null || refresh.isEmpty) {
+      print('⚠️ No refresh token available');
+      return false;
+    }
+
+    try {
+      print('🔄 Refreshing access token...');
+      final response = await _apiService.refreshToken(refresh);
+
+      if (response['success'] == true && response['data'] != null) {
+        final newAccessToken = response['data']['accessToken'] as String;
+        await _prefs.setString(AppConfig.tokenKey, newAccessToken);
+        print('✅ Access token refreshed successfully');
+        return true;
+      }
+
+      print('❌ Failed to refresh token: Invalid response');
+      return false;
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      if (code == 401) {
+        // Invalid/expired refresh token: caller may choose to logout
+        print('❌ Failed to refresh token: 401 Unauthorized');
+        return false;
+      }
+      // Other errors: network/403/server — rethrow so interceptor doesn’t logout
+      print('❌ Failed to refresh token (non-401): $code');
+      rethrow;
+    } catch (e) {
+      print('❌ Failed to refresh token (unknown): $e');
+      // Unknown error — bubble up so interceptor can decide (don’t logout blindly)
+      rethrow;
     }
   }
 

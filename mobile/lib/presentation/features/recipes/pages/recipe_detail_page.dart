@@ -751,7 +751,8 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
                               child: Row(
                                 children: [
                                   _buildTabButton('Nguyên liệu', 0),
-                                  _buildTabButton('Thông tin', 1),
+                                  _buildTabButton('Hướng dẫn', 1),
+                                  _buildTabButton('Thông tin', 2),
                                 ],
                               ),
                             ),
@@ -761,6 +762,7 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
                               index: _selectedTabIndex,
                               children: [
                                 _buildIngredientsTab(state),
+                                _buildInstructionsTab(state),
                                 _buildInfoTab(state),
                               ],
                             ),
@@ -1031,6 +1033,184 @@ class _RecipeDetailPageViewState extends State<RecipeDetailPageView>
             );
           }).toList(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInstructionsTab(RecipeDetailState state) {
+    final recipe = state.recipe!;
+
+    // Check if steps exist
+    if (recipe.steps != null && recipe.steps!.isNotEmpty) {
+      final sortedSteps = List.from(recipe.steps!)
+        ..sort((a, b) => a.stepNumber.compareTo(b.stepNumber));
+
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.restaurant_menu,
+                  color: AppTheme.primaryGreen,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Cách làm (${sortedSteps.length} bước)',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...sortedSteps.map((step) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Step header with number
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.primaryGradient,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${step.stepNumber}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          if (step.durationMinutes != null &&
+                              step.durationMinutes! > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryGreen.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.access_time,
+                                    size: 14,
+                                    color: AppTheme.primaryGreen,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${step.durationMinutes} phút',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.primaryGreen,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    // Step instruction
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Text(
+                        step.instruction,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: AppTheme.textPrimary,
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+                    // Step image if available
+                    if (step.imageUrl != null && step.imageUrl!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: step.imageUrl!,
+                            width: double.infinity,
+                            height: 200,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              height: 200,
+                              color: Colors.grey.shade200,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppTheme.primaryGreen,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) =>
+                                const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      );
+    }
+
+    // If no instructions, show empty state
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.menu_book_outlined,
+              size: 60,
+              color: AppTheme.textSecondary,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Chưa có hướng dẫn làm',
+              style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
       ),
     );
   }

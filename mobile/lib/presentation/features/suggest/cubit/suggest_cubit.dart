@@ -24,7 +24,7 @@ class SuggestState {
     this.selectedRegion = 'BAC',
     this.selectedSeason = 'XUAN',
     this.servings = 4,
-    this.budget = 100000,
+    this.budget = 300000,
     this.spicePreference = 2,
     this.maxTime = 60,
     this.pantryIds = const [],

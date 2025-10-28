@@ -901,7 +901,6 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                               selectedSeason: state.selectedSeason,
                               servings: state.servings,
                               budget: state.budget,
-                              spicePreference: state.spicePreference,
                               maxTime: state.maxTime,
                               onRegionChanged: (region) => context
                                   .read<SuggestCubit>()
@@ -915,9 +914,6 @@ class _SuggestPageViewState extends State<SuggestPageView> {
                               onBudgetChanged: (budget) => context
                                   .read<SuggestCubit>()
                                   .updateBudget(budget),
-                              onSpicePreferenceChanged: (spice) => context
-                                  .read<SuggestCubit>()
-                                  .updateSpicePreference(spice),
                               onMaxTimeChanged: (time) => context
                                   .read<SuggestCubit>()
                                   .updateMaxTime(time),

@@ -11,13 +11,11 @@ class SuggestFiltersWidget extends StatelessWidget {
   final String selectedSeason;
   final int servings;
   final int budget;
-  final int spicePreference;
   final int maxTime;
   final Function(String) onRegionChanged;
   final Function(String) onSeasonChanged;
   final Function(int) onServingsChanged;
   final Function(int) onBudgetChanged;
-  final Function(int) onSpicePreferenceChanged;
   final Function(int) onMaxTimeChanged;
 
   const SuggestFiltersWidget({
@@ -26,13 +24,11 @@ class SuggestFiltersWidget extends StatelessWidget {
     required this.selectedSeason,
     required this.servings,
     required this.budget,
-    required this.spicePreference,
     required this.maxTime,
     required this.onRegionChanged,
     required this.onSeasonChanged,
     required this.onServingsChanged,
     required this.onBudgetChanged,
-    required this.onSpicePreferenceChanged,
     required this.onMaxTimeChanged,
   });
 
@@ -137,22 +133,6 @@ class SuggestFiltersWidget extends StatelessWidget {
 
         const SizedBox(height: 20),
 
-        // 🌶️ Spice Level
-        _buildEnhancedSlider(
-          icon: Icons.local_fire_department_outlined,
-          label: 'Độ cay',
-          value: spicePreference.toDouble(),
-          min: 0,
-          max: 5,
-          divisions: 5,
-          displayValue:
-              AppConstants.spiceLevelNames[spicePreference] ?? 'Vừa cay',
-          hint: _getSpiceHint(spicePreference),
-          onChanged: (val) => onSpicePreferenceChanged(val.round()),
-        ),
-
-        const SizedBox(height: 20),
-
         // ⏱️ Max Time
         _buildEnhancedSlider(
           icon: Icons.schedule_outlined,
@@ -207,15 +187,6 @@ class SuggestFiltersWidget extends StatelessWidget {
     if (minutes <= 60) return 'Trung bình';
     if (minutes <= 120) return 'Chậm rãi';
     return 'Món phức tạp';
-  }
-
-  // 💡 Get spice hint
-  String _getSpiceHint(int level) {
-    if (level == 0) return 'Không cay';
-    if (level <= 2) return 'Nhẹ nhàng';
-    if (level == 3) return 'Vừa phải';
-    if (level == 4) return 'Khá cay';
-    return 'Rất cay';
   }
 
   // 📝 Section Header

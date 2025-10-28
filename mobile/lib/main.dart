@@ -31,6 +31,10 @@ void main() async {
   final dio = Dio();
   final apiService = ApiService(dio);
   final authService = AuthService(apiService, prefs);
+
+  // Setup AuthInterceptor để tự động refresh token khi gặp lỗi 401
+  apiService.setupAuthInterceptor(authService);
+
   final googleAuthService = GoogleAuthService(dio);
   final biometricAuthService = BiometricAuthService();
   final authRepository = AuthRepository(
