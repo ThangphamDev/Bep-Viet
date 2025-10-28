@@ -821,7 +821,12 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
     try {
       final dio = Dio();
       final prefs = await SharedPreferences.getInstance();
-      final authService = AuthService(ApiService(dio), prefs);
+      final apiService = ApiService(dio);
+      final authService = AuthService(apiService, prefs);
+
+      // Setup AuthInterceptor để tự động refresh token
+      apiService.setupAuthInterceptor(authService);
+
       final communityApiService = CommunityApiService(dio);
       final communityService = CommunityService(communityApiService);
 
@@ -839,8 +844,7 @@ class _CreateRecipePageState extends State<CreateRecipePage> {
         return;
       }
 
-      // Set authorization header
-      dio.options.headers['Authorization'] = 'Bearer $token';
+      // AuthInterceptor sẽ tự động gắn token, không cần gắn thủ công nữa
 
       // Upload image first if selected, or keep existing image for updates
       String? imageUrl;

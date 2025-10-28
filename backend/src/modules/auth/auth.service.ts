@@ -297,7 +297,7 @@ export class AuthService {
       { userId, email, role, type: 'access' },
       {
         secret: this.configService.get('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRES'),
+        expiresIn: Number(this.configService.get('JWT_EXPIRES')),
       }
     );
   }
@@ -307,7 +307,7 @@ export class AuthService {
       { userId, email, role, type: 'refresh' },
       {
         secret: this.configService.get('REFRESH_SECRET'),
-        expiresIn: this.configService.get('REFRESH_EXPIRES'),
+        expiresIn: Number(this.configService.get('REFRESH_EXPIRES')),
       }
     );
   }

@@ -115,11 +115,8 @@ class ApiService {
       }
       throw Exception('Invalid API response format');
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Refresh token không hợp lệ hoặc đã hết hạn');
-      } else {
-        throw Exception('Không thể làm mới token');
-      }
+      // Rethrow with status so caller can decide (e.g., logout only on 401)
+      throw e;
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Làm mới token thất bại');
